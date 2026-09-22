@@ -55,5 +55,3 @@ checked for cycles and layer violations on every pull request.
 | Know where code goes  | [docs/monorepo-structure.md](./docs/monorepo-structure.md) |
 | Build the next phase  | [docs/phases.md](./docs/phases.md)                         |
 | Contribute            | [docs/contributing.md](./docs/contributing.md)             |
-
-# protection probe
