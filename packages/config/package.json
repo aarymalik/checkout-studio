@@ -1,0 +1,61 @@
+{
+  "name": "@checkout-studio/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./types/layers.d.ts",
+      "default": "./layers.js"
+    },
+    "./layers": {
+      "types": "./types/layers.d.ts",
+      "default": "./layers.js"
+    },
+    "./eslint/base": {
+      "types": "./types/eslint.d.ts",
+      "default": "./eslint/base.js"
+    },
+    "./eslint/react": {
+      "types": "./types/eslint.d.ts",
+      "default": "./eslint/react.js"
+    },
+    "./eslint/next": {
+      "types": "./types/eslint.d.ts",
+      "default": "./eslint/next.js"
+    },
+    "./eslint/boundaries": {
+      "types": "./types/eslint.d.ts",
+      "default": "./eslint/boundaries.js"
+    },
+    "./vitest/base": {
+      "types": "./types/vitest-base.d.ts",
+      "default": "./vitest/base.js"
+    },
+    "./prettier": "./prettier/index.js",
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/react-library.json": "./typescript/react-library.json",
+    "./typescript/next.json": "./typescript/next.json",
+    "./tailwind/base.css": "./tailwind/base.css"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "clean": "rm -rf coverage .turbo"
+  },
+  "dependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.12.0",
+    "typescript-eslint": "8.70.1"
+  },
+  "devDependencies": {
+    "eslint": "10.11.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1",
+    "@types/node": "26.6.2",
+    "dependency-cruiser": "18.4.0",
+    "@vitest/coverage-v8": "5.0.1"
+  }
+}

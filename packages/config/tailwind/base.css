@@ -1,0 +1,8 @@
+/*
+ * Shared Tailwind entry point for every application.
+ *
+ * Tailwind v4 is configured in CSS. This file imports the framework; the
+ * design tokens that drive it are authored in @checkout-studio/design-system
+ * in Phase 3 and imported after this file.
+ */
+@import "tailwindcss";

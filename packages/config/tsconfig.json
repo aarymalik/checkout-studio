@@ -1,0 +1,6 @@
+{
+  "extends": "./typescript/base.json",
+  "compilerOptions": { "noEmit": true, "composite": false, "allowJs": true, "checkJs": false },
+  "include": ["**/*.js"],
+  "exclude": ["node_modules"]
+}

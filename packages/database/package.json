@@ -1,0 +1,27 @@
+{
+  "name": "@checkout-studio/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf coverage .turbo"
+  },
+  "dependencies": {
+    "@checkout-studio/schema": "workspace:*",
+    "@checkout-studio/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@checkout-studio/config": "workspace:*",
+    "eslint": "10.11.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1",
+    "@vitest/coverage-v8": "5.0.1"
+  }
+}

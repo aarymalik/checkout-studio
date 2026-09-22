@@ -1,0 +1,51 @@
+{
+  "name": "checkout-studio",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:e2e": "turbo test:e2e",
+    "check": "turbo lint typecheck test build && pnpm typecheck:scripts && pnpm boundaries",
+    "clean": "turbo clean && rm -rf node_modules",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "boundaries": "node scripts/verify-boundaries.mjs && depcruise --config .dependency-cruiser.cjs --output-type err packages apps plugins",
+    "graph": "depcruise --config .dependency-cruiser.cjs --output-type dot packages apps plugins > graph.dot",
+    "create:package": "node scripts/create-package.ts",
+    "create:plugin": "node scripts/create-plugin.ts",
+    "prepare": "husky && node scripts/link-env.mjs",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json"
+  },
+  "devDependencies": {
+    "@checkout-studio/config": "workspace:*",
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "dependency-cruiser": "18.4.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.5.1",
+    "prettier": "3.9.8",
+    "turbo": "2.11.2",
+    "typescript": "5.9.3",
+    "@types/node": "26.6.2",
+    "eslint": "10.11.0",
+    "globals": "17.12.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mts,cts}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
+  }
+}
