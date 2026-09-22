@@ -21,7 +21,7 @@
     },
     "test": {
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
-      "outputs": ["coverage/**"]
+      "outputs": []
     },
     "test:coverage": {
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
