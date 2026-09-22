@@ -9,7 +9,9 @@
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs"
 import { join, dirname } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
+import { createRequire } from "node:module"
+import { cruise } from "dependency-cruiser"
 import { allowedDependencies, reasonFor, SCOPE } from "@checkout-studio/config/layers"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
@@ -66,4 +68,36 @@ if (violations.length > 0) {
   process.exit(1)
 }
 
-console.log(`Boundaries verified: ${targets.length} workspaces, no layer violations.`)
+console.log(`Declared dependencies verified: ${targets.length} workspaces, no layer violations.`)
+
+/**
+ * Second pass: the resolved import graph.
+ *
+ * package.json says what a package intends to depend on. This says what it
+ * actually imports, and catches cycles that no single manifest reveals.
+ */
+const require = createRequire(import.meta.url)
+const { forbidden, options } = require(join(ROOT, ".dependency-cruiser.cjs"))
+
+// Only cruise directories that exist. Git does not track empty directories, so
+// plugins/ is absent from a fresh checkout until the first plugin is created.
+const targetDirs = ["packages", "apps", "plugins"]
+  .map((dir) => join(ROOT, dir))
+  .filter((dir) => existsSync(dir))
+
+const graph = await cruise(targetDirs, { ...options, ruleSet: { forbidden }, validate: true })
+const summary = graph.output.summary
+
+if (summary.error > 0) {
+  console.error(`\nGraph violations (${summary.error}):\n`)
+  for (const violation of summary.violations.filter((v) => v.rule.severity === "error")) {
+    console.error(`  ${violation.rule.name}: ${violation.from} → ${violation.to}`)
+  }
+  console.error("\nSee docs/monorepo-structure.md.\n")
+  process.exit(1)
+}
+
+console.log(
+  `Import graph verified: ${summary.totalCruised} modules, no cycles, no forbidden edges` +
+    (summary.warn > 0 ? ` (${summary.warn} warnings)` : ""),
+)

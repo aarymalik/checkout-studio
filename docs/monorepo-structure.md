@@ -821,7 +821,7 @@ Rule: if a task reads it, the task declares it.
     "db:migrate": "pnpm --filter @checkout-studio/database prisma migrate dev",
     "db:studio": "pnpm --filter @checkout-studio/database prisma studio",
     "clean": "turbo clean && rm -rf node_modules",
-    "graph": "pnpm dlx dependency-cruiser --output-type dot packages | dot -T svg > graph.svg",
+    "graph": "depcruise --config .dependency-cruiser.cjs --output-type dot packages apps plugins > graph.dot",
     "check": "turbo lint typecheck test build"
   }
 }

@@ -18,7 +18,7 @@
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "boundaries": "node scripts/verify-boundaries.mjs && depcruise --config .dependency-cruiser.cjs --output-type err packages apps plugins",
+    "boundaries": "node scripts/verify-boundaries.mjs",
     "graph": "depcruise --config .dependency-cruiser.cjs --output-type dot packages apps plugins > graph.dot",
     "create:package": "node scripts/create-package.ts",
     "create:plugin": "node scripts/create-plugin.ts",
