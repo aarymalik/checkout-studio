@@ -1,1 +1,9 @@
-pnpm turbo typecheck test --filter="[origin/develop]"
+# Typecheck and test what this branch changed.
+#
+# Falls back to the whole workspace when the integration branch is not present
+# locally — on a fresh clone, or before develop exists.
+if git rev-parse --verify --quiet origin/develop >/dev/null 2>&1; then
+  pnpm turbo typecheck test --filter="[origin/develop]"
+else
+  pnpm turbo typecheck test
+fi
