@@ -268,6 +268,8 @@ Everything else proceeds directly to a branch.
 docs/rfcs/NNNN-short-title.md
 ```
 
+Copy [docs/rfcs/template.md](./rfcs/template.md). The index is [docs/rfcs/README.md](./rfcs/README.md).
+
 Template
 
 ```markdown

@@ -832,8 +832,8 @@ Staging must be production-shaped, not production-sized-down. A migration that t
 docs/
 ├── compatibility.md        app / schema / renderer / plugin matrix
 ├── CHANGELOG.md            user-facing, human-edited
-└── runbooks/
-    ├── rollback.md
+└── runbooks/                   one page per alert — see docs/runbooks/README.md
+    ├── rollback.md             authored in Phase 21, alongside the alerts
     ├── migration-failure.md
     ├── payment-incident.md
     ├── webhook-backlog.md

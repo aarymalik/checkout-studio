@@ -1,0 +1,27 @@
+# Review routing.
+#
+# docs/contributing.md requires two approvals for changes touching payments,
+# authentication, the schema, or the plugin API. Listing them here is what makes
+# that automatic rather than remembered.
+#
+# Replace @aarymalik with teams once there is more than one maintainer.
+
+*                               @aarymalik
+
+# Engine contracts: a change here affects every product built on the platform.
+/packages/schema/               @aarymalik
+/packages/plugin-sdk/           @aarymalik
+/packages/renderer/             @aarymalik
+
+# Money and identity.
+/packages/api/src/services/stripe/    @aarymalik
+/packages/api/src/services/billing/   @aarymalik
+/packages/database/                   @aarymalik
+
+# The rules that enforce the architecture.
+/packages/config/layers.js      @aarymalik
+/.dependency-cruiser.cjs        @aarymalik
+/.github/workflows/             @aarymalik
+
+# The specifications themselves.
+/docs/                          @aarymalik
