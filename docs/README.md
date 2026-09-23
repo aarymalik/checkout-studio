@@ -12,7 +12,7 @@ This directory contains the complete engineering blueprint for Checkout Studio.
 
 It is written so that a senior engineer joining the project can understand the entire system, locate any decision, and implement any feature without needing to ask what was intended.
 
-Thirty-two specifications, one index.
+Thirty-three specifications, one index.
 
 If you read nothing else, read [product-spec.md](./product-spec.md), then [architecture.md](./architecture.md), then [schema.md](./schema.md). Those three explain what we are building, how it is structured, and what holds it together.
 
@@ -239,6 +239,7 @@ Twenty-nine documents, grouped by what they answer.
 | [observability.md](./observability.md)     | How do we see what is happening |
 | [deployment.md](./deployment.md)           | Where and how does it run       |
 | [release-process.md](./release-process.md) | How do changes reach production |
+| [compatibility.md](./compatibility.md)     | Which versions work together    |
 
 ## Process
 
