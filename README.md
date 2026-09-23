@@ -55,3 +55,10 @@ checked for cycles and layer violations on every pull request.
 | Know where code goes  | [docs/monorepo-structure.md](./docs/monorepo-structure.md) |
 | Build the next phase  | [docs/phases.md](./docs/phases.md)                         |
 | Contribute            | [docs/contributing.md](./docs/contributing.md)             |
+
+## License
+
+Proprietary. Copyright © 2026 Malik Arif. All rights reserved.
+
+The source is public for transparency and evaluation; it is not open source.
+See [LICENSE](./LICENSE).
