@@ -152,12 +152,15 @@ cp .env.example /dev/null 2>/dev/null; cp .env.example .env.local
 pnpm install
 
 # From Phase 2 onward:
-pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
 
 pnpm dev
 ```
+
+The Prisma client is generated during install, so a fresh clone typechecks
+before you have a database. Run `pnpm db:generate` yourself only after editing
+the schema.
 
 One `.env.local` lives at the workspace root. `scripts/link-env.mjs` runs on install and symlinks it into each application, because Next reads that file from the application directory. The copy in `.env.example` is filled with correctly shaped placeholder values, so a fresh clone starts before you have real credentials.
 

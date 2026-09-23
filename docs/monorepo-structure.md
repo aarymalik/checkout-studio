@@ -984,10 +984,12 @@ Migrations are append-only. An existing migration is never edited, because revis
 
 ```
 pnpm install
-pnpm db:generate
 pnpm db:migrate
 pnpm dev
 ```
+
+Install generates the Prisma client; `pnpm db:generate` is only needed after a
+schema change.
 
 ```
 apps/studio     → http://localhost:3000
