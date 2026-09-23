@@ -5,11 +5,26 @@ import Redis from "ioredis"
 /**
  * The Redis connection.
  *
- * One client per process, cached across hot reloads for the same reason as the
+ * One client per process, opened on first use rather than on import: `next
+ * build` imports every route module to read its configuration, and a module
+ * that connects while being imported makes the build depend on a reachable
+ * Redis. Importing this file is free; touching `redis` is what connects.
+ *
+ * The instance is cached across hot reloads for the same reason as the
  * database client. Redis is a cache and a coordination primitive here, never a
  * source of truth: every value it holds can be recomputed.
  */
 const globalForRedis = globalThis as unknown as { redis?: Redis }
+
+let instance: Redis | undefined
+
+/**
+ * Whether the connection has ever been usable.
+ *
+ * A process that has connected once and then lost Redis is in an outage, and
+ * must fail fast. A process that has never connected is merely starting.
+ */
+let hasConnected = false
 
 function createClient(): Redis {
   const url = process.env["REDIS_URL"]
@@ -21,39 +36,73 @@ function createClient(): Redis {
     )
   }
 
-  return new Redis(url, {
+  const created = new Redis(url, {
     // Fail fast rather than queueing work behind an unreachable cache: a
     // degraded cache must not become a degraded request.
     maxRetriesPerRequest: 2,
     enableOfflineQueue: false,
     lazyConnect: false,
   })
+
+  created.once("ready", () => {
+    hasConnected = true
+  })
+
+  return created
 }
 
-export const redis: Redis = globalForRedis.redis ?? createClient()
+function client(): Redis {
+  instance ??= globalForRedis.redis ?? createClient()
 
-if (process.env["NODE_ENV"] !== "production") {
-  globalForRedis.redis = redis
+  if (process.env["NODE_ENV"] !== "production") {
+    globalForRedis.redis = instance
+  }
+
+  return instance
 }
+
+/**
+ * The connection, resolved on first property access.
+ *
+ * A proxy rather than a `getRedis()` call at every site: the laziness is a
+ * property of the connection, not something each caller should remember.
+ */
+export const redis: Redis = new Proxy({} as Redis, {
+  get(_target, property) {
+    const resolved = client()
+    const value = Reflect.get(resolved, property) as unknown
+    return typeof value === "function" ? value.bind(resolved) : value
+  },
+  has(_target, property) {
+    return Reflect.has(client(), property)
+  },
+})
 
 export type { Redis }
 
 /**
- * Whether the connection has ever been usable.
+ * Closes the connection, if one was ever opened.
  *
- * A process that has connected once and then lost Redis is in an outage, and
- * must fail fast. A process that has never connected is merely starting.
+ * Because the client is lazy, a process that only imported this module has
+ * nothing to close — and opening a connection in order to quit it is how a
+ * shutdown path ends up reporting an error it caused itself.
  */
-let hasConnected = redis.status === "ready"
-redis.once("ready", () => {
-  hasConnected = true
-})
+export async function close(): Promise<void> {
+  const open = instance ?? globalForRedis.redis
+  if (!open) return
 
-function waitForReady(timeoutMs: number): Promise<void> {
+  instance = undefined
+  delete globalForRedis.redis
+  hasConnected = false
+
+  await open.quit()
+}
+
+function waitForReady(connection: Redis, timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup()
-      reject(new Error(`Redis was not ready within ${timeoutMs}ms (status: ${redis.status})`))
+      reject(new Error(`Redis was not ready within ${timeoutMs}ms (status: ${connection.status})`))
     }, timeoutMs)
 
     const onReady = () => {
@@ -66,12 +115,12 @@ function waitForReady(timeoutMs: number): Promise<void> {
     }
     function cleanup(): void {
       clearTimeout(timer)
-      redis.off("ready", onReady)
-      redis.off("error", onError)
+      connection.off("ready", onReady)
+      connection.off("error", onError)
     }
 
-    redis.once("ready", onReady)
-    redis.once("error", onError)
+    connection.once("ready", onReady)
+    connection.once("error", onError)
   })
 }
 
@@ -92,11 +141,13 @@ function waitForReady(timeoutMs: number): Promise<void> {
  * sent reports its own failure, and each caller decides how to degrade.
  */
 export async function whenReady(timeoutMs = 2_000): Promise<void> {
-  if (hasConnected || redis.status === "ready") return
-  if (redis.status !== "connecting" && redis.status !== "connect") return
-
   try {
-    await waitForReady(timeoutMs)
+    const connection = client()
+
+    if (hasConnected || connection.status === "ready") return
+    if (connection.status !== "connecting" && connection.status !== "connect") return
+
+    await waitForReady(connection, timeoutMs)
   } catch {
     // The command that follows will surface the failure with its own context.
   }
@@ -107,13 +158,15 @@ export async function whenReady(timeoutMs = 2_000): Promise<void> {
  *
  * Reporting a cold start as unhealthy would return 503 on every deploy's first
  * probe — and a platform that restarts on 503 would never let the process
- * finish connecting. Unlike `whenReady`, this reports what it finds: the
- * health endpoint exists to tell the truth about the connection.
+ * finish connecting. Unlike `whenReady`, this reports what it finds: the health
+ * endpoint exists to tell the truth about the connection.
  */
 export async function ping(timeoutMs = 2_000): Promise<void> {
-  if (redis.status !== "ready") {
-    await waitForReady(timeoutMs)
+  const connection = client()
+
+  if (connection.status !== "ready") {
+    await waitForReady(connection, timeoutMs)
   }
 
-  await redis.ping()
+  await connection.ping()
 }

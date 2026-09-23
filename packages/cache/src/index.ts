@@ -1,4 +1,4 @@
-export { redis, ping, whenReady } from "./client"
+export { redis, ping, whenReady, close } from "./client"
 export type { Redis } from "./client"
 
 export { cacheKey, get, set, del, remember } from "./cache"

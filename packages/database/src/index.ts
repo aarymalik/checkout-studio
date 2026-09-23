@@ -1,4 +1,4 @@
-export { prisma, Prisma } from "./client"
+export { prisma, Prisma, disconnect } from "./client"
 export type { PrismaClient } from "./client"
 
 export { requireProject, TenantScopeError } from "./tenant"
