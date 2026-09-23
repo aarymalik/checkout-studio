@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { beforeAll, describe, expect, it } from "vitest"
 import { ESLint } from "eslint"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -9,18 +9,45 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
  * The boundary rules are only worth having if a violation actually fails lint.
  * These tests lint real source text against a real package's configuration.
  */
-async function lintAs(packageDir, source) {
+const linters = new Map()
+
+function linterFor(packageDir) {
   const cwd = join(ROOT, packageDir)
-  const eslint = new ESLint({
-    cwd,
-    overrideConfigFile: join(cwd, "eslint.config.js"),
-    errorOnUnmatchedPattern: false,
-  })
+
+  if (!linters.has(cwd)) {
+    linters.set(
+      cwd,
+      new ESLint({
+        cwd,
+        overrideConfigFile: join(cwd, "eslint.config.js"),
+        errorOnUnmatchedPattern: false,
+      }),
+    )
+  }
+
+  return { cwd, eslint: linters.get(cwd) }
+}
+
+async function lintAs(packageDir, source) {
+  const { cwd, eslint } = linterFor(packageDir)
   const [result] = await eslint.lintText(source, {
     filePath: join(cwd, "src", "boundary-probe.ts"),
   })
   return result?.messages ?? []
 }
+
+const PACKAGES = ["packages/renderer", "packages/editor"]
+
+/**
+ * ESLint's first run loads the flat config and every plugin it references,
+ * which on a cold CI runner cost over five seconds — and that cost landed
+ * inside whichever test happened to run first, failing it for a reason that
+ * had nothing to do with layer boundaries. It is paid once, here, where a
+ * slow machine is allowed to be slow.
+ */
+beforeAll(async () => {
+  await Promise.all(PACKAGES.map((packageDir) => lintAs(packageDir, "export {}\n")))
+}, 120_000)
 
 describe("layer enforcement in ESLint", () => {
   it("fails when the renderer imports the editor, and says why", async () => {
