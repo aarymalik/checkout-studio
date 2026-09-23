@@ -404,7 +404,8 @@ PostgreSQL migrations + seed
 Repository layer with mandatory tenant scoping
 Clerk authentication and route protection
 Redis (Upstash) client and cache helpers
-UploadThing configuration
+Upload boundary: permitted types, size limits, project scoping
+  (the storage provider SDK is installed in Phase 14, where it is used)
 AppError model, catalog, and normalizers
 AuditLog entity and append-only write path (the viewer is Phase 22)
 Plan catalog, entitlement resolver, and assertCan — every account resolves to
@@ -441,7 +442,7 @@ apps/studio (middleware, health routes)
 6.  Add `import "server-only"` to database and server API entry points
 7.  Integrate Clerk; protect dashboard routes
 8.  Build the Redis client and typed cache helpers
-9.  Configure UploadThing
+9.  Implement the upload boundary (types, limits, project scoping)
 10. Implement AppError, createError, and the full catalog
 11. Implement normalizers: fromZod, fromPrisma, fromFetch
 12. Implement retry with backoff and jitter, plus idempotency storage
@@ -2257,7 +2258,8 @@ apps/studio (asset panel)  packages/ui
 ### Implementation Steps
 
 ```
-1.  Implement the upload endpoint with type and size validation
+1.  Install the storage provider SDK and implement the upload endpoint against
+    the Phase 2 boundary (type and size validation)
 2.  Implement image optimization: 4 sizes, WebP and AVIF variants
 3.  Implement EXIF stripping and re-encoding
 4.  Implement SVG sanitization
