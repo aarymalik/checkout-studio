@@ -80,6 +80,7 @@ Packages are stratified. A package may only depend on packages in a **strictly l
 │  LAYER 3 — DOMAIN & PRESENTATION                               │
 │  @checkout-studio/plugin-sdk    (plugin contracts + registry)  │
 │  @checkout-studio/database      (Prisma client + repositories) │
+│  @checkout-studio/cache         (Redis, idempotency, limits)   │
 │  @checkout-studio/ui            (Studio component library)     │
 │  @checkout-studio/hooks         (shared React hooks)           │
 └────────────────────────────────┬───────────────────────────────┘
@@ -233,6 +234,7 @@ checkout-studio/
 │   ├── ui/                        Component library (shadcn/ui based)
 │   ├── hooks/                     Shared React hooks
 │   ├── database/                  Prisma schema, client, repositories
+│   ├── cache/                     Redis client, cache, idempotency, rate limits
 │   ├── api/                       API contracts, handlers, services
 │   ├── plugin-sdk/                Plugin contracts + registries
 │   ├── editor/                    Visual editing engine
@@ -982,10 +984,12 @@ Migrations are append-only. An existing migration is never edited, because revis
 
 ```
 pnpm install
-pnpm db:generate
 pnpm db:migrate
 pnpm dev
 ```
+
+Install generates the Prisma client; `pnpm db:generate` is only needed after a
+schema change.
 
 ```
 apps/studio     → http://localhost:3000

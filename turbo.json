@@ -21,18 +21,30 @@
     },
     "test": {
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
-      "outputs": []
+      "outputs": [],
+      "env": ["DATABASE_URL", "REDIS_URL", "TEST_DATABASE_URL"]
     },
     "test:coverage": {
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "env": ["DATABASE_URL", "REDIS_URL", "TEST_DATABASE_URL"]
     },
     "test:e2e": {
       "dependsOn": ["build"],
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
-      "outputs": ["playwright-report/**", "test-results/**"]
+      "outputs": ["playwright-report/**", "test-results/**"],
+      "env": ["DATABASE_URL", "REDIS_URL", "TEST_DATABASE_URL"]
     },
-    "clean": { "cache": false },
-    "dev": { "cache": false, "persistent": true }
+    "db:generate": {
+      "inputs": ["prisma/schema.prisma"],
+      "outputs": ["../../node_modules/.prisma/**", "generated/**"]
+    },
+    "clean": {
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
   }
 }

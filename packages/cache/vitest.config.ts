@@ -1,0 +1,21 @@
+import { existsSync } from "node:fs"
+import { fileURLToPath } from "node:url"
+import { createVitestConfig } from "@checkout-studio/config/vitest/base"
+
+const envFile = fileURLToPath(new URL("../../.env.local", import.meta.url))
+if (existsSync(envFile)) {
+  process.loadEnvFile(envFile)
+}
+
+/** Integration tests run against a real Redis, on a database reserved for tests. */
+const redisUrl = `${process.env["REDIS_URL"] ?? "redis://localhost:6379"}/15`
+
+export default createVitestConfig({
+  environment: "node",
+  alias: {
+    "server-only": fileURLToPath(new URL("./tests/stubs/server-only.ts", import.meta.url)),
+  },
+  env: { REDIS_URL: redisUrl },
+  sequential: true,
+  globalSetup: ["./tests/globalTeardown.ts"],
+})

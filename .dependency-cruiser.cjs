@@ -10,7 +10,7 @@ const LAYERS = [
   ["config"],
   ["types", "utils"],
   ["schema", "design-system", "observability"],
-  ["plugin-sdk", "database", "ui", "hooks"],
+  ["plugin-sdk", "database", "cache", "ui", "hooks"],
   ["renderer"],
   ["editor", "api"],
 ]

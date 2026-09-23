@@ -152,12 +152,15 @@ cp .env.example /dev/null 2>/dev/null; cp .env.example .env.local
 pnpm install
 
 # From Phase 2 onward:
-pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
 
 pnpm dev
 ```
+
+The Prisma client is generated during install, so a fresh clone typechecks
+before you have a database. Run `pnpm db:generate` yourself only after editing
+the schema.
 
 One `.env.local` lives at the workspace root. `scripts/link-env.mjs` runs on install and symlinks it into each application, because Next reads that file from the application directory. The copy in `.env.example` is filled with correctly shaped placeholder values, so a fresh clone starts before you have real credentials.
 
@@ -386,9 +389,13 @@ revert    Reverts a prior commit
 
 ## Scopes
 
+Every directory under `packages/`, `apps/` and `plugins/` is a valid scope —
+commitlint reads them from the workspace, so a new package needs no change
+here. Alongside them are the scopes that name a concern rather than a
+directory:
+
 ```
-editor  renderer  schema  ui  design-system  api  database
-plugin-sdk  studio  checkout  stripe  auth  observability  docs
+checkout  stripe  auth  docs  repo  deps
 ```
 
 ## Examples

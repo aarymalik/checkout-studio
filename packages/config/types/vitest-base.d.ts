@@ -15,6 +15,11 @@ export declare function createVitestConfig(options?: {
   thresholds?: CoverageThresholds
   coverageInclude?: string[]
   alias?: Record<string, string>
+  env?: Record<string, string>
+  /** Run test files one at a time — for suites sharing a database. */
+  sequential?: boolean
+  /** Modules that set up and tear down shared connections once per run. */
+  globalSetup?: string[]
 }): ViteUserConfig
 
 export default createVitestConfig

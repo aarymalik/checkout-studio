@@ -210,34 +210,34 @@ These apply to **every** phase, in addition to its specific criteria.
 
 # Progress Tracker
 
-| Phase | Name                            | Status        | Depends on |
-| ----- | ------------------------------- | ------------- | ---------- |
-| 0     | Product & Architecture Planning | **Complete**  | —          |
-| 1     | Repository Foundation           | **In Review** | 0          |
-| 2     | Infrastructure                  | Not Started   | 1          |
-| 3     | Design System                   | Not Started   | 1          |
-| 4     | Studio Shell                    | Not Started   | 2, 3       |
-| 5     | Editor State Engine             | Not Started   | 2          |
-| 6     | Renderer Engine                 | Not Started   | 2, 5       |
-| 7     | Visual Canvas                   | Not Started   | 4, 6       |
-| 8     | Drag & Drop Engine              | Not Started   | 7          |
-| 9     | Core Component Library          | Not Started   | 8          |
-| 10    | Form System                     | Not Started   | 9          |
-| 11    | Checkout Components             | Not Started   | 10         |
-| 12    | Property Inspector              | Not Started   | 11         |
-| 13    | Stripe Integration              | Not Started   | 11         |
-| 14    | Asset Management                | Not Started   | 8, 12      |
-| 15    | Templates                       | Not Started   | 13, 14     |
-| 16    | Publishing                      | Not Started   | 6, 13, 14  |
-| 17    | AI Assistant                    | Not Started   | 12         |
-| 18    | Analytics                       | Not Started   | 16         |
-| 19    | Performance Optimization        | Not Started   | 18         |
-| 20    | Testing                         | Not Started   | 19         |
-| 21    | Production Release              | Not Started   | 20         |
-| 22    | Enterprise Features             | Not Started   | 21         |
-| 23    | Marketplace                     | Not Started   | 21         |
-| 24    | Collaboration                   | Not Started   | 21         |
-| 25    | Version 1.0 Launch              | Not Started   | 21, 22     |
+| Phase | Name                            | Status       | Depends on |
+| ----- | ------------------------------- | ------------ | ---------- |
+| 0     | Product & Architecture Planning | **Complete** | —          |
+| 1     | Repository Foundation           | **Complete** | 0          |
+| 2     | Infrastructure                  | **Complete** | 1          |
+| 3     | Design System                   | Not Started  | 1          |
+| 4     | Studio Shell                    | Not Started  | 2, 3       |
+| 5     | Editor State Engine             | Not Started  | 2          |
+| 6     | Renderer Engine                 | Not Started  | 2, 5       |
+| 7     | Visual Canvas                   | Not Started  | 4, 6       |
+| 8     | Drag & Drop Engine              | Not Started  | 7          |
+| 9     | Core Component Library          | Not Started  | 8          |
+| 10    | Form System                     | Not Started  | 9          |
+| 11    | Checkout Components             | Not Started  | 10         |
+| 12    | Property Inspector              | Not Started  | 11         |
+| 13    | Stripe Integration              | Not Started  | 11         |
+| 14    | Asset Management                | Not Started  | 8, 12      |
+| 15    | Templates                       | Not Started  | 13, 14     |
+| 16    | Publishing                      | Not Started  | 6, 13, 14  |
+| 17    | AI Assistant                    | Not Started  | 12         |
+| 18    | Analytics                       | Not Started  | 16         |
+| 19    | Performance Optimization        | Not Started  | 18         |
+| 20    | Testing                         | Not Started  | 19         |
+| 21    | Production Release              | Not Started  | 20         |
+| 22    | Enterprise Features             | Not Started  | 21         |
+| 23    | Marketplace                     | Not Started  | 21         |
+| 24    | Collaboration                   | Not Started  | 21         |
+| 25    | Version 1.0 Launch              | Not Started  | 21, 22     |
 
 Update the Status column as phases progress. This table is the single source of truth for where the project stands.
 
@@ -404,7 +404,8 @@ PostgreSQL migrations + seed
 Repository layer with mandatory tenant scoping
 Clerk authentication and route protection
 Redis (Upstash) client and cache helpers
-UploadThing configuration
+Upload boundary: permitted types, size limits, project scoping
+  (the storage provider SDK is installed in Phase 14, where it is used)
 AppError model, catalog, and normalizers
 AuditLog entity and append-only write path (the viewer is Phase 22)
 Plan catalog, entitlement resolver, and assertCan — every account resolves to
@@ -441,7 +442,7 @@ apps/studio (middleware, health routes)
 6.  Add `import "server-only"` to database and server API entry points
 7.  Integrate Clerk; protect dashboard routes
 8.  Build the Redis client and typed cache helpers
-9.  Configure UploadThing
+9.  Implement the upload boundary (types, limits, project scoping)
 10. Implement AppError, createError, and the full catalog
 11. Implement normalizers: fromZod, fromPrisma, fromFetch
 12. Implement retry with backoff and jitter, plus idempotency storage
@@ -2257,7 +2258,8 @@ apps/studio (asset panel)  packages/ui
 ### Implementation Steps
 
 ```
-1.  Implement the upload endpoint with type and size validation
+1.  Install the storage provider SDK and implement the upload endpoint against
+    the Phase 2 boundary (type and size validation)
 2.  Implement image optimization: 4 sizes, WebP and AVIF variants
 3.  Implement EXIF stripping and re-encoding
 4.  Implement SVG sanitization

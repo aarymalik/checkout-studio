@@ -24,7 +24,11 @@
     "create:package": "node scripts/create-package.ts",
     "create:plugin": "node scripts/create-plugin.ts",
     "prepare": "husky && node scripts/link-env.mjs",
-    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json"
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "pnpm --filter @checkout-studio/database db:migrate",
+    "db:seed": "pnpm --filter @checkout-studio/database db:seed",
+    "db:studio": "pnpm --filter @checkout-studio/database db:studio"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",
@@ -48,5 +52,11 @@
     "*.{json,md,yml,yaml,css}": [
       "prettier --write"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "mysql2": ">=3.23.1",
+      "deepmerge-ts": ">=8.0.0"
+    }
   }
 }
