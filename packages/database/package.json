@@ -12,17 +12,33 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "clean": "rm -rf coverage .turbo"
+    "clean": "rm -rf coverage .turbo",
+    "db:generate": "node --env-file-if-exists=../../.env.local node_modules/prisma/build/index.js generate",
+    "db:migrate": "node --env-file-if-exists=../../.env.local node_modules/prisma/build/index.js migrate dev",
+    "db:deploy": "node --env-file-if-exists=../../.env.local node_modules/prisma/build/index.js migrate deploy",
+    "db:seed": "node --env-file-if-exists=../../.env.local prisma/seed.ts",
+    "db:studio": "node --env-file-if-exists=../../.env.local node_modules/prisma/build/index.js studio"
   },
   "dependencies": {
     "@checkout-studio/schema": "workspace:*",
-    "@checkout-studio/types": "workspace:*"
+    "@checkout-studio/types": "workspace:*",
+    "@prisma/client": "7.10.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "pg": "8.23.0",
+    "server-only": "0.0.1",
+    "@checkout-studio/utils": "workspace:*"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",
     "eslint": "10.11.0",
     "typescript": "5.9.3",
     "vitest": "5.0.1",
-    "@vitest/coverage-v8": "5.0.1"
+    "@vitest/coverage-v8": "5.0.1",
+    "prisma": "7.10.0",
+    "@types/pg": "8.23.1",
+    "@prisma/config": "7.10.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.ts"
   }
 }

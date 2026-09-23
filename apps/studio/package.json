@@ -26,7 +26,12 @@
     "next": "16.3.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@clerk/nextjs": "7.9.5",
+    "@checkout-studio/api": "workspace:*",
+    "@checkout-studio/cache": "workspace:*",
+    "@checkout-studio/database": "workspace:*",
+    "uploadthing": "7.7.4"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",

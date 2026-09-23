@@ -7,6 +7,9 @@ import type { NextConfig } from "next"
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: [
+    "@checkout-studio/database",
+    "@checkout-studio/cache",
+    "@checkout-studio/api",
     "@checkout-studio/editor",
     "@checkout-studio/hooks",
     "@checkout-studio/observability",

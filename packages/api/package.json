@@ -22,7 +22,9 @@
     "@checkout-studio/schema": "workspace:*",
     "@checkout-studio/types": "workspace:*",
     "@checkout-studio/utils": "workspace:*",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@checkout-studio/cache": "workspace:*",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",

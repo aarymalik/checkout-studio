@@ -32,6 +32,10 @@
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
       "outputs": ["playwright-report/**", "test-results/**"]
     },
+    "db:generate": {
+      "inputs": ["prisma/schema.prisma"],
+      "outputs": ["../../node_modules/.prisma/**", "generated/**"]
+    },
     "clean": { "cache": false },
     "dev": { "cache": false, "persistent": true }
   }

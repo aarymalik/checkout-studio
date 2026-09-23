@@ -18,6 +18,9 @@ export const coverageThresholds = {
  *   thresholds?: typeof coverageThresholds,
  *   coverageInclude?: string[],
  *   alias?: Record<string, string>,
+ *   env?: Record<string, string>,
+ *   sequential?: boolean,
+ *   globalSetup?: string[],
  * }} [options]
  */
 export function createVitestConfig(options = {}) {
@@ -28,6 +31,11 @@ export function createVitestConfig(options = {}) {
     test: {
       environment,
       setupFiles,
+      ...(options.env ? { env: options.env } : {}),
+      // Integration tests that share one database must not run in parallel:
+      // one file's cleanup would wipe another file's fixtures mid-test.
+      ...(options.sequential ? { fileParallelism: false, maxWorkers: 1 } : {}),
+      ...(options.globalSetup ? { globalSetup: options.globalSetup } : {}),
       include: ["src/**/*.test.{ts,tsx,js}", "tests/**/*.test.{ts,tsx,js}"],
       passWithNoTests: true,
       coverage: {

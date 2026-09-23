@@ -1,0 +1,719 @@
+// Checkout Studio database schema.
+//
+// Implements docs/database.md. Every entity belongs to a tenant, and every
+// repository method enforces that — multi-tenancy is not optional and is not
+// the caller's responsibility.
+//
+// Large JSON documents live in JSONB columns; anything queried lives in a
+// relational column, per docs/performance.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PlatformRole {
+  user
+  staff
+}
+
+model User {
+  id           String       @id @default(cuid())
+  clerkId      String       @unique
+  email        String       @unique
+  fullName     String?
+  avatarUrl    String?
+  platformRole PlatformRole @default(user)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects     Project[]
+  subscription Subscription?
+  auditEntries AuditLog[]
+
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Workspace
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Project {
+  id          String  @id @default(cuid())
+  userId      String
+  name        String
+  slug        String
+  description String?
+  logoUrl     String?
+  faviconUrl  String?
+
+  defaultThemeId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages             Page[]
+  assets            Asset[]
+  themes            Theme[]
+  symbols           Symbol[]
+  templates         Template[]
+  domains           Domain[]
+  coupons           Coupon[]
+  customers         Customer[]
+  stripeConnection  StripeConnection?
+  usageRecords      UsageRecord[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+enum PageStatus {
+  draft
+  published
+  unpublished
+}
+
+model Page {
+  id        String     @id @default(cuid())
+  projectId String
+  title     String
+  slug      String
+  status    PageStatus @default(draft)
+
+  /// Schema version the draft is written against.
+  schemaVersion String @default("1.0.0")
+
+  /// The mutable working copy. Autosave writes here; it creates no revision.
+  draftSchema Json
+  /// Optimistic concurrency token, incremented in the same transaction as every draft write.
+  draftVersion Int @default(0)
+
+  currentRevisionId   String?
+  publishedRevisionId String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revisions         Revision[]        @relation("PageRevisions")
+  publishedRevision Revision?         @relation("PublishedRevision", fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+  orders            Order[]
+  submissions       Submission[]
+  checkoutSessions  CheckoutSession[]
+
+  @@unique([projectId, slug])
+  @@index([projectId])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([updatedAt])
+}
+
+enum RevisionKind {
+  manual
+  publish
+  import
+  recovery
+}
+
+/// Immutable. No column is ever updated after insert.
+model Revision {
+  id     String       @id @default(cuid())
+  pageId String
+  number Int
+  kind   RevisionKind
+  name   String?
+
+  schema Json
+  /// The resolved theme at creation — immune to later theme edits.
+  theme Json
+  /// Definitions of every symbol the schema instances.
+  symbols Json @default("{}")
+
+  schemaVersion   String
+  rendererVersion String
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  page          Page              @relation("PageRevisions", fields: [pageId], references: [id], onDelete: Cascade)
+  publishedFor  Page?             @relation("PublishedRevision")
+  orders        Order[]
+  checkoutSessions CheckoutSession[]
+
+  @@unique([pageId, number])
+  @@index([pageId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Design
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Theme {
+  id        String @id @default(cuid())
+  projectId String
+  name      String
+  version   String @default("1.0.0")
+
+  /// The CheckoutTheme in docs/theme-system.md.
+  tokens Json
+
+  extendsThemeId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+/// A reusable subtree shared across pages. Pages place one with a
+/// core.symbol-instance node.
+model Symbol {
+  id        String @id @default(cuid())
+  projectId String
+  name      String
+  version   String @default("1.0.0")
+
+  rootNodeId String
+  nodes      Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Template {
+  id        String  @id @default(cuid())
+  projectId String?
+
+  name        String
+  slug        String
+  category    String
+  description String?
+  thumbnailUrl String?
+  tags        String[] @default([])
+  version     String   @default("1.0.0")
+
+  schema Json
+  theme  Json
+
+  isPublic Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([category])
+  @@index([isPublic])
+  @@index([deletedAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Assets
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Asset {
+  id        String @id @default(cuid())
+  projectId String
+
+  fileName String
+  mimeType String
+  sizeBytes Int
+  width    Int?
+  height   Int?
+
+  storageKey String
+  url        String
+  /// Content hash. Identical bytes are stored once.
+  sha256 String
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, sha256])
+  @@index([projectId])
+  @@index([deletedAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Publishing
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SslStatus {
+  pending
+  issued
+  failed
+}
+
+model Domain {
+  id        String @id @default(cuid())
+  projectId String
+
+  hostname  String    @unique
+  verified  Boolean   @default(false)
+  sslStatus SslStatus @default(pending)
+  isPrimary Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payments — see docs/stripe-integration.md
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ConnectionStatus {
+  active
+  revoked
+}
+
+/// A project's connected Stripe account. Never stores a secret key.
+model StripeConnection {
+  id        String @id @default(cuid())
+  projectId String @unique
+
+  stripeAccountId String
+
+  chargesEnabled   Boolean @default(false)
+  payoutsEnabled   Boolean @default(false)
+  detailsSubmitted Boolean @default(false)
+  defaultCurrency  String?
+  country          String?
+
+  capabilities Json             @default("{}")
+  requirements Json             @default("{}")
+  status       ConnectionStatus @default(active)
+
+  connectedAt  DateTime @default(now())
+  lastSyncedAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([stripeAccountId])
+}
+
+model Customer {
+  id        String @id @default(cuid())
+  projectId String
+
+  email String
+  name  String?
+  phone String?
+
+  stripeCustomerId String?
+
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  orders  Order[]
+
+  @@unique([projectId, email])
+  @@index([projectId])
+}
+
+enum CheckoutSessionStatus {
+  open
+  processing
+  completed
+  abandoned
+  expired
+}
+
+/// One customer's attempt at one checkout.
+model CheckoutSession {
+  id         String @id @default(cuid())
+  pageId     String
+  revisionId String
+
+  status CheckoutSessionStatus @default(open)
+
+  latestQuoteId          String?
+  stripePaymentIntentId  String?
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  page        Page               @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  revision    Revision           @relation(fields: [revisionId], references: [id])
+  order       Order?
+  redemptions CouponRedemption[]
+
+  @@index([pageId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+enum OrderStatus {
+  paid
+  refund_pending
+  partially_refunded
+  refunded
+}
+
+enum DisputeStatus {
+  none
+  open
+  won
+  lost
+}
+
+/// Created only from a verified Stripe webhook, never from a browser assertion.
+model Order {
+  id         String  @id @default(cuid())
+  pageId     String
+  revisionId String
+  customerId String?
+  checkoutSessionId String? @unique
+
+  stripeAccountId       String
+  /// The last line of defense against a duplicate order.
+  stripePaymentIntentId String @unique
+  stripeCustomerId      String?
+
+  currency String
+  subtotal Int
+  discount Int @default(0)
+  tax      Int @default(0)
+  shipping Int @default(0)
+  total    Int
+  amountRefunded Int @default(0)
+
+  status        OrderStatus   @default(paid)
+  disputeStatus DisputeStatus @default(none)
+
+  /// Dispute evidence. Retained with the financial record, not with telemetry.
+  formData  Json?
+  ip        String?
+  userAgent String?
+
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page            Page             @relation(fields: [pageId], references: [id])
+  revision        Revision         @relation(fields: [revisionId], references: [id])
+  customer        Customer?        @relation(fields: [customerId], references: [id])
+  checkoutSession CheckoutSession? @relation(fields: [checkoutSessionId], references: [id])
+  items           OrderItem[]
+  redemption      CouponRedemption?
+
+  @@index([pageId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+enum OrderItemKind {
+  product
+  bump
+  shipping
+  discount
+  tax
+}
+
+model OrderItem {
+  id      String        @id @default(cuid())
+  orderId String
+  nodeId  String
+  kind    OrderItemKind
+  label   String
+
+  quantity   Int @default(1)
+  unitAmount Int
+  amount     Int
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+enum CouponType {
+  percent
+  fixed
+}
+
+/// Checkout Studio's own coupons. Stripe coupon objects are not used: they
+/// cannot be applied to a PaymentIntent.
+model Coupon {
+  id        String @id @default(cuid())
+  projectId String
+
+  code  String
+  type  CouponType
+  value Int
+
+  currency         String?
+  minimumAmount    Int?
+  appliesToNodeIds String[] @default([])
+
+  startsAt       DateTime?
+  endsAt         DateTime?
+  maxRedemptions Int?
+  active         Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project     Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  redemptions CouponRedemption[]
+
+  @@unique([projectId, code])
+  @@index([projectId])
+}
+
+enum RedemptionStatus {
+  held
+  redeemed
+  released
+}
+
+model CouponRedemption {
+  id       String @id @default(cuid())
+  couponId String
+
+  checkoutSessionId String?
+  orderId           String? @unique
+
+  status    RedemptionStatus @default(held)
+  heldUntil DateTime
+
+  createdAt DateTime @default(now())
+
+  coupon          Coupon           @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  checkoutSession CheckoutSession? @relation(fields: [checkoutSessionId], references: [id])
+  order           Order?           @relation(fields: [orderId], references: [id])
+
+  @@index([couponId, status])
+  @@index([heldUntil])
+}
+
+enum WebhookSource {
+  connect
+  billing
+}
+
+enum WebhookStatus {
+  received
+  processed
+  failed
+}
+
+/// Every verified Stripe event, persisted before processing. Provides
+/// permanent deduplication and a durable retry queue.
+model WebhookEvent {
+  id            String        @id @default(cuid())
+  stripeEventId String        @unique
+  source        WebhookSource
+  stripeAccountId String?
+  type          String
+
+  payload  Json
+  status   WebhookStatus @default(received)
+  attempts Int           @default(0)
+  lastError String?
+
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status])
+  @@index([type])
+  @@index([receivedAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Forms
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Submission {
+  id     String @id @default(cuid())
+  pageId String
+
+  payload Json
+  ip      String?
+
+  createdAt DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Billing — see docs/pricing-billing.md
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PlanId {
+  free
+  starter
+  growth
+  scale
+  enterprise
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  unpaid
+  canceled
+  paused
+  incomplete
+  incomplete_expired
+}
+
+enum BillingInterval {
+  month
+  year
+}
+
+/// A projection of Stripe's state. Stripe is authoritative; drift is corrected
+/// by the nightly reconciliation job.
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  planId   PlanId             @default(free)
+  status   SubscriptionStatus @default(active)
+  interval BillingInterval    @default(month)
+
+  stripeCustomerId     String?
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+  trialEndsAt        DateTime?
+  pastDueSince       DateTime?
+
+  /// Grandfathered pricing, in minor units.
+  priceAmount   Int    @default(0)
+  priceCurrency String @default("usd")
+  priceVersion  String @default("2026-09")
+
+  /// Enterprise only.
+  customEntitlements Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events BillingEvent[]
+
+  @@index([status])
+}
+
+enum UsageMetric {
+  page_views
+  ai_requests
+  api_calls
+  storage_bytes
+  published_pages
+  projects
+  seats
+}
+
+model UsageRecord {
+  id        String  @id @default(cuid())
+  userId    String
+  projectId String?
+
+  metric UsageMetric
+  /// YYYY-MM for monthly metrics.
+  period String
+  value  BigInt      @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId, metric, period])
+  @@index([userId, period])
+}
+
+model BillingEvent {
+  id             String  @id @default(cuid())
+  subscriptionId String
+
+  type          String
+  stripeEventId String?
+  fromPlan      PlanId?
+  toPlan        PlanId?
+  amount        Int?
+  currency      String?
+  metadata      Json    @default("{}")
+
+  createdAt DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Audit — append only. Rows are never updated or deleted.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ActorType {
+  user
+  staff
+  system
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  actorId   String?
+  actorType ActorType @default(user)
+
+  action     String
+  entityType String
+  entityId   String?
+  projectId  String?
+
+  metadata  Json    @default("{}")
+  ip        String?
+  requestId String?
+
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([projectId])
+  @@index([action])
+  @@index([createdAt])
+}
