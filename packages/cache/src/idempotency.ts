@@ -1,6 +1,6 @@
 import "server-only"
 
-import { redis } from "./client"
+import { redis, whenReady } from "./client"
 
 /**
  * Idempotency.
@@ -32,6 +32,8 @@ export async function once<T>(
   operation: () => Promise<T>,
 ): Promise<IdempotencyOutcome<T>> {
   const storageKey = key(scope, idempotencyKey)
+
+  await whenReady()
   const existing = await redis.get(storageKey)
 
   if (existing !== null) {

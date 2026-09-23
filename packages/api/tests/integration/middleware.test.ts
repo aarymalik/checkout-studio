@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { z } from "zod"
-import { redis } from "@checkout-studio/cache"
+import { redis, whenReady } from "@checkout-studio/cache"
 import { Errors } from "@checkout-studio/utils"
 import { route } from "../../src/middleware/chain"
 
@@ -15,6 +15,7 @@ const request = (body?: unknown, headers: Record<string, string> = {}) =>
   })
 
 beforeEach(async () => {
+  await whenReady()
   await redis.flushdb()
 })
 

@@ -389,9 +389,13 @@ revert    Reverts a prior commit
 
 ## Scopes
 
+Every directory under `packages/`, `apps/` and `plugins/` is a valid scope —
+commitlint reads them from the workspace, so a new package needs no change
+here. Alongside them are the scopes that name a concern rather than a
+directory:
+
 ```
-editor  renderer  schema  ui  design-system  api  database
-plugin-sdk  studio  checkout  stripe  auth  observability  docs
+checkout  stripe  auth  docs  repo  deps
 ```
 
 ## Examples

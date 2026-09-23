@@ -1,7 +1,7 @@
 import "server-only"
 
 import { logger } from "@checkout-studio/observability"
-import { redis } from "./client"
+import { redis, whenReady } from "./client"
 
 /**
  * Typed cache helpers.
@@ -23,6 +23,7 @@ export function cacheKey(namespace: string, ...parts: Array<string | number>): s
 
 export async function get<T>(key: string): Promise<T | undefined> {
   try {
+    await whenReady()
     const raw = await redis.get(key)
     return raw === null ? undefined : (JSON.parse(raw) as T)
   } catch (error) {
@@ -33,6 +34,7 @@ export async function get<T>(key: string): Promise<T | undefined> {
 
 export async function set<T>(key: string, value: T, options: CacheOptions): Promise<void> {
   try {
+    await whenReady()
     await redis.set(key, JSON.stringify(value), "EX", options.ttl)
   } catch (error) {
     logger.warn("cache.write.failed", { key }, error)
@@ -42,6 +44,7 @@ export async function set<T>(key: string, value: T, options: CacheOptions): Prom
 export async function del(...keys: string[]): Promise<void> {
   if (keys.length === 0) return
   try {
+    await whenReady()
     await redis.del(...keys)
   } catch (error) {
     logger.warn("cache.delete.failed", { keyCount: keys.length }, error)

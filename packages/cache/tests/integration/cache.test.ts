@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { ping, redis } from "../../src/client"
+import { ping, redis, whenReady } from "../../src/client"
 import { cacheKey, del, get, remember, set } from "../../src/cache"
 import { once } from "../../src/idempotency"
 import { rateLimit } from "../../src/rateLimit"
 
 beforeEach(async () => {
+  await whenReady()
   await redis.flushdb()
 })
 

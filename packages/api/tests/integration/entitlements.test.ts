@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { prisma } from "@checkout-studio/database"
-import { redis } from "@checkout-studio/cache"
+import { redis, whenReady } from "@checkout-studio/cache"
 import { AppError } from "@checkout-studio/utils"
 import {
   assertCan,
@@ -37,6 +37,7 @@ async function aUser(subscription?: {
 }
 
 beforeEach(async () => {
+  await whenReady()
   await redis.flushdb()
 })
 

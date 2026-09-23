@@ -1,6 +1,6 @@
 import "server-only"
 
-import { redis } from "./client"
+import { redis, whenReady } from "./client"
 
 /**
  * Fixed-window rate limiting.
@@ -31,6 +31,7 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitRes
   const key = `cs:rl:${options.scope}:${options.subject}:${window}`
 
   try {
+    await whenReady()
     const count = await redis.incr(key)
 
     if (count === 1) {
