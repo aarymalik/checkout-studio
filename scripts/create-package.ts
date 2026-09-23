@@ -49,6 +49,7 @@ export function renderPackageJson(options: CreatePackageOptions): string {
     name: `${SCOPE}/${options.name}`,
     version: "0.0.0",
     private: true,
+    license: "UNLICENSED",
     type: "module",
     exports: { ".": "./src/index.ts" },
     scripts: {

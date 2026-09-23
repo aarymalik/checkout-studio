@@ -1,6 +1,7 @@
 {
   "name": "checkout-studio",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "engines": {

@@ -1,0 +1,52 @@
+Checkout Studio
+
+Copyright (c) 2026 Malik Arif. All rights reserved.
+
+PROPRIETARY SOFTWARE LICENSE
+
+This software, including its source code, documentation, designs, and all
+associated materials (the "Software"), is proprietary and confidential to the
+copyright holder.
+
+The source is published for transparency, evaluation, and reference. Publishing
+it grants no rights beyond those stated below.
+
+PERMITTED WITHOUT PRIOR WRITTEN PERMISSION
+
+  1. Viewing and reading the Software.
+  2. Quoting short excerpts, with attribution, for the purposes of commentary,
+     criticism, review, teaching, or scholarship.
+  3. Running the Software locally for the sole purpose of evaluating it, or of
+     preparing a contribution under section 5.
+
+NOT PERMITTED WITHOUT PRIOR WRITTEN PERMISSION
+
+  1. Using the Software, in whole or in part, in any product or service,
+     whether commercial or non-commercial.
+  2. Copying, modifying, merging, publishing, distributing, sublicensing,
+     selling, or hosting the Software or any derivative of it.
+  3. Using the Software to build, train, or evaluate a competing product.
+  4. Removing or altering this notice.
+
+CONTRIBUTIONS
+
+  5. By submitting a contribution to this repository, you grant the copyright
+     holder a perpetual, worldwide, irrevocable, royalty-free license to use,
+     reproduce, modify, distribute, and sublicense that contribution as part of
+     the Software. You confirm that you are entitled to grant that license.
+
+THIRD-PARTY COMPONENTS
+
+  6. The Software depends on third-party packages distributed under their own
+     licenses. Those licenses govern those components, not this one.
+
+NO WARRANTY
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+  WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+  OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+For permissions beyond this license, contact the copyright holder.
