@@ -1,0 +1,131 @@
+/*
+ * Tailwind binding.
+ *
+ * Tailwind is configured against semantic tokens only, so a utility class can
+ * never reach a primitive. `@theme inline` keeps the reference live: the
+ * utility resolves to `var(--cs-…)` at use, which is what lets a mode switch
+ * repaint without regenerating a stylesheet.
+ *
+ * Utilities are named after the meaning, not the value: `bg-surface`, never
+ * `bg-gray-0`. See docs/theme-system.md § Tailwind Binding.
+ */
+
+@theme inline {
+  /* Surfaces */
+  --color-background: var(--cs-color-background);
+  --color-canvas: var(--cs-color-canvas);
+  --color-surface: var(--cs-color-surface);
+  --color-surface-raised: var(--cs-color-surface-raised);
+  --color-surface-sunken: var(--cs-color-surface-sunken);
+  --color-surface-hover: var(--cs-color-surface-hover);
+  --color-surface-active: var(--cs-color-surface-active);
+
+  /* Borders */
+  --color-border: var(--cs-color-border);
+  --color-border-strong: var(--cs-color-border-strong);
+
+  /* Text */
+  --color-foreground: var(--cs-color-foreground);
+  --color-foreground-muted: var(--cs-color-foreground-muted);
+  --color-foreground-subtle: var(--cs-color-foreground-subtle);
+  --color-foreground-inverse: var(--cs-color-foreground-inverse);
+
+  /* Primary action */
+  --color-primary: var(--cs-color-primary);
+  --color-primary-hover: var(--cs-color-primary-hover);
+  --color-primary-active: var(--cs-color-primary-active);
+  --color-primary-foreground: var(--cs-color-primary-foreground);
+  --color-primary-subtle: var(--cs-color-primary-subtle);
+
+  /* Status */
+  --color-success: var(--cs-color-success);
+  --color-success-foreground: var(--cs-color-success-foreground);
+  --color-success-subtle: var(--cs-color-success-subtle);
+  --color-warning: var(--cs-color-warning);
+  --color-warning-foreground: var(--cs-color-warning-foreground);
+  --color-warning-subtle: var(--cs-color-warning-subtle);
+  --color-danger: var(--cs-color-danger);
+  --color-danger-hover: var(--cs-color-danger-hover);
+  --color-danger-active: var(--cs-color-danger-active);
+  --color-danger-foreground: var(--cs-color-danger-foreground);
+  --color-danger-subtle: var(--cs-color-danger-subtle);
+
+  /* Interaction */
+  --color-focus-ring: var(--cs-color-focus-ring);
+  --color-selection: var(--cs-color-selection);
+  --color-overlay: var(--cs-color-overlay);
+
+  /* Radius, by role */
+  --radius-tight: var(--cs-radius-tight);
+  --radius-control: var(--cs-radius-control);
+  --radius-card: var(--cs-radius-card);
+  --radius-panel: var(--cs-radius-panel);
+  --radius-modal: var(--cs-radius-modal);
+  --radius-pill: var(--cs-radius-pill);
+
+  /* Elevation, by role */
+  --shadow-card: var(--cs-shadow-card);
+  --shadow-dropdown: var(--cs-shadow-dropdown);
+  --shadow-dialog: var(--cs-shadow-dialog);
+  --shadow-toast: var(--cs-shadow-toast);
+
+  /* Type */
+  --font-body: var(--cs-font-body);
+  --font-display: var(--cs-font-display);
+  --font-code: var(--cs-font-code);
+
+  --text-display: var(--cs-text-display);
+  --text-display--line-height: var(--cs-leading-tight);
+  --text-hero: var(--cs-text-hero);
+  --text-hero--line-height: var(--cs-leading-tight);
+  --text-h1: var(--cs-text-h1);
+  --text-h1--line-height: var(--cs-leading-heading);
+  --text-h2: var(--cs-text-h2);
+  --text-h2--line-height: var(--cs-leading-heading);
+  --text-h3: var(--cs-text-h3);
+  --text-h3--line-height: var(--cs-leading-heading);
+  --text-h4: var(--cs-text-h4);
+  --text-h4--line-height: var(--cs-leading-heading);
+  --text-body-lg: var(--cs-text-body-lg);
+  --text-body-lg--line-height: var(--cs-leading-body);
+  --text-body: var(--cs-text-body);
+  --text-body--line-height: var(--cs-leading-body);
+  --text-small: var(--cs-text-small);
+  --text-small--line-height: var(--cs-leading-body);
+  --text-caption: var(--cs-text-caption);
+  --text-caption--line-height: var(--cs-leading-body);
+  --text-tiny: var(--cs-text-tiny);
+  --text-tiny--line-height: var(--cs-leading-body);
+
+  /* Motion. Ease-out only: motion communicates a state change, and a curve
+   * that overshoots draws attention to itself instead. */
+  --ease-standard: var(--cs-easing-standard);
+
+  /* The 8px system. 4px is the unit, so the documented scale is 1, 2, 3, 4, 6,
+   * 8, 10, 12, 16, 20 and 24. */
+  --spacing: 4px;
+}
+
+/* Motion utilities. Tailwind's duration scale takes raw numbers; these name
+ * the three durations the product is allowed to use, so a component never
+ * writes a millisecond value. */
+@utility duration-fast {
+  transition-duration: var(--cs-duration-fast);
+}
+@utility duration-normal {
+  transition-duration: var(--cs-duration-normal);
+}
+@utility duration-slow {
+  transition-duration: var(--cs-duration-slow);
+}
+
+/* Control heights, so a size variant names an intent. */
+@utility h-control-sm {
+  height: var(--cs-control-height-sm);
+}
+@utility h-control-md {
+  height: var(--cs-control-height-md);
+}
+@utility h-control-lg {
+  height: var(--cs-control-height-lg);
+}

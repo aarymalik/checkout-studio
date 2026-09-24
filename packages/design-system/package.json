@@ -5,20 +5,27 @@
   "license": "UNLICENSED",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./css/variables.css": "./src/css/variables.css",
+    "./css/reset.css": "./src/css/reset.css",
+    "./tailwind/tokens.css": "./src/tailwind/tokens.css"
   },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "tokens:build": "jiti scripts/build-tokens.ts",
     "clean": "rm -rf coverage .turbo"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",
+    "@types/jsdom": "30.0.0",
+    "@vitest/coverage-v8": "5.0.1",
     "eslint": "10.11.0",
+    "jiti": "2.7.0",
+    "jsdom": "30.1.1",
     "typescript": "5.9.3",
-    "vitest": "5.0.1",
-    "@vitest/coverage-v8": "5.0.1"
+    "vitest": "5.0.1"
   }
 }

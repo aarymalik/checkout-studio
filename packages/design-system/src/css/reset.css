@@ -1,0 +1,60 @@
+/*
+ * What Tailwind's preflight does not cover.
+ *
+ * Preflight already zeroes margins, unstyles headings and normalises boxes.
+ * This file adds only the things that depend on our tokens: the base surface,
+ * the selection wash, and a focus ring that is visible in every theme because
+ * it is bound to a token that every theme rebinds.
+ */
+
+:root {
+  /* Tells the browser which scrollbars, form controls and system colours to
+   * use. Without it, a dark interface keeps light scrollbars. */
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--cs-color-background);
+  color: var(--cs-color-foreground);
+  font-family: var(--cs-font-body);
+  font-size: var(--cs-text-body);
+  line-height: var(--cs-leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: var(--cs-color-selection);
+}
+
+/*
+ * One focus ring for the whole product.
+ *
+ * `:focus-visible` rather than `:focus`, so a mouse click on a button does not
+ * draw a ring the pointer user did not ask for, while a keyboard user always
+ * gets one. The offset keeps the ring legible against the control it surrounds
+ * rather than blending into its edge.
+ */
+:focus-visible {
+  outline: 2px solid var(--cs-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/*
+ * Motion is a preference, not a capability. Anything that slips past the
+ * duration tokens is still brought to a stop here.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

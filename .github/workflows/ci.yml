@@ -97,6 +97,9 @@ jobs:
       - name: Declared dependencies and the resolved import graph obey the layer model
         run: pnpm boundaries
 
+      - name: No component carries a value that belongs in the design system
+        run: pnpm tokens:check
+
   audit:
     name: dependency audit
     runs-on: ubuntu-latest

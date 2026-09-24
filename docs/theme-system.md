@@ -128,56 +128,72 @@ Every semantic pairing is checked against WCAG AA at authoring time.
 Raw values. No meaning. Never referenced by a component.
 
 ```
---blue-50 … --blue-950
---gray-50 … --gray-950
---green, --amber, --red scales
---size-0 … --size-96
---radius-none … --radius-full
---font-sans, --font-mono
---shadow-raw-1 … --shadow-raw-5
---duration-150 · --duration-180 · --duration-200 · --duration-220
+--cs-blue-50 … --cs-blue-950
+--cs-gray-0 … --cs-gray-950
+--cs-green, --cs-amber, --cs-red scales
+--cs-size-0 … --cs-size-24
+--cs-radius-0 … --cs-radius-full
+--cs-text-11 … --cs-text-48 · --cs-leading-115 … --cs-leading-160
+--cs-font-sans, --cs-font-secondary, --cs-font-mono
+--cs-shadow-raw-1 … --cs-shadow-raw-5
+--cs-duration-150 · --cs-duration-180 · --cs-duration-200 · --cs-duration-220
 ```
 
 Primitives are the palette.
 
 They change only when the brand changes.
 
+Every primitive is named after its value, never after a role. A primitive
+called `--cs-radius-card` would already be a semantic, and — since the tiers
+share a namespace — the semantic of the same name would compile to
+`--cs-radius-card: var(--cs-radius-card)`, which CSS discards silently. The
+tiers are asserted disjoint in `packages/design-system/tests/tokens.test.ts`.
+
 ## Tier 2 — Semantics
 
 Meaning. This is the tier components consume.
 
 ```
---color-background
---color-surface
---color-surface-raised
---color-surface-sunken
---color-border
---color-border-strong
---color-foreground
---color-foreground-muted
---color-foreground-subtle
---color-primary
---color-primary-foreground
---color-primary-hover
---color-success
---color-warning
---color-danger
---color-focus-ring
---color-selection
---color-canvas
---duration-fast        → --duration-150
---duration-normal      → --duration-180
---duration-slow        → --duration-220
---easing-standard      → cubic-bezier(0.16, 1, 0.3, 1)
+--cs-color-background
+--cs-color-surface
+--cs-color-surface-raised
+--cs-color-surface-sunken
+--cs-color-border
+--cs-color-border-strong
+--cs-color-foreground
+--cs-color-foreground-muted
+--cs-color-foreground-subtle
+--cs-color-primary
+--cs-color-primary-foreground
+--cs-color-primary-hover
+--cs-color-success
+--cs-color-warning
+--cs-color-danger
+--cs-color-focus-ring
+--cs-color-selection
+--cs-color-canvas
+--cs-duration-fast     → --cs-duration-150
+--cs-duration-normal   → --cs-duration-180
+--cs-duration-slow     → --cs-duration-220
+--cs-easing-standard   → cubic-bezier(0.16, 1, 0.3, 1)
+
+--cs-radius-control · --cs-radius-card · --cs-radius-panel · --cs-radius-modal
+--cs-text-display … --cs-text-tiny · --cs-leading-tight … --cs-leading-body
+--cs-shadow-card · --cs-shadow-dropdown · --cs-shadow-dialog · --cs-shadow-toast
+--cs-control-height-sm | -md | -lg
+--cs-toolbar-height · --cs-panel-width-left · --cs-panel-width-right
 ```
+
+The type scale, radius roles and layout dimensions are semantics rather than
+primitives for the same reason the colours are: `h1` and `card` are meanings.
 
 Every semantic token resolves to a primitive.
 
 Mode switching rebinds semantics to different primitives. Nothing else moves.
 
 ```
-Light:  --color-surface → --gray-0
-Dark:   --color-surface → --gray-900
+Light:  --cs-color-surface → --cs-gray-0
+Dark:   --cs-color-surface → --cs-gray-900
 ```
 
 ## Tier 3 — Component Tokens
@@ -185,23 +201,20 @@ Dark:   --color-surface → --gray-900
 Component-scoped bindings. Optional, used when a component needs to deviate coherently.
 
 ```
---button-primary-bg
---button-primary-fg
---button-radius
---button-height-sm | -md | -lg
---input-border
---input-focus-ring
---card-radius
---card-shadow
---panel-width-left
---panel-width-right
---toolbar-height
+--cs-button-primary-bg
+--cs-button-primary-fg
+--cs-button-radius
+--cs-button-height-sm | -md | -lg
+--cs-input-border
+--cs-input-focus-ring
+--cs-card-radius
+--cs-card-shadow
 ```
 
 Component tokens resolve to semantics, never to primitives.
 
 ```
---button-primary-bg  →  --color-primary  →  --blue-600
+--cs-button-primary-bg  →  --cs-color-primary  →  --cs-blue-600
 ```
 
 Three hops maximum. A fourth hop is a design smell.
@@ -234,6 +247,19 @@ Typography
   Sans       Inter
   Secondary  Geist
   Mono       JetBrains Mono
+
+Type scale          size / line-height
+  display           48 / 1.15
+  hero              36 / 1.15
+  h1                30 / 1.25
+  h2                24 / 1.25
+  h3                20 / 1.25
+  h4                18 / 1.25
+  body-lg           16 / 1.6
+  body              14 / 1.6     ← the interface default
+  small             13 / 1.6
+  caption           12 / 1.6
+  tiny              11 / 1.6
 
 Motion
   fast    150ms
@@ -277,18 +303,23 @@ Mode is stored per user, not per project, and persists across sessions and devic
 
 ```css
 :root {
-  --color-surface: var(--gray-0);
-  --color-foreground: var(--gray-950);
+  --cs-color-surface: var(--cs-gray-0);
+  --cs-color-foreground: var(--cs-gray-950);
 }
 
 [data-theme="dark"] {
-  --color-surface: var(--gray-900);
-  --color-foreground: var(--gray-50);
+  --cs-color-surface: var(--cs-gray-900);
+  --cs-color-foreground: var(--cs-gray-50);
 }
 
-[data-contrast="high"] {
-  --color-border: var(--color-foreground);
-  --color-focus-ring: var(--color-foreground);
+[data-theme="light"][data-contrast="high"] {
+  --cs-color-border: var(--cs-gray-950);
+  --cs-color-foreground-muted: var(--cs-gray-800);
+}
+
+[data-theme="dark"][data-contrast="high"] {
+  --cs-color-border: var(--cs-gray-50);
+  --cs-color-foreground-muted: var(--cs-gray-200);
 }
 ```
 
@@ -296,23 +327,40 @@ The attribute is written to `<html>` before first paint by a blocking inline scr
 
 There is no flash of incorrect theme.
 
+The script always writes an explicit `light` or `dark`, never `system` and
+never nothing: the high-contrast rules select on a mode, and a document that
+relied on `:root` for its light palette would not match them.
+
+High contrast is declared per mode rather than as an alias of
+`--cs-color-foreground`, because it has to do more than darken borders — muted
+and subtle text stop being muted — and an alias cannot express that without a
+semantic pointing at another semantic, which is a fourth hop.
+
 ## Tailwind Binding
 
-Tailwind is configured against semantic tokens only.
+Tailwind is configured against semantic tokens only, in CSS — Tailwind 4 has no
+config file.
 
-```ts
-// tailwind.config.ts
-colors: {
-  background: "var(--color-background)",
-  surface: "var(--color-surface)",
-  foreground: "var(--color-foreground)",
-  primary: {
-    DEFAULT: "var(--color-primary)",
-    foreground: "var(--color-primary-foreground)",
-  },
-  border: "var(--color-border)",
+```css
+/* packages/design-system/src/tailwind/tokens.css */
+@theme inline {
+  --color-background: var(--cs-color-background);
+  --color-surface: var(--cs-color-surface);
+  --color-foreground: var(--cs-color-foreground);
+  --color-primary: var(--cs-color-primary);
+  --color-primary-foreground: var(--cs-color-primary-foreground);
+  --color-border: var(--cs-color-border);
 }
 ```
+
+This is where the `--cs-` prefix earns its keep. Tailwind owns the `--color-*`
+namespace — that is what turns a variable into a `bg-*` utility — so a token
+also called `--color-surface` would compile to `--color-surface:
+var(--color-surface)`: a circular reference, and an interface with no colours.
+The prefix mirrors the `--ck-` the checkout theme uses, for the same reason.
+
+`inline` keeps the reference live rather than resolving it at build time, which
+is what lets a mode switch repaint without regenerating a stylesheet.
 
 Result
 
@@ -327,9 +375,9 @@ Per [coding-standards.md](./coding-standards.md), a raw hex value in a component
 ```css
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --duration-fast: 0ms;
-    --duration-normal: 0ms;
-    --duration-slow: 0ms;
+    --cs-duration-fast: 0ms;
+    --cs-duration-normal: 0ms;
+    --cs-duration-slow: 0ms;
   }
 }
 ```
@@ -931,23 +979,35 @@ Rules
 # Internal Structure
 
 ```
-packages/design-system/src/            STUDIO THEME
-├── tokens/
-│   ├── primitives.ts                  raw scales
-│   ├── semantics.ts                   role-based tokens
-│   └── components.ts                  component-scoped tokens
-├── themes/
-│   ├── light.ts
-│   ├── dark.ts
-│   └── high-contrast.ts
-├── css/
-│   ├── variables.css                  generated custom properties
-│   └── reset.css
-├── tailwind/
-│   └── tokens.css                     @theme block: semantic tokens → utilities
-├── motion/
-│   └── tokens.ts
-└── index.ts
+packages/design-system/
+├── scripts/
+│   └── build-tokens.ts                writes css/variables.css
+├── src/                               STUDIO THEME
+│   ├── tokens/
+│   │   ├── primitives.ts              raw scales, named by value
+│   │   ├── semantics.ts               role-based tokens + AA pairings
+│   │   ├── components.ts              component-scoped tokens
+│   │   └── resolve.ts                 token → value, for contrast and tooling
+│   ├── themes/
+│   │   ├── light.ts
+│   │   ├── dark.ts
+│   │   └── high-contrast.ts           sparse override, per mode
+│   ├── color/
+│   │   └── contrast.ts                WCAG relative luminance and ratios
+│   ├── css/
+│   │   ├── generate.ts                the tiers → custom properties
+│   │   ├── variables.css              GENERATED, committed
+│   │   └── reset.css                  what Tailwind preflight leaves out
+│   ├── tailwind/
+│   │   └── tokens.css                 @theme inline: semantics → utilities
+│   ├── theme/
+│   │   ├── preferences.ts             storage keys and resolution rules
+│   │   ├── script.ts                  the pre-paint inline script
+│   │   └── apply.ts                   switching mode after first paint
+│   └── index.ts
+
+Motion has no module of its own: durations and easing are tokens like any
+other, and a component that needs them reads `duration-normal`.
 
 packages/schema/src/theme/             CHECKOUT THEME
 ├── types.ts                           CheckoutTheme and friends
