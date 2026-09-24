@@ -207,11 +207,7 @@
   --cs-color-danger-foreground: var(--cs-gray-0);
   --cs-color-danger-subtle: var(--cs-red-50);
   --cs-color-focus-ring: var(--cs-blue-600);
-  --cs-color-selection: color-mix(
-    in oklab,
-    var(--cs-blue-600) var(--cs-alpha-selection),
-    transparent
-  );
+  --cs-color-selection: color-mix(in oklab, var(--cs-blue-600) var(--cs-alpha-selection), transparent);
   --cs-color-overlay: color-mix(in oklab, var(--cs-gray-950) var(--cs-alpha-overlay), transparent);
 }
 
@@ -247,11 +243,7 @@
   --cs-color-danger-foreground: var(--cs-gray-950);
   --cs-color-danger-subtle: var(--cs-red-950);
   --cs-color-focus-ring: var(--cs-blue-400);
-  --cs-color-selection: color-mix(
-    in oklab,
-    var(--cs-blue-400) var(--cs-alpha-selection),
-    transparent
-  );
+  --cs-color-selection: color-mix(in oklab, var(--cs-blue-400) var(--cs-alpha-selection), transparent);
   --cs-color-overlay: color-mix(in oklab, var(--cs-gray-950) var(--cs-alpha-overlay), transparent);
 }
 

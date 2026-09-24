@@ -142,7 +142,7 @@ export const primitives = {
   // Soft and low-contrast. Elevation is communicated by spacing first.
   "shadow-raw-1": "0 1px 2px 0 rgb(9 9 11 / 0.05), 0 1px 3px 0 rgb(9 9 11 / 0.06)",
   "shadow-raw-2": "0 2px 4px -1px rgb(9 9 11 / 0.06), 0 4px 12px -2px rgb(9 9 11 / 0.08)",
-  "shadow-raw-3": "0 8px 16px -4px rgb(9 9 11 / 0.10), 0 16px 32px -8px rgb(9 9 11 / 0.12)",
+  "shadow-raw-3": "0 8px 16px -4px rgb(9 9 11 / 0.1), 0 16px 32px -8px rgb(9 9 11 / 0.12)",
   "shadow-raw-4": "0 12px 24px -6px rgb(9 9 11 / 0.12), 0 24px 48px -12px rgb(9 9 11 / 0.16)",
   "shadow-raw-5": "0 24px 48px -12px rgb(9 9 11 / 0.18), 0 48px 96px -24px rgb(9 9 11 / 0.22)",
 
