@@ -46,6 +46,48 @@ export {
 } from "./primitives/field"
 export type { FieldProps } from "./primitives/field"
 
+// Overlays
+export { Dialog, DialogClose, DialogContent, DialogFooter, DialogTrigger } from "./overlays/Dialog"
+export type { DialogContentProps, DialogProps } from "./overlays/Dialog"
+
+export {
+  Popover,
+  PopoverAnchor,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+} from "./overlays/Popover"
+export type { PopoverContentProps } from "./overlays/Popover"
+
+export { Tooltip, TooltipProvider } from "./overlays/Tooltip"
+export type { TooltipProps } from "./overlays/Tooltip"
+
+export {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "./overlays/DropdownMenu"
+export type { DropdownMenuItemProps } from "./overlays/DropdownMenu"
+
+export {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "./overlays/ContextMenu"
+export type { ContextMenuItemProps } from "./overlays/ContextMenu"
+
 // Feedback
 export { Spinner } from "./feedback/Spinner"
 export type { SpinnerProps } from "./feedback/Spinner"
