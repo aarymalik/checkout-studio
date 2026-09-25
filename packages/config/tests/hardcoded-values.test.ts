@@ -83,6 +83,39 @@ describe("the hardcoded value checker", () => {
     expect((await findings())[0]?.rule).toBe("length")
   })
 
+  it("catches spacing that is off the 8px system", async () => {
+    // "Never use arbitrary spacing" is easy to agree with and easy to drift
+    // from: a 6px gap looks right on its own and wrong beside everything else.
+    source("Row.tsx", `<div className="flex gap-1.5 px-2.5" />`)
+
+    const found = await findings()
+    expect(found[0]?.rule).toBe("spacing step")
+    expect(found[0]?.value).toBe("gap-1.5")
+  })
+
+  it("accepts every step that is on the scale", async () => {
+    source(
+      "Grid.tsx",
+      `<div className="p-0 m-1 gap-2 pt-3 px-4 py-6 mb-8 ml-10 mr-12 pl-16 pr-20 mt-24" />`,
+    )
+
+    expect(await findings()).toEqual([])
+  })
+
+  it("leaves dimensions and transforms alone, which are not page rhythm", async () => {
+    // Centring a 16px thumb in a 20px track takes 2px, and no rounding of that
+    // is correct. A control's height answers to the design, not to the scale.
+    source("Switch.tsx", `<span className="h-5 w-9 size-4 translate-x-0.5" />`)
+
+    expect(await findings()).toEqual([])
+  })
+
+  it("does not flag a comment that explains a value", async () => {
+    source("Box.tsx", `// At 16px square, 12px of rounding is a circle.\nconst a = 1`)
+
+    expect(await findings()).toEqual([])
+  })
+
   it("lets a value through when the line says why it cannot be a token", async () => {
     source(
       "Canvas.tsx",

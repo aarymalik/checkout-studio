@@ -97,6 +97,7 @@ export const staticSemantics = {
   "duration-normal": "duration-180",
   "duration-slow": "duration-220",
   "easing-standard": "easing-out",
+  "duration-spin": "spin-1500",
 
   // Elevation by role rather than by number.
   "shadow-card": "shadow-raw-1",

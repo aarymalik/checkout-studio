@@ -119,6 +119,24 @@
   transition-duration: var(--cs-duration-slow);
 }
 
+/*
+ * The one continuous animation in the product.
+ *
+ * `data-essential-motion` marks it as conveying information rather than
+ * decorating: reset.css keeps it running when a reader asks for reduced
+ * motion, because a frozen spinner says nothing at all. It rotates once every
+ * 1.5s, well outside the flash and seizure thresholds.
+ */
+@utility animate-spinner {
+  animation: cs-spin var(--cs-duration-spin) linear infinite;
+}
+
+@keyframes cs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Control heights, so a size variant names an intent. */
 @utility h-control-sm {
   height: var(--cs-control-height-sm);

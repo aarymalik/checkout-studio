@@ -30,6 +30,27 @@ const EXEMPT = [
   "/.turbo/",
 ]
 
+/**
+ * The 8px spacing system from docs/design-system.md, as Tailwind multiples of
+ * the 4px base: 4 8 12 16 24 32 40 48 64 80 96.
+ *
+ * "Never use arbitrary spacing" is easy to agree with and easy to drift from —
+ * a 6px gap or a 10px padding looks right in isolation and puts the component
+ * permanently out of step with every other one.
+ */
+const SPACING_STEPS = new Set(["0", "1", "2", "3", "4", "6", "8", "10", "12", "16", "20", "24"])
+
+/**
+ * Utilities that take a spacing step.
+ *
+ * Dimensions are not spacing: a control's height, an icon's size and a switch
+ * thumb's travel answer to the design, not to the page's vertical rhythm.
+ * Transforms are left out for the same reason — centring a 16px thumb in a 20px
+ * track needs 2px, and no rounding of that is correct.
+ */
+const SPACING_UTILITIES =
+  "p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y|inset|inset-x|inset-y|top|right|bottom|left"
+
 const RULES = [
   {
     name: "colour",
@@ -49,6 +70,12 @@ const RULES = [
     advice: "use duration-fast, duration-normal or duration-slow",
   },
   {
+    name: "spacing step",
+    pattern: new RegExp(`(?<![\\w-])-?(?:${SPACING_UTILITIES})-(\\d+(?:\\.\\d+)?)(?![\\w.-])`, "g"),
+    allow: (match) => SPACING_STEPS.has(match[1]),
+    advice: "use a step from the 8px system: 0 1 2 3 4 6 8 10 12 16 20 24",
+  },
+  {
     name: "arbitrary utility",
     // Tailwind escape hatches: bg-[#fff], p-[13px], duration-[120ms]
     pattern: /\b[a-z-]+-\[[^\]]*(?:#|\d+px|\d+ms)[^\]]*\]/g,
@@ -58,6 +85,14 @@ const RULES = [
 
 /** A line that says why it is exempt is exempt. */
 const ALLOW_MARKER = "design-system-ignore"
+
+/**
+ * Comment-only lines are skipped.
+ *
+ * Explaining why a control is 16px square is exactly the kind of comment worth
+ * writing, and flagging it teaches people to stop explaining themselves.
+ */
+const COMMENT_ONLY = /^\s*(?:\/\/|\/\*|\*|<!--)/
 
 async function* sourceFiles(directory) {
   let entries
@@ -96,17 +131,24 @@ export async function findHardcodedValues(directories = SEARCH, root = ROOT) {
 
       lines.forEach((line, index) => {
         if (line.includes(ALLOW_MARKER)) return
+        if (COMMENT_ONLY.test(line)) return
 
         for (const rule of RULES) {
           rule.pattern.lastIndex = 0
-          const match = rule.pattern.exec(line)
-          if (!match) continue
+
+          // Every match, not the first: a rule with a validator has to look at
+          // each one, since an allowed value earlier on the line says nothing
+          // about a disallowed one after it.
+          const offending = [...line.matchAll(rule.pattern)].find(
+            (match) => rule.allow === undefined || !rule.allow(match),
+          )
+          if (!offending) continue
 
           findings.push({
             file: relative(root, file),
             line: index + 1,
             rule: rule.name,
-            value: match[0],
+            value: offending[0],
             advice: rule.advice,
           })
         }

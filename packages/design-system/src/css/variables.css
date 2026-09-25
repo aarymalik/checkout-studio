@@ -81,6 +81,9 @@
   --cs-size-16: 64px;
   --cs-size-20: 80px;
   --cs-size-24: 96px;
+  --cs-height-36: 36px;
+  --cs-height-40: 40px;
+  --cs-height-48: 48px;
   --cs-radius-0: 0px;
   --cs-radius-8: 8px;
   --cs-radius-12: 12px;
@@ -118,6 +121,7 @@
   --cs-duration-200: 200ms;
   --cs-duration-220: 220ms;
   --cs-easing-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --cs-spin-1500: 1500ms;
   --cs-layout-toolbar: 64px;
   --cs-layout-status-bar: 32px;
   --cs-layout-panel-left: 320px;
@@ -145,6 +149,7 @@
   --cs-duration-normal: var(--cs-duration-180);
   --cs-duration-slow: var(--cs-duration-220);
   --cs-easing-standard: var(--cs-easing-out);
+  --cs-duration-spin: var(--cs-spin-1500);
   --cs-shadow-card: var(--cs-shadow-raw-1);
   --cs-shadow-dropdown: var(--cs-shadow-raw-2);
   --cs-shadow-dialog: var(--cs-shadow-raw-3);

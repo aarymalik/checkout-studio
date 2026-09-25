@@ -57,4 +57,19 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /*
+   * Except motion that carries meaning.
+   *
+   * The rule above is the right default and the wrong answer for a progress
+   * indicator: stopping it removes the only signal that work is happening, and
+   * leaves something that looks broken instead of something that looks calm.
+   * WCAG 2.2.2 exempts animation that is essential, which this is.
+   */
+  [data-essential-motion],
+  [data-essential-motion]::before,
+  [data-essential-motion]::after {
+    animation-duration: var(--cs-duration-spin) !important;
+    animation-iteration-count: infinite !important;
+  }
 }

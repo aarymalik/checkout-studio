@@ -101,6 +101,13 @@ export const primitives = {
   "size-20": "80px",
   "size-24": "96px",
 
+  // ── Control heights ────────────────────────────────────────────────────────
+  // A separate family from spacing: 36 and 40 are not steps on an 8px scale,
+  // and a control's height is not a gap.
+  "height-36": "36px",
+  "height-40": "40px",
+  "height-48": "48px",
+
   // ── Radius ─────────────────────────────────────────────────────────────────
   // Named by value, not by role: a primitive called "card" would already be a
   // semantic, and the two tiers must not share a name.
@@ -153,6 +160,11 @@ export const primitives = {
   "duration-200": "200ms",
   "duration-220": "220ms",
   "easing-out": "cubic-bezier(0.16, 1, 0.3, 1)",
+
+  // A progress indicator is not a state change: it runs until the work is
+  // done, so it is not bound by the 150–220ms range and is named apart from
+  // the durations that are.
+  "spin-1500": "1500ms",
 
   // ── Layout — docs/theme-system.md § Studio Theme ───────────────────────────
   "layout-toolbar": "64px",

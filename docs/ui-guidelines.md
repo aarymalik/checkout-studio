@@ -395,9 +395,14 @@ Never use placeholder as label.
 
 Large hit area.
 
-Minimum height
+Default height
 
 40px
+
+Dense toolbars may use 36px, and nothing goes below it. A 32px control is
+comfortable with a mouse and not with a thumb; WCAG 2.5.8 sets the floor at
+24px, and this sits well clear of it while staying legible in a crowded
+toolbar.
 
 Hover
 
