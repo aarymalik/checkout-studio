@@ -130,7 +130,10 @@ export async function findHardcodedValues(directories = SEARCH, root = ROOT) {
       const lines = readFileSync(file, "utf8").split("\n")
 
       lines.forEach((line, index) => {
-        if (line.includes(ALLOW_MARKER)) return
+        // The marker counts on the line itself or on the one above it: a reason
+        // worth writing rarely fits at the end of the line it excuses.
+        const previous = index > 0 ? (lines[index - 1] ?? "") : ""
+        if (line.includes(ALLOW_MARKER) || previous.includes(ALLOW_MARKER)) return
         if (COMMENT_ONLY.test(line)) return
 
         for (const rule of RULES) {
@@ -178,7 +181,8 @@ if (!invokedDirectly) {
 
     process.stderr.write(
       `\n${findings.length} finding${findings.length === 1 ? "" : "s"}. ` +
-        `A value that cannot be tokenised may carry a "${ALLOW_MARKER}" comment saying why.\n`,
+        `A value that cannot be tokenised may carry a "${ALLOW_MARKER}" comment, on its ` +
+        `line or the one above, saying why.\n`,
     )
 
     process.exit(1)

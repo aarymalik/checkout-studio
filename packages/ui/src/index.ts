@@ -35,6 +35,17 @@ export type { SwitchProps } from "./primitives/Switch"
 export { Select, SelectGroup, SelectOption, SelectSeparator } from "./primitives/Select"
 export type { SelectGroupProps, SelectOptionProps, SelectProps } from "./primitives/Select"
 
+export { Tabs, TabsList, TabsPanel, TabsTrigger } from "./primitives/Tabs"
+
+export { Accordion, AccordionHeader, AccordionItem, AccordionPanel } from "./primitives/Accordion"
+export type { AccordionHeaderProps } from "./primitives/Accordion"
+
+export { Slider } from "./primitives/Slider"
+export type { SliderProps } from "./primitives/Slider"
+
+export { ColorPicker } from "./primitives/ColorPicker"
+export type { ColorPickerProps } from "./primitives/ColorPicker"
+
 // The parts a labelled control is built from, for composing a control the
 // library does not have yet.
 export {

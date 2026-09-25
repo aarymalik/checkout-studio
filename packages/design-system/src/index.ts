@@ -35,7 +35,19 @@ export { highContrast } from "./themes/high-contrast"
 export { bindingsFor, resolveColor } from "./tokens/resolve"
 export type { Contrast, Mode } from "./tokens/resolve"
 
-export { AA, contrastRatio, contrastRatioRounded, relativeLuminance } from "./color/contrast"
+export {
+  AA,
+  contrastRatio,
+  contrastRatioRounded,
+  hexToHsl,
+  hslToHex,
+  isHexColor,
+  normalizeHex,
+  parseHex,
+  relativeLuminance,
+  roundHsl,
+} from "./color/contrast"
+export type { Hsl } from "./color/contrast"
 
 export { generateVariablesCss, PREFIX } from "./css/generate"
 

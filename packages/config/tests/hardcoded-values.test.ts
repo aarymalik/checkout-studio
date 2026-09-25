@@ -125,6 +125,15 @@ describe("the hardcoded value checker", () => {
     expect(await findings()).toEqual([])
   })
 
+  it("accepts the reason on the line above, where a reason usually fits", async () => {
+    source(
+      "Picker.tsx",
+      `// design-system-ignore: an example of what to type, not a colour we paint with\nconst hint = "Enter a colour like #2563eb"`,
+    )
+
+    expect(await findings()).toEqual([])
+  })
+
   it("ignores tests, which may assert on literal values", async () => {
     writeFileSync(join(root, "src", "Button.test.tsx"), `expect(style.color).toBe("#ffffff")`)
 
