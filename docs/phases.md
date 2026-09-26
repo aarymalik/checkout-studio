@@ -215,7 +215,7 @@ These apply to **every** phase, in addition to its specific criteria.
 | 0     | Product & Architecture Planning | **Complete** | —          |
 | 1     | Repository Foundation           | **Complete** | 0          |
 | 2     | Infrastructure                  | **Complete** | 1          |
-| 3     | Design System                   | Not Started  | 1          |
+| 3     | Design System                   | **Complete** | 1          |
 | 4     | Studio Shell                    | Not Started  | 2, 3       |
 | 5     | Editor State Engine             | Not Started  | 2          |
 | 6     | Renderer Engine                 | Not Started  | 2, 5       |
@@ -543,7 +543,8 @@ packages/ui component library:
   feedback     Toast Alert Skeleton Spinner ErrorState
   layout       Panel ResizablePanel Splitter ScrollArea
   errors       AppErrorBoundary RouteErrorBoundary PanelErrorBoundary ErrorFallback
-Each app's Tailwind config wired to the design-system preset
+The Studio application wired to the design-system stylesheets
+  (the renderer is themed by the checkout theme, Phase 6)
 ```
 
 ### Out of Scope
@@ -573,7 +574,10 @@ packages/design-system  ui
 9.  Build feedback components
 10. Build layout components
 11. Build the Studio error boundaries on top of the Phase 2 error model
-12. Wire each app's Tailwind config to the design-system preset
+12. Wire the Studio application to the design-system stylesheets. The renderer
+    application is deliberately excluded: its CSS ships with every published
+    checkout, which is themed by the checkout theme in Phase 6, and the
+    architecture keeps builder weight out of it
 13. Verify contrast on every semantic pairing
 14. Add visual regression baselines
 ```

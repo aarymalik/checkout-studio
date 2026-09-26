@@ -1,1 +1,15 @@
+/*
+ * Studio stylesheet.
+ *
+ * Order matters: Tailwind first, then the token declarations, then the
+ * bindings that turn those tokens into utilities, then the few base rules that
+ * depend on both.
+ */
 @import "@checkout-studio/config/tailwind/base.css";
+@import "@checkout-studio/design-system/css/variables.css";
+@import "@checkout-studio/design-system/tailwind/tokens.css";
+@import "@checkout-studio/design-system/css/reset.css";
+
+/* Tell Tailwind where to look for class names. */
+@source "../../src";
+@source "../../../../packages/ui/src";

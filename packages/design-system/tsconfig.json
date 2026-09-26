@@ -1,4 +1,10 @@
 {
   "extends": "@checkout-studio/config/typescript/base.json",
-  "include": ["src/**/*", "tests/**/*", "*.config.ts"]
+  "compilerOptions": {
+    // This package writes the theme attribute onto the document and reads the
+    // reader's media preferences, so it needs the DOM. It has no JSX of its
+    // own: components live in @checkout-studio/ui.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src/**/*", "tests/**/*", "*.config.ts", "scripts/**/*"]
 }

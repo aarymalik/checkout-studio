@@ -1,14 +1,10 @@
 import "server-only"
 
 import { rateLimit } from "@checkout-studio/cache"
-import {
-  createContext,
-  createCorrelationId,
-  enrichContext,
-  runWithContext,
-  type Environment,
-  type Surface,
-} from "@checkout-studio/observability"
+import { createCorrelationId, type Environment, type Surface } from "@checkout-studio/observability"
+// The request context lives behind the server entry: it is AsyncLocalStorage,
+// which a browser has no equivalent for.
+import { createContext, enrichContext, runWithContext } from "@checkout-studio/observability/server"
 import { Errors, type AppError } from "@checkout-studio/utils"
 import type { ZodType } from "zod"
 import { withErrorHandling } from "../errors/withErrorHandling"

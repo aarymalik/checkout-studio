@@ -15,13 +15,15 @@ export type { Metrics, MetricLabels, MetricSample, MetricsSink } from "./metrics
 export { span } from "./tracing/tracer"
 export type { Span, SpanAttributes, TraceOptions } from "./tracing/tracer"
 
-export {
-  runWithContext,
-  currentContext,
-  currentCorrelationId,
-  enrichContext,
-  createContext,
-} from "./context/server"
-export type { ContextSeed } from "./context/server"
+/*
+ * The context is read here and written in "./server".
+ *
+ * Everything this entry exports runs in a browser as well as on a server, which
+ * is what lets a component log. The AsyncLocalStorage that carries a request's
+ * context is a Node builtin, so it lives behind the "./server" entry — see
+ * ./context/current.ts.
+ */
+export { currentContext } from "./context/current"
+export type { ContextProvider } from "./context/current"
 export { createCorrelationId, ENVIRONMENTS, SURFACES } from "./context/TelemetryContext"
 export type { TelemetryContext, Environment, Surface } from "./context/TelemetryContext"

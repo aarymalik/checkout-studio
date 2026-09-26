@@ -1,0 +1,322 @@
+/*
+ * Studio design tokens — GENERATED FILE, DO NOT EDIT.
+ *
+ * Source: packages/design-system/src/tokens and src/themes.
+ * Regenerate: pnpm --filter @checkout-studio/design-system tokens:build
+ *
+ * Tier 1 primitives hold values. Tier 2 semantics give them meaning and are
+ * the only tier a component may read. Tier 3 component tokens resolve to
+ * semantics. Switching mode rebinds tier 2 and nothing else.
+ */
+
+/* Tier 1 — primitives. Raw values, no meaning. Never read by a component. */
+:root {
+  --cs-gray-0: #ffffff;
+  --cs-gray-50: #fafafa;
+  --cs-gray-100: #f4f4f5;
+  --cs-gray-150: #ececee;
+  --cs-gray-200: #e4e4e7;
+  --cs-gray-300: #d4d4d8;
+  --cs-gray-400: #a1a1aa;
+  --cs-gray-500: #71717a;
+  --cs-gray-600: #52525b;
+  --cs-gray-700: #3f3f46;
+  --cs-gray-800: #27272a;
+  --cs-gray-850: #1f1f23;
+  --cs-gray-900: #18181b;
+  --cs-gray-950: #0a0a0b;
+  --cs-blue-50: #eff6ff;
+  --cs-blue-100: #dbeafe;
+  --cs-blue-200: #bfdbfe;
+  --cs-blue-300: #93c5fd;
+  --cs-blue-400: #60a5fa;
+  --cs-blue-500: #3b82f6;
+  --cs-blue-600: #2563eb;
+  --cs-blue-700: #1d4ed8;
+  --cs-blue-800: #1e40af;
+  --cs-blue-900: #1e3a8a;
+  --cs-blue-950: #172554;
+  --cs-green-50: #f0fdf4;
+  --cs-green-100: #dcfce7;
+  --cs-green-200: #bbf7d0;
+  --cs-green-300: #86efac;
+  --cs-green-400: #4ade80;
+  --cs-green-500: #22c55e;
+  --cs-green-600: #16a34a;
+  --cs-green-700: #15803d;
+  --cs-green-800: #166534;
+  --cs-green-900: #14532d;
+  --cs-green-950: #052e16;
+  --cs-amber-50: #fffbeb;
+  --cs-amber-100: #fef3c7;
+  --cs-amber-200: #fde68a;
+  --cs-amber-300: #fcd34d;
+  --cs-amber-400: #fbbf24;
+  --cs-amber-500: #f59e0b;
+  --cs-amber-600: #d97706;
+  --cs-amber-700: #b45309;
+  --cs-amber-800: #92400e;
+  --cs-amber-900: #78350f;
+  --cs-amber-950: #451a03;
+  --cs-red-50: #fef2f2;
+  --cs-red-100: #fee2e2;
+  --cs-red-200: #fecaca;
+  --cs-red-300: #fca5a5;
+  --cs-red-400: #f87171;
+  --cs-red-500: #ef4444;
+  --cs-red-600: #dc2626;
+  --cs-red-700: #b91c1c;
+  --cs-red-800: #991b1b;
+  --cs-red-900: #7f1d1d;
+  --cs-red-950: #450a0a;
+  --cs-size-0: 0px;
+  --cs-size-1: 4px;
+  --cs-size-2: 8px;
+  --cs-size-3: 12px;
+  --cs-size-4: 16px;
+  --cs-size-6: 24px;
+  --cs-size-8: 32px;
+  --cs-size-10: 40px;
+  --cs-size-12: 48px;
+  --cs-size-16: 64px;
+  --cs-size-20: 80px;
+  --cs-size-24: 96px;
+  --cs-height-36: 36px;
+  --cs-height-40: 40px;
+  --cs-height-48: 48px;
+  --cs-radius-0: 0px;
+  --cs-radius-8: 8px;
+  --cs-radius-12: 12px;
+  --cs-radius-16: 16px;
+  --cs-radius-18: 18px;
+  --cs-radius-20: 20px;
+  --cs-radius-full: 9999px;
+  --cs-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --cs-font-secondary: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --cs-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --cs-text-48: 48px;
+  --cs-text-36: 36px;
+  --cs-text-30: 30px;
+  --cs-text-24: 24px;
+  --cs-text-20: 20px;
+  --cs-text-18: 18px;
+  --cs-text-16: 16px;
+  --cs-text-14: 14px;
+  --cs-text-13: 13px;
+  --cs-text-12: 12px;
+  --cs-text-11: 11px;
+  --cs-leading-115: 1.15;
+  --cs-leading-125: 1.25;
+  --cs-leading-160: 1.6;
+  --cs-weight-regular: 400;
+  --cs-weight-medium: 500;
+  --cs-weight-semibold: 600;
+  --cs-shadow-raw-1: 0 1px 2px 0 rgb(9 9 11 / 0.05), 0 1px 3px 0 rgb(9 9 11 / 0.06);
+  --cs-shadow-raw-2: 0 2px 4px -1px rgb(9 9 11 / 0.06), 0 4px 12px -2px rgb(9 9 11 / 0.08);
+  --cs-shadow-raw-3: 0 8px 16px -4px rgb(9 9 11 / 0.1), 0 16px 32px -8px rgb(9 9 11 / 0.12);
+  --cs-shadow-raw-4: 0 12px 24px -6px rgb(9 9 11 / 0.12), 0 24px 48px -12px rgb(9 9 11 / 0.16);
+  --cs-shadow-raw-5: 0 24px 48px -12px rgb(9 9 11 / 0.18), 0 48px 96px -24px rgb(9 9 11 / 0.22);
+  --cs-duration-150: 150ms;
+  --cs-duration-180: 180ms;
+  --cs-duration-200: 200ms;
+  --cs-duration-220: 220ms;
+  --cs-easing-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --cs-spin-1500: 1500ms;
+  --cs-pulse-2000: 2000ms;
+  --cs-layout-toolbar: 64px;
+  --cs-layout-status-bar: 32px;
+  --cs-layout-panel-left: 320px;
+  --cs-layout-panel-left-min: 260px;
+  --cs-layout-panel-left-max: 420px;
+  --cs-layout-panel-left-collapsed: 64px;
+  --cs-layout-panel-right: 340px;
+  --cs-layout-panel-right-min: 300px;
+  --cs-layout-panel-right-max: 460px;
+  --cs-alpha-focus: 40%;
+  --cs-alpha-selection: 15%;
+  --cs-alpha-overlay: 60%;
+  --cs-alpha-disabled: 50%;
+}
+
+/* Tier 2 — semantics that carry no colour and so do not change with mode. */
+:root {
+  --cs-radius-control: var(--cs-radius-12);
+  --cs-radius-card: var(--cs-radius-16);
+  --cs-radius-panel: var(--cs-radius-18);
+  --cs-radius-modal: var(--cs-radius-20);
+  --cs-radius-pill: var(--cs-radius-full);
+  --cs-radius-tight: var(--cs-radius-8);
+  --cs-duration-fast: var(--cs-duration-150);
+  --cs-duration-normal: var(--cs-duration-180);
+  --cs-duration-slow: var(--cs-duration-220);
+  --cs-easing-standard: var(--cs-easing-out);
+  --cs-duration-spin: var(--cs-spin-1500);
+  --cs-duration-pulse: var(--cs-pulse-2000);
+  --cs-shadow-card: var(--cs-shadow-raw-1);
+  --cs-shadow-dropdown: var(--cs-shadow-raw-2);
+  --cs-shadow-dialog: var(--cs-shadow-raw-3);
+  --cs-shadow-toast: var(--cs-shadow-raw-4);
+  --cs-font-body: var(--cs-font-sans);
+  --cs-font-display: var(--cs-font-secondary);
+  --cs-font-code: var(--cs-font-mono);
+  --cs-text-display: var(--cs-text-48);
+  --cs-text-hero: var(--cs-text-36);
+  --cs-text-h1: var(--cs-text-30);
+  --cs-text-h2: var(--cs-text-24);
+  --cs-text-h3: var(--cs-text-20);
+  --cs-text-h4: var(--cs-text-18);
+  --cs-text-body-lg: var(--cs-text-16);
+  --cs-text-body: var(--cs-text-14);
+  --cs-text-small: var(--cs-text-13);
+  --cs-text-caption: var(--cs-text-12);
+  --cs-text-tiny: var(--cs-text-11);
+  --cs-leading-tight: var(--cs-leading-115);
+  --cs-leading-heading: var(--cs-leading-125);
+  --cs-leading-body: var(--cs-leading-160);
+  --cs-control-height-sm: var(--cs-size-8);
+  --cs-control-height-md: var(--cs-size-10);
+  --cs-control-height-lg: var(--cs-size-12);
+  --cs-toolbar-height: var(--cs-layout-toolbar);
+  --cs-status-bar-height: var(--cs-layout-status-bar);
+  --cs-panel-width-left: var(--cs-layout-panel-left);
+  --cs-panel-width-right: var(--cs-layout-panel-right);
+}
+
+/* Tier 2 — colour, light mode. The default, so an unresolved document still paints. */
+:root {
+  --cs-color-background: var(--cs-gray-50);
+  --cs-color-canvas: var(--cs-gray-100);
+  --cs-color-surface: var(--cs-gray-0);
+  --cs-color-surface-raised: var(--cs-gray-0);
+  --cs-color-surface-sunken: var(--cs-gray-100);
+  --cs-color-surface-hover: var(--cs-gray-100);
+  --cs-color-surface-active: var(--cs-gray-150);
+  --cs-color-border: var(--cs-gray-200);
+  --cs-color-border-strong: var(--cs-gray-500);
+  --cs-color-foreground: var(--cs-gray-950);
+  --cs-color-foreground-muted: var(--cs-gray-600);
+  --cs-color-foreground-subtle: var(--cs-gray-500);
+  --cs-color-foreground-inverse: var(--cs-gray-0);
+  --cs-color-primary: var(--cs-blue-600);
+  --cs-color-primary-hover: var(--cs-blue-700);
+  --cs-color-primary-active: var(--cs-blue-800);
+  --cs-color-primary-foreground: var(--cs-gray-0);
+  --cs-color-primary-subtle: var(--cs-blue-50);
+  --cs-color-success: var(--cs-green-700);
+  --cs-color-success-foreground: var(--cs-gray-0);
+  --cs-color-success-subtle: var(--cs-green-50);
+  --cs-color-warning: var(--cs-amber-600);
+  --cs-color-warning-foreground: var(--cs-gray-950);
+  --cs-color-warning-subtle: var(--cs-amber-50);
+  --cs-color-danger: var(--cs-red-600);
+  --cs-color-danger-hover: var(--cs-red-700);
+  --cs-color-danger-active: var(--cs-red-800);
+  --cs-color-danger-foreground: var(--cs-gray-0);
+  --cs-color-danger-subtle: var(--cs-red-50);
+  --cs-color-focus-ring: var(--cs-blue-600);
+  --cs-color-selection: color-mix(in oklab, var(--cs-blue-600) var(--cs-alpha-selection), transparent);
+  --cs-color-overlay: color-mix(in oklab, var(--cs-gray-950) var(--cs-alpha-overlay), transparent);
+}
+
+/* Tier 2 — colour, dark mode. */
+[data-theme="dark"] {
+  --cs-color-background: var(--cs-gray-950);
+  --cs-color-canvas: var(--cs-gray-950);
+  --cs-color-surface: var(--cs-gray-900);
+  --cs-color-surface-raised: var(--cs-gray-850);
+  --cs-color-surface-sunken: var(--cs-gray-950);
+  --cs-color-surface-hover: var(--cs-gray-800);
+  --cs-color-surface-active: var(--cs-gray-700);
+  --cs-color-border: var(--cs-gray-800);
+  --cs-color-border-strong: var(--cs-gray-500);
+  --cs-color-foreground: var(--cs-gray-50);
+  --cs-color-foreground-muted: var(--cs-gray-400);
+  --cs-color-foreground-subtle: var(--cs-gray-500);
+  --cs-color-foreground-inverse: var(--cs-gray-950);
+  --cs-color-primary: var(--cs-blue-400);
+  --cs-color-primary-hover: var(--cs-blue-300);
+  --cs-color-primary-active: var(--cs-blue-200);
+  --cs-color-primary-foreground: var(--cs-gray-950);
+  --cs-color-primary-subtle: var(--cs-blue-950);
+  --cs-color-success: var(--cs-green-400);
+  --cs-color-success-foreground: var(--cs-gray-950);
+  --cs-color-success-subtle: var(--cs-green-950);
+  --cs-color-warning: var(--cs-amber-400);
+  --cs-color-warning-foreground: var(--cs-gray-950);
+  --cs-color-warning-subtle: var(--cs-amber-950);
+  --cs-color-danger: var(--cs-red-400);
+  --cs-color-danger-hover: var(--cs-red-300);
+  --cs-color-danger-active: var(--cs-red-200);
+  --cs-color-danger-foreground: var(--cs-gray-950);
+  --cs-color-danger-subtle: var(--cs-red-950);
+  --cs-color-focus-ring: var(--cs-blue-400);
+  --cs-color-selection: color-mix(in oklab, var(--cs-blue-400) var(--cs-alpha-selection), transparent);
+  --cs-color-overlay: color-mix(in oklab, var(--cs-gray-950) var(--cs-alpha-overlay), transparent);
+}
+
+/* High contrast. A sparse override of the active mode, not a third palette. */
+[data-theme="light"][data-contrast="high"] {
+  --cs-color-surface-hover: var(--cs-gray-150);
+  --cs-color-border: var(--cs-gray-950);
+  --cs-color-border-strong: var(--cs-gray-950);
+  --cs-color-foreground-muted: var(--cs-gray-800);
+  --cs-color-foreground-subtle: var(--cs-gray-700);
+  --cs-color-focus-ring: var(--cs-gray-950);
+}
+
+[data-theme="dark"][data-contrast="high"] {
+  --cs-color-surface-hover: var(--cs-gray-700);
+  --cs-color-border: var(--cs-gray-50);
+  --cs-color-border-strong: var(--cs-gray-50);
+  --cs-color-foreground-muted: var(--cs-gray-200);
+  --cs-color-foreground-subtle: var(--cs-gray-300);
+  --cs-color-focus-ring: var(--cs-gray-50);
+}
+
+/* Tier 3 — component tokens. Each resolves to a semantic, never to a primitive. */
+:root {
+  --cs-button-primary-bg: var(--cs-color-primary);
+  --cs-button-primary-fg: var(--cs-color-primary-foreground);
+  --cs-button-primary-bg-hover: var(--cs-color-primary-hover);
+  --cs-button-primary-bg-active: var(--cs-color-primary-active);
+  --cs-button-danger-bg: var(--cs-color-danger);
+  --cs-button-danger-fg: var(--cs-color-danger-foreground);
+  --cs-button-danger-bg-hover: var(--cs-color-danger-hover);
+  --cs-button-danger-bg-active: var(--cs-color-danger-active);
+  --cs-button-radius: var(--cs-radius-control);
+  --cs-button-height-sm: var(--cs-control-height-sm);
+  --cs-button-height-md: var(--cs-control-height-md);
+  --cs-button-height-lg: var(--cs-control-height-lg);
+  --cs-input-bg: var(--cs-color-surface);
+  --cs-input-border: var(--cs-color-border-strong);
+  --cs-input-focus-ring: var(--cs-color-focus-ring);
+  --cs-input-radius: var(--cs-radius-control);
+  --cs-input-height-sm: var(--cs-control-height-sm);
+  --cs-input-height-md: var(--cs-control-height-md);
+  --cs-input-height-lg: var(--cs-control-height-lg);
+  --cs-card-bg: var(--cs-color-surface);
+  --cs-card-radius: var(--cs-radius-card);
+  --cs-card-shadow: var(--cs-shadow-card);
+  --cs-dialog-bg: var(--cs-color-surface-raised);
+  --cs-dialog-radius: var(--cs-radius-modal);
+  --cs-dialog-shadow: var(--cs-shadow-dialog);
+  --cs-dialog-overlay: var(--cs-color-overlay);
+  --cs-menu-bg: var(--cs-color-surface-raised);
+  --cs-menu-radius: var(--cs-radius-control);
+  --cs-menu-shadow: var(--cs-shadow-dropdown);
+  --cs-tooltip-bg: var(--cs-color-foreground);
+  --cs-tooltip-fg: var(--cs-color-foreground-inverse);
+  --cs-tooltip-radius: var(--cs-radius-tight);
+  --cs-panel-bg: var(--cs-color-surface);
+  --cs-panel-radius: var(--cs-radius-panel);
+}
+
+/* Motion collapses to nothing when the reader asks for less of it. No
+ * component needs to know: every duration in the product reads these three. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cs-duration-fast: 0ms;
+    --cs-duration-normal: 0ms;
+    --cs-duration-slow: 0ms;
+  }
+}

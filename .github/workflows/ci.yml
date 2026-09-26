@@ -97,6 +97,53 @@ jobs:
       - name: Declared dependencies and the resolved import graph obey the layer model
         run: pnpm boundaries
 
+      - name: No component carries a value that belongs in the design system
+        run: pnpm tokens:check
+
+  visual:
+    name: visual regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The gallery reads the validated environment, and the placeholders in
+      # .env.example are shaped to pass that validation — which is what lets a
+      # fresh clone, and this job, start without real credentials.
+      #
+      # Copied into the application rather than the root: scripts/link-env.mjs
+      # deliberately does nothing in CI, where an environment normally comes
+      # from the platform rather than from a file.
+      - name: Provide an environment
+        run: cp .env.example apps/studio/.env.local
+
+      - name: Install the browser
+        run: pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium
+
+      - name: Every component, every variant, light and dark
+        run: pnpm test:visual
+
+      # Baselines are per platform: a screenshot taken on macOS does not match
+      # one taken here, because the text rasterises differently. When a Linux
+      # baseline is missing, Playwright writes it and fails — so the run uploads
+      # what it wrote, to be reviewed and committed.
+      - name: Upload what changed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression
+          path: |
+            apps/studio/visual/__screenshots__/linux
+            apps/studio/playwright-report
+            apps/studio/test-results
+          retention-days: 7
+
   audit:
     name: dependency audit
     runs-on: ubuntu-latest
