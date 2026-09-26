@@ -335,7 +335,7 @@ Reading upward from any document gives you its prerequisites.
       schema · types · utils · observability
                 │
                 ▼
-       PostgreSQL · Redis · Stripe · Clerk · UploadThing
+       PostgreSQL · Redis · Stripe · Resend · UploadThing
 ```
 
 ## Data Flow — Editing
@@ -499,7 +499,7 @@ Each phase must be production-ready, typed, tested, documented, and committed be
 ```
 Phase 0    Product & Architecture Planning        ← these documents
 Phase 1    Repository Foundation                  Turborepo, pnpm, Next.js, TS
-Phase 2    Infrastructure                         Postgres, Prisma, Clerk, Redis
+Phase 2    Infrastructure                         Postgres, Prisma, Redis
 Phase 3    Design System                          tokens + component library
 Phase 4    Studio Shell                           toolbar, panels, canvas frame
 Phase 5    Editor State Engine                    Zustand, history, selection
@@ -610,7 +610,7 @@ Decisions already made. Changing any of them requires an RFC, per [contributing.
 | Animation              | Framer Motion             | Declarative, interruptible                           |
 | ORM                    | Prisma                    | Type safety, migrations                              |
 | Database               | PostgreSQL                | JSONB for schemas, relational for the rest           |
-| Auth                   | Clerk                     | Never implement authentication                       |
+| Auth                   | Ours                      | Owned outright; see security.md for what that costs  |
 | Payments (merchants)   | Stripe Connect Standard   | Direct charges; we never hold merchant keys or funds |
 | Payments (our billing) | Stripe Billing + Checkout | We never build a card form                           |
 | Cache                  | Upstash Redis             | Serverless-friendly                                  |

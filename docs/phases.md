@@ -216,7 +216,8 @@ These apply to **every** phase, in addition to its specific criteria.
 | 1     | Repository Foundation           | **Complete** | 0          |
 | 2     | Infrastructure                  | **Complete** | 1          |
 | 3     | Design System                   | **Complete** | 1          |
-| 4     | Studio Shell                    | Not Started  | 2, 3       |
+| 3A    | Authentication                  | Not Started  | 2, 3       |
+| 4     | Studio Shell                    | Not Started  | 3A         |
 | 5     | Editor State Engine             | Not Started  | 2          |
 | 6     | Renderer Engine                 | Not Started  | 2, 5       |
 | 7     | Visual Canvas                   | Not Started  | 4, 6       |
@@ -402,7 +403,8 @@ Every cross-cutting service the rest of the product depends on: persistence, ide
 Prisma schema for all entities in database.md
 PostgreSQL migrations + seed
 Repository layer with mandatory tenant scoping
-Clerk authentication and route protection
+The authentication boundary — the middleware, failing closed until Phase 2A
+  builds what it calls (see below)
 Redis (Upstash) client and cache helpers
 Upload boundary: permitted types, size limits, project scoping
   (the storage provider SDK is installed in Phase 14, where it is used)
@@ -440,7 +442,7 @@ apps/studio (middleware, health routes)
 4.  Author the seed script
 5.  Build the repository layer — every method takes TenantContext
 6.  Add `import "server-only"` to database and server API entry points
-7.  Integrate Clerk; protect dashboard routes
+7.  Build the authentication boundary and make it fail closed
 8.  Build the Redis client and typed cache helpers
 9.  Implement the upload boundary (types, limits, project scoping)
 10. Implement AppError, createError, and the full catalog
@@ -653,9 +655,147 @@ node scripts/check-hardcoded-values.mjs
 
 ---
 
-# Phase 4 — Studio Shell
+# Phase 3A — Authentication
 
 **Depends on:** Phase 2, Phase 3
+
+**Specs:** [security.md](./security.md) · [database.md](./database.md) · [api-spec.md](./api-spec.md)
+
+### Why this is a phase of its own
+
+Phase 2 planned to integrate a hosted identity provider, which is an afternoon's
+work. Owning authentication is not: it is credentials, sessions, one-time
+tokens, an email path, and the attacks against all four. It belongs somewhere it
+can be reviewed as a subsystem rather than as a bullet in a list.
+
+It completes what Infrastructure deferred, but it needs the component library
+for the sign-in, sign-up and reset screens — so it runs after Phase 3, and is
+lettered rather than numbered to avoid renumbering the twenty-four phases that
+follow and every cross-reference to them.
+
+### Goal
+
+A person can create an account, prove their address, sign in, sign out, forget
+their password and recover it — and can see and end their own sessions.
+
+### In Scope
+
+```
+User credentials: Argon2id hashing, rehash on parameter change
+Email verification: single-use, hashed, expiring tokens
+Sign in · sign out · sign out everywhere
+Password reset and password change
+Database-backed sessions: creation, rotation, revocation, expiry sweep
+Session cache in Redis, invalidated on revocation
+Session cookie: HttpOnly · Secure · SameSite=Lax
+Rate limiting on every credential-accepting route
+Transactional email through Resend, with a local no-op sender
+Auth routes and screens: sign in, sign up, verify, forgot, reset
+Route protection in the Studio proxy
+Replacing the Phase 2 boundary's fail-closed stub with the real resolver
+Active sessions screen: device, location, last used, end
+```
+
+### Out of Scope
+
+```
+Federated sign-in (Google, GitHub)
+Multi-factor authentication
+Organizations and invitations (Phase 22)
+```
+
+Each extends this model rather than reshaping it: an OAuthAccount table, an
+MfaCredential table, a Membership table.
+
+### Packages Touched
+
+```
+packages/database  api  utils  ui
+apps/studio (auth routes, proxy)
+```
+
+### Implementation Steps
+
+```
+1.  Migrate: User gains passwordHash and emailVerifiedAt, loses clerkId;
+    add Session and VerificationToken. Replace the Clerk variables with
+    AUTH_SESSION_SECRET, RESEND_API_KEY and EMAIL_FROM — the schema validates
+    them, so .env.example changes with the code that reads it
+2.  Build the password service: hash, verify, rehash, constant-time compare
+3.  Build the token service: issue, hash, consume in one transaction
+4.  Build the session service: create, resolve, rotate, revoke, revoke-all
+5.  Cache session resolution in Redis; drop the entry on revocation
+6.  Build the email sender: Resend in production, a recorder in tests
+7.  Build the routes: sign up, verify, sign in, sign out, forgot, reset, change
+8.  Rate limit each of them, by address and by account
+9.  Replace the Phase 2 fail-closed boundary with the real resolver
+10. Build the screens from packages/ui
+11. Protect Studio routes in the proxy
+12. Build the active sessions screen
+13. Schedule the expiry sweep
+```
+
+### Tests Required
+
+**Unit**
+
+```
+Argon2id: a hash verifies, a wrong password does not, a changed parameter rehashes
+Tokens: single use, expiry, hashed at rest, superseded by a newer one
+Sessions: rotation on sign-in, revocation, bulk revocation on password change
+Cookies: HttpOnly, Secure, SameSite, no identifier in any URL
+```
+
+**Integration — against a real database**
+
+```
+Sign up → verify → sign in → sign out, end to end
+A reset link cannot be used twice, even concurrently
+Changing a password ends every other session but the current one
+A revoked session is refused on the next request, cached or not
+An expired session is refused
+Sign-in, sign-up and reset answer identically for an unknown address
+Rate limiting refuses the eleventh attempt and says when to retry
+```
+
+**Security**
+
+```
+No route response contains a password hash, in any error or any envelope
+No log line contains a credential, a token or a cookie
+An unverified account cannot sign in
+Timing does not distinguish a missing account from a wrong password
+```
+
+**Coverage:** 100% for the password, token and session services. Nothing in this
+phase is boilerplate, and a line nobody tested is a line nobody reviewed.
+
+### Verification
+
+```bash
+pnpm test --filter=@checkout-studio/api --coverage
+pnpm test --filter=@checkout-studio/database --coverage
+pnpm check
+```
+
+### Exit Criteria
+
+```
+✓ All universal criteria
+✓ A password reaches the database only as an Argon2id hash
+✓ A verification or reset token exists in the database only as a hash
+✓ Every session can be ended, and ending one takes effect on the next request
+✓ A password change ends every other session
+✓ No response and no log line has ever contained a credential
+✓ An unknown address and a wrong password are indistinguishable
+✓ Every credential-accepting route is rate limited
+```
+
+---
+
+# Phase 4 — Studio Shell
+
+**Depends on:** Phase 3A
 
 **Specs:** [ui-guidelines.md](./ui-guidelines.md) · [editor-behavior.md](./editor-behavior.md) · [keyboard-shortcuts.md](./keyboard-shortcuts.md)
 

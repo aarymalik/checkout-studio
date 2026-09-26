@@ -173,6 +173,10 @@ apps/renderer   → http://localhost:3001
 
 ## Environment Variables
 
+These are replaced in Phase 3A, where the Clerk variables give way to
+`AUTH_SESSION_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM` — the schema validates
+them, so they change together with the code that reads them.
+
 `.env.example` is the authoritative list. Every variable is validated at startup by a Zod schema; a missing or malformed value fails fast with a precise message rather than producing a mysterious runtime error.
 
 ```

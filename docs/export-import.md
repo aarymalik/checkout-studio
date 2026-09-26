@@ -1233,7 +1233,7 @@ Never included in a bundle
 
 ```
 Stripe keys (publishable or secret)
-Clerk keys
+Session secret
 Webhook secrets
 Database identifiers
 Internal user ids

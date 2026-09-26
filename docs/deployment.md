@@ -178,9 +178,9 @@ ORM
 
 - Prisma
 
-Authentication
+Transactional email
 
-- Clerk
+- Resend
 
 Cache
 
@@ -386,7 +386,8 @@ Use
 
 Secrets include
 
-- Clerk Keys
+- Session signing secret
+- Resend API key
 - Stripe Keys
 - Database URL
 - Redis URL

@@ -599,7 +599,7 @@ Manual Save
 
 Authentication:
 
-Clerk
+Ours — email and password, database-backed sessions
 
 Authorization:
 

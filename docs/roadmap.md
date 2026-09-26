@@ -132,7 +132,7 @@ A clean monorepo with shared packages and development tooling.
 
 - PostgreSQL
 - Prisma
-- Clerk Authentication
+- Authentication
 - Redis
 - UploadThing
 - Environment Configuration

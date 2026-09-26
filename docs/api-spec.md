@@ -100,7 +100,13 @@ Error response
 
 # Authentication
 
-Authentication uses Clerk.
+Authentication is ours: a session cookie, resolved against the Session table on
+every request. See [security.md](./security.md).
+
+The cookie carries an opaque token and nothing else. Anything a route needs to
+know about the caller is read from the database, so a change in role or a
+revoked session takes effect on the next request rather than whenever a token
+happens to expire.
 
 Every protected request automatically includes:
 
