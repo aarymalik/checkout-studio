@@ -137,6 +137,23 @@
   }
 }
 
+/*
+ * The placeholder pulse.
+ *
+ * Decorative, unlike the spinner: it says "something will be here", which the
+ * shape already says. So it carries no essential-motion marker and stops when a
+ * reader asks for less motion.
+ */
+@utility animate-skeleton {
+  animation: cs-pulse var(--cs-duration-pulse) ease-in-out infinite;
+}
+
+@keyframes cs-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
 /* Control heights, so a size variant names an intent. */
 @utility h-control-sm {
   height: var(--cs-control-height-sm);

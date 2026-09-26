@@ -165,6 +165,7 @@ export const primitives = {
   // done, so it is not bound by the 150–220ms range and is named apart from
   // the durations that are.
   "spin-1500": "1500ms",
+  "pulse-2000": "2000ms",
 
   // ── Layout — docs/theme-system.md § Studio Theme ───────────────────────────
   "layout-toolbar": "64px",
