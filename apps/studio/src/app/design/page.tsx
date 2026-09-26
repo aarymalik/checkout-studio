@@ -18,6 +18,15 @@ import { GalleryCase } from "./GalleryCase"
  * would miss them entirely. A page each means a full-page screenshot is exactly
  * one component.
  */
+
+/*
+ * Never prerendered.
+ *
+ * The production guard reads the validated environment, and prerendering runs
+ * at build time — where there are no credentials, and should not need to be any
+ * to build a page that 404s in production anyway.
+ */
+export const dynamic = "force-dynamic"
 export default async function DesignGallery({
   searchParams,
 }: {
