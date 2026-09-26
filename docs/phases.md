@@ -215,7 +215,7 @@ These apply to **every** phase, in addition to its specific criteria.
 | 0     | Product & Architecture Planning | **Complete** | —          |
 | 1     | Repository Foundation           | **Complete** | 0          |
 | 2     | Infrastructure                  | **Complete** | 1          |
-| 3     | Design System                   | Not Started  | 1          |
+| 3     | Design System                   | **Complete** | 1          |
 | 4     | Studio Shell                    | Not Started  | 2, 3       |
 | 5     | Editor State Engine             | Not Started  | 2          |
 | 6     | Renderer Engine                 | Not Started  | 2, 5       |
