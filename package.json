@@ -15,6 +15,7 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "test:e2e": "turbo test:e2e",
+    "test:visual": "turbo test:visual",
     "check": "turbo lint typecheck test build && pnpm typecheck:scripts && pnpm boundaries && pnpm tokens:check",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write .",

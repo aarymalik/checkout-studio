@@ -45,6 +45,11 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "test:visual": {
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
+      "outputs": ["playwright-report/**", "test-results/**"],
+      "env": ["DATABASE_URL", "REDIS_URL"]
     }
   }
 }
