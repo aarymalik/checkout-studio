@@ -41,7 +41,10 @@ File Storage:
 UploadThing
 
 Authentication:
-Clerk
+Ours — see [security.md](./security.md)
+
+Transactional email:
+Resend
 
 ---
 
@@ -76,13 +79,20 @@ Represents a Checkout Studio account.
 Fields:
 
 - id
-- clerkId
-- email
+- email (unique, lowercased on write — two spellings of an address are one account)
+- emailVerifiedAt (null until the address is proven)
+- passwordHash (Argon2id; see [security.md](./security.md))
 - fullName
 - avatar
 - platformRole (`user` · `staff`)
 - createdAt
 - updatedAt
+
+`passwordHash` is never selected by a repository method that returns a User to
+the rest of the product. It is read by exactly one function, which compares it
+and returns a boolean — a hash that never leaves the authentication service
+cannot be logged, serialised into a response, or included in an export by
+accident.
 
 The user's plan is not stored here. Entitlements are computed from the Subscription on every request, per [pricing-billing.md](./pricing-billing.md).
 
@@ -91,7 +101,66 @@ The user's plan is not stored here. Entitlements are computed from the Subscript
 Relationships:
 
 - owns Projects
+- has Sessions
+- has VerificationTokens
 - has Subscription (see [pricing-billing.md](./pricing-billing.md))
+
+---
+
+## Session
+
+A signed-in browser. One row per session, so any one of them can be ended.
+
+Fields:
+
+- id
+- userId
+- tokenHash (the cookie's value, hashed — a leaked table yields no working cookie)
+- expiresAt
+- revokedAt (null while live)
+- createdAt · lastUsedAt
+- userAgent · ipHash (what a person sees on their "active sessions" screen)
+
+Sessions are rows rather than signed claims because a claim is valid until it
+expires no matter what is learned about it in between. Signing out, changing a
+password and "sign out everywhere" are all the same operation here: set
+`revokedAt`.
+
+Lookups are cached in Redis under the token hash, so the common path is not a
+database round trip. The cache is dropped on revocation, and a miss falls
+through to the table — the table is the truth.
+
+Indexes: `tokenHash` unique · `(userId, revokedAt)` · `expiresAt` for the sweep.
+
+Relationships:
+
+- belongs to User
+
+---
+
+## VerificationToken
+
+A one-time link: confirm an email address, or reset a password.
+
+Fields:
+
+- id
+- userId
+- tokenHash (hashed, for the same reason as a session)
+- purpose (`verify-email` · `reset-password`)
+- expiresAt (an hour for a reset, a day for a verification)
+- consumedAt (null until used, set in the same transaction as the effect)
+- createdAt
+
+Consuming a token and performing its effect happen in one transaction. A reset
+that succeeds while the token stays unconsumed is a reset link that works twice.
+
+Issuing a new token for a purpose invalidates the outstanding ones for that
+purpose, so a forwarded older email cannot be used after someone asks again.
+
+Relationships:
+
+- belongs to User
 
 ---
 

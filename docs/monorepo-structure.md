@@ -277,7 +277,7 @@ apps/studio/
 ├── src/
 │   ├── app/
 │   │   ├── (marketing)/           Public pages
-│   │   ├── (auth)/                Clerk flows
+│   │   ├── (auth)/                sign in · sign up · reset
 │   │   ├── (dashboard)/
 │   │   │   ├── projects/
 │   │   │   ├── templates/

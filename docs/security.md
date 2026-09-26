@@ -34,19 +34,33 @@ Every component must follow these principles.
 
 # Authentication
 
-Authentication is handled by Clerk.
+Authentication is ours. We hold the credentials, the sessions and the tokens.
+
+This reverses an earlier decision to use a hosted identity provider, and it is
+worth being clear about what that costs: authentication is the area where a bug
+is both catastrophic and silent. A session that does not expire, a reset link
+that can be used twice, a token compared without constant time — none of these
+fail a test, and each one is somebody else's account.
+
+So the requirements below are not preferences. They are the reason owning this
+is defensible at all, and a review that lets one through has not been a review.
 
 Requirements
 
-- Email Authentication
-- Google Authentication
-- GitHub Authentication (future)
-- Magic Links
-- MFA Support
-- Session Expiration
-- Secure Session Cookies
+- Email and password, with verified email addresses
+- Passwords hashed with Argon2id, never with a general-purpose hash
+- Sessions held in the database, so any one of them can be ended
+- Single-use, short-lived, hashed tokens for verification and password reset
+- Rate limiting on every credential-accepting route
+- Identical responses whether or not an account exists
 
-Never implement custom authentication.
+Deferred, and deliberately: federated sign-in and multi-factor authentication.
+Both extend this model rather than reshaping it — an OAuthAccount table and an
+MfaCredential table, alongside what is here.
+
+Not deferred, and never acceptable: rolling our own password hash, storing a
+token we could read, or letting a failure message say whether an email is
+registered.
 
 ---
 
@@ -124,25 +138,50 @@ Viewer
 
 # Session Security
 
+A session is a row, not a signed claim.
+
+The distinction is what makes "sign out everywhere" possible, and what makes a
+stolen cookie recoverable: a token that carries its own authority is valid until
+it expires no matter what we learn about it in the meantime.
+
 Sessions must
 
-- Expire automatically
-- Rotate tokens
-- Prevent fixation attacks
+- Expire automatically, and be revocable before they do
+- Be rotated when privilege changes — a sign-in, a password change
+- Be invalidated in bulk when a password changes, except the one that changed it
+- Be visible to the person they belong to: device, location, last used
+- Store only a hash of the token, so the database cannot be replayed
 
 Cookies
 
 - HttpOnly
 - Secure
 - SameSite=Lax
+- No session identifier in a URL, ever, where it would reach logs and referrers
 
 ---
 
 # Passwords
 
-Passwords are never stored.
+Passwords are hashed with Argon2id and never stored in any other form.
 
-Authentication provider manages credentials.
+Argon2id rather than bcrypt: it resists GPU and ASIC attack through memory cost,
+which is the attack a leaked table actually faces. Parameters are chosen to take
+roughly 250ms on production hardware and are raised as hardware improves; the
+hash records the parameters it was made with, so an old password is rehashed on
+the next successful sign-in rather than being left behind.
+
+Rules
+
+- No maximum length below 64 characters, and no composition rules: length beats
+  punctuation, and a rule that forbids a passphrase makes things worse
+- Checked against a list of known-breached passwords on the way in
+- Never logged, never in an error, never in a URL — the redaction rules in
+  observability.md already drop anything named like one
+- A password change ends every other session
+
+Passwords are compared in constant time. A comparison that returns early leaks
+the answer one character at a time.
 
 ---
 
@@ -235,7 +274,7 @@ Two policies, because the two applications load different things.
 Studio (`apps/studio`)
 
 - Stripe (Connect onboarding, Billing Customer Portal)
-- Clerk
+- Resend (transactional email only; it never sees a credential)
 - UploadThing
 - Sentry, PostHog
 
@@ -343,7 +382,8 @@ Never commit
 Secrets include
 
 - Stripe Keys
-- Clerk Keys
+- Session signing secret
+- Resend API key
 - Database URL
 - Redis URL
 - UploadThing Keys
