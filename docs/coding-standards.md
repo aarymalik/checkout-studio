@@ -104,7 +104,14 @@ Always use
 
 Function Components
 
-Never use class components.
+Never use class components, with one exception.
+
+`ErrorBoundary` in `packages/ui/src/errors` is a class, because React offers no
+hook that does what `componentDidCatch` does: a function component cannot stop a
+render error from unmounting the tree above it. The rule is enforced by ESLint
+and disabled on that one declaration, with the reason on the line.
+
+Any other class component is a review failure.
 
 ---
 

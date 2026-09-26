@@ -132,3 +132,28 @@ export type { ErrorStateProps } from "./feedback/ErrorState"
 
 export { ToastProvider, useToast } from "./feedback/Toast"
 export type { Toast, ToastInput, ToastVariant } from "./feedback/Toast"
+
+// Layout
+export { Panel } from "./layout/Panel"
+export type { PanelProps } from "./layout/Panel"
+
+export { ResizablePanel } from "./layout/ResizablePanel"
+export type { ResizablePanelProps } from "./layout/ResizablePanel"
+
+export { Splitter } from "./layout/Splitter"
+export type { SplitterProps } from "./layout/Splitter"
+
+export { ScrollArea } from "./layout/ScrollArea"
+export type { ScrollAreaProps } from "./layout/ScrollArea"
+
+// Error boundaries
+export {
+  AppErrorBoundary,
+  ErrorBoundary,
+  PanelErrorBoundary,
+  RouteErrorBoundary,
+} from "./errors/ErrorBoundary"
+export type { ErrorBoundaryProps } from "./errors/ErrorBoundary"
+
+export { ErrorFallback } from "./errors/ErrorFallback"
+export type { ErrorFallbackProps } from "./errors/ErrorFallback"
