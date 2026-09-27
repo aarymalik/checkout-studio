@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { AuthCard } from "../AuthCard"
 import { VerifyPanel } from "./VerifyPanel"
 
-export const metadata = { title: "Confirm your email · Checkout Studio" }
+export const metadata = { title: "Confirm your email" }
 
 export default function VerifyPage() {
   return (

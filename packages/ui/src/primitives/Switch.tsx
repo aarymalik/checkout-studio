@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixSwitch from "@radix-ui/react-switch"
 import { useId } from "react"
 import type { ComponentPropsWithRef, ReactNode } from "react"

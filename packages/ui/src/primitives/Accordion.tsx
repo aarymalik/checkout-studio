@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixAccordion from "@radix-ui/react-accordion"
 import { ChevronDown } from "lucide-react"
 import type { ComponentPropsWithRef, ReactNode } from "react"

@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixSelect from "@radix-ui/react-select"
 import { Check, ChevronDown } from "lucide-react"
 import type { ComponentPropsWithRef, ReactNode } from "react"

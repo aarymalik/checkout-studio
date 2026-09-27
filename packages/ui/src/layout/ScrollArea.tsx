@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixScrollArea from "@radix-ui/react-scroll-area"
 import type { ComponentPropsWithRef } from "react"
 import { cn } from "../lib/cn"

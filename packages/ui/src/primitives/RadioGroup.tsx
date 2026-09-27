@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixRadioGroup from "@radix-ui/react-radio-group"
 import { useId } from "react"
 import type { ComponentPropsWithRef, ReactNode } from "react"

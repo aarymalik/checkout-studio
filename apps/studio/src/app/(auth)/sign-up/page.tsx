@@ -2,7 +2,7 @@ import Link from "next/link"
 import { AuthCard } from "../AuthCard"
 import { SignUpForm } from "./SignUpForm"
 
-export const metadata = { title: "Create an account · Checkout Studio" }
+export const metadata = { title: "Create an account" }
 
 export default function SignUpPage() {
   return (

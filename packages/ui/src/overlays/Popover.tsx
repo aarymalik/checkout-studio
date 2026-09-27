@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixPopover from "@radix-ui/react-popover"
 import type { ComponentPropsWithRef } from "react"
 import { cn } from "../lib/cn"

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { AuthCard } from "../AuthCard"
 import { ForgotForm } from "./ForgotForm"
 
-export const metadata = { title: "Reset your password · Checkout Studio" }
+export const metadata = { title: "Reset your password" }
 
 export default function ForgotPage() {
   return (

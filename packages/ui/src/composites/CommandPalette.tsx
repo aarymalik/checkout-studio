@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { Dialog, DialogContent } from "../overlays/Dialog"

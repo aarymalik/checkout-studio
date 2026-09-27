@@ -20,6 +20,17 @@ layout       Panel ResizablePanel Splitter ScrollArea
 errors       AppErrorBoundary RouteErrorBoundary PanelErrorBoundary ErrorFallback
 ```
 
+## Every component here is a client component
+
+Each file starts with `"use client"`. Not as a formality — a library whose
+barrel re-exports one unmarked module cannot be imported from a server
+component at all: the build stops on whichever file happens to use a hook, a
+context or a class, and the import trace points at your layout rather than at
+the component.
+
+The pure helpers — `cn`, `parseQuery` — are ordinary modules and stay usable
+anywhere.
+
 ## The rules these hold to
 
 **Nothing carries a value of its own.** Every colour, size, radius and duration

@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixTooltip from "@radix-ui/react-tooltip"
 import type { ComponentPropsWithRef, ReactNode } from "react"
 import { cn } from "../lib/cn"

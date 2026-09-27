@@ -1,3 +1,5 @@
+"use client"
+
 import type { AppError } from "@checkout-studio/utils"
 import { Button } from "../primitives/Button"
 import { ErrorState } from "../feedback/ErrorState"
