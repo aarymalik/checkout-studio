@@ -42,6 +42,13 @@ export interface RouteOptions<TBody> {
 
 export interface HandlerArgs<TBody> extends RequestContext {
   body: TBody
+  /**
+   * Headers to put on the response.
+   *
+   * The chain owns the response shape, so a handler that needs to set a cookie
+   * has nowhere else to put one. Signing in is the case this exists for.
+   */
+  headers: Headers
 }
 
 const environment = (process.env["NODE_ENV"] ?? "development") as Environment
@@ -112,6 +119,7 @@ export function route<TBody = undefined>(
         }
 
         const params = (await context?.params) ?? {}
+        const headers = new Headers({ "x-correlation-id": correlationId })
 
         const data = await handler({
           request,
@@ -119,11 +127,10 @@ export function route<TBody = undefined>(
           userId: user?.userId ?? "",
           params,
           body,
+          headers,
         })
 
-        return Response.json(success(data, correlationId), {
-          headers: { "x-correlation-id": correlationId },
-        })
+        return Response.json(success(data, correlationId), { headers })
       }),
     )
   }

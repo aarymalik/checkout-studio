@@ -203,3 +203,24 @@ export function sessionCookie(
 export function clearedSessionCookie(secure: boolean) {
   return sessionCookie("", new Date(0), secure)
 }
+
+/**
+ * The cookie as a Set-Cookie header value.
+ *
+ * Written out rather than pulled from a library: it is five attributes, all of
+ * them decided above, and a dependency here would be a dependency in the path
+ * of every sign-in.
+ */
+export function serializeCookie(cookie: ReturnType<typeof sessionCookie>): string {
+  const parts = [
+    `${cookie.name}=${encodeURIComponent(cookie.value)}`,
+    `Path=${cookie.options.path}`,
+    `Expires=${cookie.options.expires.toUTCString()}`,
+    "HttpOnly",
+    `SameSite=${cookie.options.sameSite === "lax" ? "Lax" : cookie.options.sameSite}`,
+  ]
+
+  if (cookie.options.secure) parts.push("Secure")
+
+  return parts.join("; ")
+}

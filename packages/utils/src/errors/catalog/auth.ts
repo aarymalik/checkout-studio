@@ -1,6 +1,29 @@
 import { createError } from "../AppError"
 
 export const authErrors = {
+  /**
+   * A sign-in that did not work, for any reason.
+   *
+   * One error for an unknown address, a wrong password and an unverified
+   * account alike. The three are deliberately indistinguishable: the sign-in
+   * service already takes the same time for each, and naming which one it was
+   * would hand back exactly what that costs to protect.
+   */
+  invalidCredentials: () =>
+    createError({
+      code: "INVALID_CREDENTIALS",
+      domain: "auth",
+      severity: "info",
+      recoverability: "user-retryable",
+      // The internal message is no more specific than the public one. There is
+      // nothing here worth writing down that is not worth saying aloud, and a
+      // log line naming which half was wrong is a log line worth stealing.
+      message: "Sign-in refused",
+      userMessage: "That email address and password do not match an account.",
+      remediation: { label: "Reset your password", action: "navigate", href: "/forgot" },
+      status: 401,
+    }),
+
   unauthorized: () =>
     createError({
       code: "UNAUTHORIZED",

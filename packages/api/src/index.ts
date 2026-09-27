@@ -38,6 +38,7 @@ export {
   endSession,
   listSessions,
   resolveSession,
+  serializeCookie,
   sessionCookie,
   touchSession,
 } from "./services/auth/session"
@@ -59,3 +60,16 @@ export type {
 
 export { PLANS, PLAN_IDS, suggestPlan } from "./services/billing/plans"
 export type { Plan, PlanId, PlanLimits, PlanFeatures, Limit } from "./services/billing/plans"
+
+export {
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
+  signIn,
+  signUp,
+  verifyEmail,
+} from "./services/auth/accounts"
+export type { AuthDependencies, SignInResult } from "./services/auth/accounts"
+
+export { loggingSender, recordingSender, resendSender, senderFor } from "./services/auth/email"
+export type { EmailSender, Message } from "./services/auth/email"
