@@ -8,13 +8,40 @@ export type {
 
 export { withErrorHandling } from "./errors/withErrorHandling"
 
+export { authenticate, optionalAuthentication, readSessionCookie } from "./middleware/auth"
+export type { AuthenticatedSession } from "./middleware/auth"
+
 export {
-  createAuthenticator,
-  isAuthConfigured,
-  resolveLocalUser,
-  anonymous,
-} from "./middleware/auth"
-export type { AuthenticatorOptions, ClerkSession, SessionResolver } from "./middleware/auth"
+  MAXIMUM_LENGTH as PASSWORD_MAXIMUM_LENGTH,
+  MINIMUM_LENGTH as PASSWORD_MINIMUM_LENGTH,
+  checkPassword,
+  hashPassword,
+  verifyAgainstNothing,
+  verifyPassword,
+} from "./services/auth/password"
+export type { PasswordProblem } from "./services/auth/password"
+
+export {
+  TOKEN_LIFETIME,
+  expiryFor,
+  generateToken,
+  hashToken,
+  secretsMatch,
+} from "./services/auth/tokens"
+
+export {
+  SESSION_COOKIE,
+  SESSION_LIFETIME,
+  clearedSessionCookie,
+  createSession,
+  endOtherSessions,
+  endSession,
+  listSessions,
+  resolveSession,
+  sessionCookie,
+  touchSession,
+} from "./services/auth/session"
+export type { IssuedSession, SessionIdentity, SessionOrigin } from "./services/auth/session"
 export { success, failure, toResponse } from "./errors/response"
 
 export {

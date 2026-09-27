@@ -18,7 +18,11 @@ async function aUser(subscription?: {
   counter += 1
   const suffix = `${Date.now()}-${counter}`
   const user = await prisma.user.create({
-    data: { clerkId: `clerk_${suffix}`, email: `u-${suffix}@example.test` },
+    data: {
+      email: `u-${suffix}@example.test`,
+      passwordHash: "fixture:no-password",
+      emailVerifiedAt: new Date(),
+    },
   })
 
   if (subscription) {

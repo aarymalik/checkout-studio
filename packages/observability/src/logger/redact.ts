@@ -11,7 +11,7 @@
 /**
  * Any key CONTAINING one of these is dropped.
  *
- * Substring matching rather than exact: STRIPE_SECRET_KEY, clerkSecretKey and
+ * Substring matching rather than exact: STRIPE_SECRET_KEY, sessionSecretKey and
  * webhookSecret must all be caught, and no list of exact names stays complete.
  * Redaction fails safe — over-redacting costs a debugging session, under-
  * redacting costs a disclosure.

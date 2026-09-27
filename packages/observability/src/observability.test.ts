@@ -17,7 +17,7 @@ describe("redaction", () => {
       authorization: "Bearer x",
       cvc: "123",
       // Separator styles that an exact-match list would miss.
-      clerkSecretKey: "sk_x",
+      sessionSecretKey: "sk_x",
       STRIPE_WEBHOOK_SECRET: "whsec_x",
       "api-key": "k",
       refreshToken: "r",
