@@ -720,7 +720,7 @@ Red
 
 Information
 
-Blue
+Indigo
 
 Never overuse color.
 

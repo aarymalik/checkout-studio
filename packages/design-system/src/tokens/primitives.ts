@@ -34,18 +34,21 @@ export const primitives = {
   "gray-900": "#18181b",
   "gray-950": "#0a0a0b",
 
-  // ── Blue — primary actions, selection, focus ───────────────────────────────
-  "blue-50": "#eff6ff",
-  "blue-100": "#dbeafe",
-  "blue-200": "#bfdbfe",
-  "blue-300": "#93c5fd",
-  "blue-400": "#60a5fa",
-  "blue-500": "#3b82f6",
-  "blue-600": "#2563eb",
-  "blue-700": "#1d4ed8",
-  "blue-800": "#1e40af",
-  "blue-900": "#1e3a8a",
-  "blue-950": "#172554",
+  // ── Indigo — primary actions, selection, focus ─────────────────────────────
+  // Indigo rather than blue, and rather than teal: the product already uses
+  // green for paid, published and connected, and a teal primary beside a green
+  // status is a distinction a red-green colour-blind reader cannot rely on.
+  "indigo-50": "#eef2ff",
+  "indigo-100": "#e0e7ff",
+  "indigo-200": "#c7d2fe",
+  "indigo-300": "#a5b4fc",
+  "indigo-400": "#818cf8",
+  "indigo-500": "#6366f1",
+  "indigo-600": "#4f46e5",
+  "indigo-700": "#4338ca",
+  "indigo-800": "#3730a3",
+  "indigo-900": "#312e81",
+  "indigo-950": "#1e1b4b",
 
   // ── Green — success, published, connected, paid ────────────────────────────
   "green-50": "#f0fdf4",

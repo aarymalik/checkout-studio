@@ -18,7 +18,7 @@
  */
 
 // design-system-ignore: the brand colour, which is fixed across themes
-export const BRAND = "#2563eb"
+export const BRAND = "#4f46e5"
 
 /**
  * The far end of the mark's gradient.
@@ -41,7 +41,7 @@ export const BRAND_ACCENT = "#7c3aed"
  * and is indistinguishable at the sizes those files are seen at.
  */
 // design-system-ignore: sampled from the gradient above, not a palette colour
-export const BRAND_MID = "#504eec"
+export const BRAND_MID = "#6540e9"
 
 // design-system-ignore: rendered outside a browser, where no token resolves
 export const GLYPH = "#ffffff"

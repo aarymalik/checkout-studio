@@ -5,7 +5,7 @@ import type { ColorTheme } from "../tokens/semantics"
  *
  * Elevation inverts: a raised surface is lighter than the one behind it, which
  * is why shadows do less work here and surface steps do more. Accents lighten
- * too — blue-600 on a near-black panel measures 3.3:1, below AA for text — so
+ * too — indigo-600 on a near-black panel measures 3.9:1, below AA for text — so
  * the primary carries a near-black label instead of a white one.
  */
 export const dark: ColorTheme = {
@@ -25,11 +25,11 @@ export const dark: ColorTheme = {
   "color-foreground-subtle": "gray-500",
   "color-foreground-inverse": "gray-950",
 
-  "color-primary": "blue-400",
-  "color-primary-hover": "blue-300",
-  "color-primary-active": "blue-200",
+  "color-primary": "indigo-400",
+  "color-primary-hover": "indigo-300",
+  "color-primary-active": "indigo-200",
   "color-primary-foreground": "gray-950",
-  "color-primary-subtle": "blue-950",
+  "color-primary-subtle": "indigo-950",
 
   "color-success": "green-400",
   "color-success-foreground": "gray-950",
@@ -45,7 +45,7 @@ export const dark: ColorTheme = {
   "color-danger-foreground": "gray-950",
   "color-danger-subtle": "red-950",
 
-  "color-focus-ring": "blue-400",
-  "color-selection": { alphaOf: "blue-400", alpha: "alpha-selection" },
+  "color-focus-ring": "indigo-400",
+  "color-selection": { alphaOf: "indigo-400", alpha: "alpha-selection" },
   "color-overlay": { alphaOf: "gray-950", alpha: "alpha-overlay" },
 }

@@ -96,7 +96,13 @@ Never hardcode a color, size, radius, shadow, or duration.
 
 ## Primary
 
-Blue
+Indigo
+
+Chosen over teal, which would sit beside the green already used for paid,
+published and connected — a distinction a red-green colour-blind reader cannot
+rely on. Chosen over a monochrome primary because a black link is
+indistinguishable from black text, and that costs a second accent colour to
+fix.
 
 Used for:
 
@@ -332,7 +338,7 @@ Primary
 
 Solid
 
-Blue
+Indigo
 
 Medium shadow
 
