@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { AuthCard } from "../AuthCard"
 import { ResetForm } from "./ResetForm"
 
-export const metadata = { title: "Choose a new password · Checkout Studio" }
+export const metadata = { title: "Choose a new password" }
 
 export default function ResetPage() {
   return (

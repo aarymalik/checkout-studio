@@ -3,7 +3,7 @@ import { Suspense } from "react"
 import { AuthCard } from "../AuthCard"
 import { SignInForm } from "./SignInForm"
 
-export const metadata = { title: "Sign in · Checkout Studio" }
+export const metadata = { title: "Sign in" }
 
 export default function SignInPage() {
   return (

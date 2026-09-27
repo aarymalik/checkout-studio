@@ -1,10 +1,26 @@
 import type { ReactNode } from "react"
 import { themeScript } from "@checkout-studio/design-system"
+import { INK, PAPER } from "@/components/brand/colors"
 import "./globals.css"
 
 export const metadata = {
-  title: "Checkout Studio",
+  // A template, so every page says what it is before it says what it belongs
+  // to — which is the order a browser tab truncates in.
+  title: { default: "Checkout Studio", template: "%s · Checkout Studio" },
   description: "Build checkout experiences that convert.",
+}
+
+/**
+ * The colour a mobile browser paints its chrome with.
+ *
+ * Two of them, so the bar matches the interface rather than fighting it when
+ * somebody has their phone in dark mode.
+ */
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: PAPER },
+    { media: "(prefers-color-scheme: dark)", color: INK },
+  ],
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

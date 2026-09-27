@@ -1,3 +1,5 @@
+"use client"
+
 import { AlertTriangle } from "lucide-react"
 import type { ComponentPropsWithRef, ReactNode } from "react"
 import type { AppError } from "@checkout-studio/utils"

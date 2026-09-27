@@ -1,6 +1,6 @@
 import { SessionList } from "./SessionList"
 
-export const metadata = { title: "Active sessions · Checkout Studio" }
+export const metadata = { title: "Active sessions" }
 
 /**
  * Where somebody checks whether their account is being used elsewhere.

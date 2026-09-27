@@ -1,3 +1,5 @@
+"use client"
+
 import type { ComponentPropsWithRef } from "react"
 import { FieldDescription, FieldError, FieldLabel, FieldShell, useFieldAria } from "./field"
 import type { FieldProps } from "./field"

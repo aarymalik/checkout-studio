@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixContextMenu from "@radix-ui/react-context-menu"
 import type { ComponentPropsWithRef, ReactNode } from "react"
 import { menuContentClassName, menuItemClassName } from "./DropdownMenu"

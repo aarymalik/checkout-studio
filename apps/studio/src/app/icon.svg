@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Checkout Studio">
+  <!--
+    The mark: a payment card on a gradient tile.
+
+    Three shapes. The stripe is the tile showing through the card rather than a
+    third colour, so the gradient runs continuously behind both and the whole
+    mark is two values.
+
+    Drawn with a margin around the card. Earlier versions filled the tile edge
+    to edge and read as a pair of bars rather than as an object.
+
+    The card is solid rather than knocked out of the tile: a mark cut as a hole
+    takes the colour of whatever sits behind it, which in a browser tab is a
+    different colour on every machine.
+  -->
+  <defs>
+    <linearGradient id="cs-brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#cs-brand)"/>
+  <rect x="6" y="10" width="20" height="13" rx="2.5" fill="#ffffff"/>
+  <rect x="6" y="13.2" width="20" height="3.4" fill="url(#cs-brand)"/>
+</svg>

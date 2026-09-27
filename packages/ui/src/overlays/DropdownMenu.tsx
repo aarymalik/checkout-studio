@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixMenu from "@radix-ui/react-dropdown-menu"
 import { Check } from "lucide-react"
 import type { ComponentPropsWithRef, ReactNode } from "react"

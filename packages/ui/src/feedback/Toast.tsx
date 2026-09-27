@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixToast from "@radix-ui/react-toast"
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react"
 import { createContext, useCallback, useContext, useMemo, useState } from "react"

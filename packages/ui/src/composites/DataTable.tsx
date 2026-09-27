@@ -1,3 +1,5 @@
+"use client"
+
 import { ArrowDown, ArrowUp } from "lucide-react"
 import { useMemo, useState } from "react"
 import type { ReactNode } from "react"

@@ -1,3 +1,5 @@
+"use client"
+
 import { Search, X } from "lucide-react"
 import { useId } from "react"
 import type { ComponentPropsWithRef } from "react"

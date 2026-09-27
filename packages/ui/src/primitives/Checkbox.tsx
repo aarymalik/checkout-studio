@@ -1,3 +1,5 @@
+"use client"
+
 import * as RadixCheckbox from "@radix-ui/react-checkbox"
 import { Check, Minus } from "lucide-react"
 import { useId } from "react"
