@@ -1,17 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Checkout Studio">
   <!--
-    The mark: a checkmark assembled from two offset planes.
+    The mark: a payment card on a solid tile.
 
-    Angular rather than rounded, and in two weights of white. A rounded tick in
-    one weight is a checkbox, and a checkbox is what a task manager uses; the
-    seam and the sharp corners are what make this read as something that was
-    built rather than something that was ticked.
+    Three rectangles and nothing else. The stripe is the tile colour showing
+    through the card rather than a third colour, so the whole mark is two values
+    and survives being printed, faxed or rendered at 16 pixels in a browser tab.
 
-    A solid tile with a white glyph, because that is what survives being 16
-    pixels wide beside twenty other tabs. The tile keeps its colour in both
-    themes: a brand that changes with the operating system is not a brand.
+    Drawn with a margin around the card. Earlier versions filled the tile edge
+    to edge and read as a pair of bars rather than as an object.
+
+    The tile keeps its colour in both themes, and the card is solid rather than
+    knocked out of the tile: a mark cut as a hole takes the colour of whatever
+    is behind it, which in a browser tab is a different colour on every machine.
   -->
   <rect width="32" height="32" rx="8" fill="#2563eb"/>
-  <path d="M7 15 L12.5 20.5 L10 23 L4.5 17.5 Z" fill="#ffffff" fill-opacity="0.5"/>
-  <path d="M24.5 8.5 L27 11 L13.5 24.5 L11 22 Z" fill="#ffffff"/>
+  <rect x="6" y="10" width="20" height="13" rx="2.5" fill="#ffffff"/>
+  <rect x="6" y="13.2" width="20" height="3.4" fill="#2563eb"/>
 </svg>

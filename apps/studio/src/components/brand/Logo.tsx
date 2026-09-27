@@ -8,10 +8,13 @@ import { BRAND, GLYPH } from "./colors"
  * library is the generic half — it is meant to outlive this product and carry
  * the next one — and a brand in it would be the first thing to pull back out.
  *
- * The checkmark is two offset planes rather than one rounded stroke. A rounded
- * tick is a checkbox, and a checkbox is what a task manager uses; the seam and
- * the sharp corners are what make this read as something built rather than
- * something ticked.
+ * A payment card, in three rectangles. The stripe is the tile colour showing
+ * through rather than a third value, so the whole mark is two colours and holds
+ * together at any size.
+ *
+ * Solid rather than knocked out of the tile: a mark cut as a hole takes the
+ * colour of whatever sits behind it, which in a browser tab is a different
+ * colour on every machine.
  *
  * The tile keeps its colour in both themes, which is why it is the one place in
  * the product with a literal value in it: a brand that changes with the
@@ -28,8 +31,8 @@ export function Logo({
   return (
     <svg viewBox="0 0 32 32" role="img" aria-label={title} className={cn("size-8", className)}>
       <rect width="32" height="32" rx="8" fill={BRAND} />
-      <path d="M7 15 L12.5 20.5 L10 23 L4.5 17.5 Z" fill={GLYPH} fillOpacity="0.5" />
-      <path d="M24.5 8.5 L27 11 L13.5 24.5 L11 22 Z" fill={GLYPH} />
+      <rect x="6" y="10" width="20" height="13" rx="2.5" fill={GLYPH} />
+      <rect x="6" y="13.2" width="20" height="3.4" fill={BRAND} />
     </svg>
   )
 }
