@@ -73,3 +73,6 @@ export type { AuthDependencies, SignInResult } from "./services/auth/accounts"
 
 export { loggingSender, recordingSender, resendSender, senderFor } from "./services/auth/email"
 export type { EmailSender, Message } from "./services/auth/email"
+
+export { SESSION_GRACE, TOKEN_GRACE, sweepExpired } from "./services/auth/sweep"
+export type { SweepResult } from "./services/auth/sweep"
