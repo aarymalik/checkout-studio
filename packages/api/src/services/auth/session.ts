@@ -217,7 +217,9 @@ export function serializeCookie(cookie: ReturnType<typeof sessionCookie>): strin
     `Path=${cookie.options.path}`,
     `Expires=${cookie.options.expires.toUTCString()}`,
     "HttpOnly",
-    `SameSite=${cookie.options.sameSite === "lax" ? "Lax" : cookie.options.sameSite}`,
+    // Lax, always: the attribute is typed as the one value, so a branch here
+    // would be a branch nothing can take.
+    "SameSite=Lax",
   ]
 
   if (cookie.options.secure) parts.push("Secure")

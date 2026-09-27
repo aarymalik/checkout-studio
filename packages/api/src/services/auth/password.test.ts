@@ -1,3 +1,4 @@
+import { hash as argon2Hash } from "@node-rs/argon2"
 import { describe, expect, it } from "vitest"
 import {
   CURRENT_PARAMETERS,
@@ -78,20 +79,44 @@ describe("verifying", () => {
     expect(await verifyPassword("", GOOD)).toEqual({ valid: false, needsRehash: false })
   })
 
-  it("asks for a rehash when the stored hash is weaker than current", async () => {
-    // Written with yesterday's parameters. The password is still right, and
-    // this is the one moment it is in memory and known to be right.
-    const weak = `$argon2id$v=19$m=19456,t=2,p=1${(await hashPassword(GOOD)).slice(
-      (await hashPassword(GOOD)).indexOf("$", 10),
-    )}`
+  it.each([
+    ["less memory", { memoryCost: 19_456, timeCost: 3, parallelism: 1 }],
+    ["fewer passes", { memoryCost: 65_536, timeCost: 2, parallelism: 1 }],
+  ])("asks for a rehash when the stored hash used %s", async (_, weaker) => {
+    // The password is still right, and this is the one moment it is in memory
+    // and known to be right.
+    const stored = await argon2Hash(GOOD, weaker)
 
-    expect(parseParameters(weak)?.memoryCost).toBe(19_456)
+    expect(await verifyPassword(stored, GOOD)).toEqual({ valid: true, needsRehash: true })
+  })
+
+  it("does not ask for a rehash when the stored hash is already current", async () => {
+    expect(await verifyPassword(await hashPassword(GOOD), GOOD)).toEqual({
+      valid: true,
+      needsRehash: false,
+    })
   })
 
   it("does not ask for a rehash when the password was wrong", async () => {
     const hash = await hashPassword(GOOD)
 
     expect(await verifyPassword(hash, "wrong")).toEqual({ valid: false, needsRehash: false })
+  })
+})
+
+describe("reading a hash's parameters", () => {
+  it("reports nothing for a value that is not a hash", () => {
+    expect(parseParameters("migrated:no-password")).toBeNull()
+    expect(parseParameters("")).toBeNull()
+    expect(parseParameters("$2b$12$notargon2")).toBeNull()
+  })
+
+  it("reads each of the three", async () => {
+    expect(parseParameters(await hashPassword(GOOD))).toEqual({
+      memoryCost: CURRENT_PARAMETERS.memoryCost,
+      timeCost: CURRENT_PARAMETERS.timeCost,
+      parallelism: CURRENT_PARAMETERS.parallelism,
+    })
   })
 })
 

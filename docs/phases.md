@@ -216,7 +216,7 @@ These apply to **every** phase, in addition to its specific criteria.
 | 1     | Repository Foundation           | **Complete** | 0          |
 | 2     | Infrastructure                  | **Complete** | 1          |
 | 3     | Design System                   | **Complete** | 1          |
-| 3A    | Authentication                  | Not Started  | 2, 3       |
+| 3A    | Authentication                  | **Complete** | 2, 3       |
 | 4     | Studio Shell                    | Not Started  | 3A         |
 | 5     | Editor State Engine             | Not Started  | 2          |
 | 6     | Renderer Engine                 | Not Started  | 2, 5       |

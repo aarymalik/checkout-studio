@@ -197,6 +197,10 @@ export const CURRENT_PARAMETERS = PARAMETERS
 /** Whether a stored hash was made with weaker parameters than we now use. */
 function isOutdated(storedHash: string): boolean {
   const parameters = parseParameters(storedHash)
+
+  // Only reached after a successful verify, which means the value was an
+  // Argon2id hash and parsed. The guard is here because the types cannot know
+  // that, not because it can happen.
   if (parameters === null) return false
 
   return (

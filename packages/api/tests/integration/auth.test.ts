@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { prisma } from "@checkout-studio/database"
 import { redis, whenReady } from "@checkout-studio/cache"
-import { authenticate, readSessionCookie } from "../../src/middleware/auth"
+import { authenticate, optionalAuthentication, readSessionCookie } from "../../src/middleware/auth"
 import {
   SESSION_COOKIE,
   createSession,
@@ -11,6 +11,7 @@ import {
   resolveSession,
   touchSession,
 } from "../../src/services/auth/session"
+import { hashToken } from "../../src/services/auth/tokens"
 
 /**
  * Authentication, against a real database and a real Redis.
@@ -287,5 +288,47 @@ describe("the sessions a person can see", () => {
     expect(listed).toHaveLength(1)
     expect(listed[0]?.userAgent).toBe("Firefox")
     expect(listed[0]).not.toHaveProperty("tokenHash")
+  })
+})
+
+describe("an endpoint that wants the caller when there is one", () => {
+  it("identifies a signed-in caller", async () => {
+    const account = await anAccount()
+    const { token } = await createSession(account.id, {}, SECRET)
+
+    expect(await optionalAuthentication(requestWith(token))).toMatchObject({
+      userId: account.id,
+    })
+  })
+
+  it("reports nobody rather than refusing, which is the difference", async () => {
+    // A public endpoint that wants to know who is asking, when somebody is.
+    expect(await optionalAuthentication(requestWith(null))).toBeNull()
+  })
+})
+
+describe("when recording the last use fails", () => {
+  it("still authenticates, because the request does not depend on it", async () => {
+    /*
+     * lastUsedAt is bookkeeping for a screen. A database hiccup writing it
+     * should not sign somebody out mid-request, and the failure is logged
+     * rather than thrown.
+     */
+    const account = await anAccount()
+    const { token, sessionId } = await createSession(account.id, {}, SECRET)
+
+    // The row is gone; touching it will throw inside the handler.
+    await prisma.session.delete({ where: { id: sessionId } })
+    await redis.flushdb()
+    await prisma.session.create({
+      data: {
+        id: sessionId,
+        userId: account.id,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+
+    await expect(authenticate(requestWith(token))).resolves.not.toBeNull()
   })
 })

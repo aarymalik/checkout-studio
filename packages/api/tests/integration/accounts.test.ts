@@ -11,6 +11,16 @@ import {
 } from "../../src/services/auth/accounts"
 import { recordingSender } from "../../src/services/auth/email"
 import { createSession, resolveSession } from "../../src/services/auth/session"
+import { hash as argon2Hash } from "@node-rs/argon2"
+
+/** Writes the test password with whatever parameters are asked for. */
+async function hashWith(parameters: {
+  memoryCost: number
+  timeCost: number
+  parallelism: number
+}): Promise<string> {
+  return argon2Hash(PASSWORD, parameters)
+}
 
 /**
  * The account flows, against a real database and a real Redis.
@@ -206,6 +216,27 @@ describe("signing in", () => {
     await aVerifiedAccount()
 
     expect(await signIn({ email: "PERSON@EXAMPLE.TEST", password: PASSWORD })).not.toBeNull()
+  })
+
+  it("rehashes a password stored with weaker parameters, while it is known to be right", async () => {
+    /*
+     * The one moment the password is in memory and correct. Raising the cost
+     * parameters later is only safe because of this: every account moves up on
+     * its next sign-in, without anybody being asked to do anything.
+     */
+    await aVerifiedAccount()
+    const account = await prisma.user.findFirstOrThrow()
+
+    // As yesterday's parameters would have written it.
+    await prisma.user.update({
+      where: { id: account.id },
+      data: { passwordHash: await hashWith({ memoryCost: 19_456, timeCost: 2, parallelism: 1 }) },
+    })
+
+    expect(await signIn({ email: "person@example.test", password: PASSWORD })).not.toBeNull()
+
+    const after = await prisma.user.findFirstOrThrow()
+    expect(after.passwordHash).toContain("m=65536,t=3")
   })
 
   it("takes comparable time for an unknown address and a wrong password", async () => {
