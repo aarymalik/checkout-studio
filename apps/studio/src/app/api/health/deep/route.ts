@@ -1,4 +1,3 @@
-import { isAuthConfigured } from "@checkout-studio/api"
 import { ping } from "@checkout-studio/cache"
 import { prisma } from "@checkout-studio/database"
 import { getEnv } from "@/env"
@@ -46,9 +45,16 @@ export async function GET(): Promise<Response> {
   const checks: Record<string, Check> = {
     database,
     redis: cache,
-    auth: isAuthConfigured()
-      ? { status: "healthy", latencyMs: 0 }
-      : { status: "degraded", latencyMs: 0, detail: "not configured in this environment" },
+    /*
+     * Authentication has no check of its own any more: sessions are rows, so
+     * it is healthy exactly when the database is. What can independently fail
+     * is the mail path — and an environment that cannot send a verification
+     * email can still serve every signed-in page, which is degraded rather
+     * than unhealthy.
+     */
+    email: env.RESEND_API_KEY.includes("replaceme")
+      ? { status: "degraded", latencyMs: 0, detail: "no key; mail is written to the log" }
+      : { status: "healthy", latencyMs: 0 },
   }
 
   const unhealthy = Object.values(checks).some((check) => check.status === "unhealthy")

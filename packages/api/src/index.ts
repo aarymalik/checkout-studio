@@ -8,13 +8,41 @@ export type {
 
 export { withErrorHandling } from "./errors/withErrorHandling"
 
+export { authenticate, optionalAuthentication, readSessionCookie } from "./middleware/auth"
+export type { AuthenticatedSession } from "./middleware/auth"
+
 export {
-  createAuthenticator,
-  isAuthConfigured,
-  resolveLocalUser,
-  anonymous,
-} from "./middleware/auth"
-export type { AuthenticatorOptions, ClerkSession, SessionResolver } from "./middleware/auth"
+  MAXIMUM_LENGTH as PASSWORD_MAXIMUM_LENGTH,
+  MINIMUM_LENGTH as PASSWORD_MINIMUM_LENGTH,
+  checkPassword,
+  hashPassword,
+  verifyAgainstNothing,
+  verifyPassword,
+} from "./services/auth/password"
+export type { PasswordProblem } from "./services/auth/password"
+
+export {
+  TOKEN_LIFETIME,
+  expiryFor,
+  generateToken,
+  hashToken,
+  secretsMatch,
+} from "./services/auth/tokens"
+
+export {
+  SESSION_COOKIE,
+  SESSION_LIFETIME,
+  clearedSessionCookie,
+  createSession,
+  endOtherSessions,
+  endSession,
+  listSessions,
+  resolveSession,
+  serializeCookie,
+  sessionCookie,
+  touchSession,
+} from "./services/auth/session"
+export type { IssuedSession, SessionIdentity, SessionOrigin } from "./services/auth/session"
 export { success, failure, toResponse } from "./errors/response"
 
 export {
@@ -32,3 +60,19 @@ export type {
 
 export { PLANS, PLAN_IDS, suggestPlan } from "./services/billing/plans"
 export type { Plan, PlanId, PlanLimits, PlanFeatures, Limit } from "./services/billing/plans"
+
+export {
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
+  signIn,
+  signUp,
+  verifyEmail,
+} from "./services/auth/accounts"
+export type { AuthDependencies, SignInResult } from "./services/auth/accounts"
+
+export { loggingSender, recordingSender, resendSender, senderFor } from "./services/auth/email"
+export type { EmailSender, Message } from "./services/auth/email"
+
+export { SESSION_GRACE, TOKEN_GRACE, sweepExpired } from "./services/auth/sweep"
+export type { SweepResult } from "./services/auth/sweep"

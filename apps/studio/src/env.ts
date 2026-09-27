@@ -19,8 +19,16 @@ const schema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
 
-  CLERK_SECRET_KEY: z.string().min(1),
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
+  /**
+   * Keys the session fingerprint of a client address, and nothing a person
+   * ever sees. Long enough that it cannot be guessed; rotated per environment,
+   * which invalidates old fingerprints and nothing else.
+   */
+  AUTH_SESSION_SECRET: z.string().min(32),
+
+  /** Transactional email: verification and password reset only. */
+  RESEND_API_KEY: z.string().min(1),
+  EMAIL_FROM: z.string().email(),
 
   STRIPE_SECRET_KEY: stripeSecretKey(nodeEnv),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: stripePublishableKey(nodeEnv),

@@ -1,90 +1,88 @@
 import "server-only"
 
-import { prisma } from "@checkout-studio/database"
 import { logger } from "@checkout-studio/observability"
+import { SESSION_COOKIE, resolveSession, touchSession } from "../services/auth/session"
 import type { AuthenticatedUser } from "./chain"
 
 /**
  * Authentication.
  *
- * Clerk owns credentials, sessions and MFA — docs/security.md is explicit that
- * we never implement authentication ourselves. This module's only job is to
- * turn a Clerk session into the local user row that owns the tenant's data.
+ * Turns a session cookie into the user whose data the request may touch. The
+ * credentials, the sessions and the tokens are ours — see docs/security.md.
+ *
+ * Everything this needs to know is read from the session on every request,
+ * rather than carried in the cookie. A cookie that carried a role would keep
+ * asserting it after the role changed, and a cookie that carried an expiry
+ * would keep asserting that too after the session was revoked.
  */
 
-/**
- * Whether real credentials are present.
- *
- * `.env.example` ships placeholders so a fresh clone starts. With placeholders
- * there is no identity provider, so every protected route refuses the request
- * rather than the application refusing to boot. Production never reaches this:
- * the environment schema rejects placeholder values there.
- */
-export function isAuthConfigured(): boolean {
-  const secret = process.env["CLERK_SECRET_KEY"] ?? ""
-  return secret.length > 0 && !secret.includes("replaceme")
+/** Reads the session cookie out of a request, without a cookie library. */
+export function readSessionCookie(request: Request): string | null {
+  const header = request.headers.get("cookie")
+  if (header === null) return null
+
+  for (const part of header.split(";")) {
+    const separator = part.indexOf("=")
+    if (separator === -1) continue
+
+    if (part.slice(0, separator).trim() === SESSION_COOKIE) {
+      return decodeURIComponent(part.slice(separator + 1).trim())
+    }
+  }
+
+  return null
 }
 
-export interface ClerkSession {
-  userId: string | null
+export interface AuthenticatedSession extends AuthenticatedUser {
+  sessionId: string
+  email: string
+  emailVerified: boolean
 }
 
-/** Resolves the Clerk session for a request. Injected so it can be tested. */
-export type SessionResolver = (request: Request) => Promise<ClerkSession>
-
 /**
- * Maps a Clerk user to ours, creating the row on first sight.
+ * Who is making this request, or null.
  *
- * Clerk is the source of truth for identity; this row is what everything else
- * hangs off, so it must exist before the first request does anything useful.
+ * Null for every reason equally: no cookie, an unknown session, a revoked one,
+ * an expired one. A route that needs to know why is a route that will one day
+ * tell somebody.
  */
-export async function resolveLocalUser(
-  clerkId: string,
-  profile: { email: string; fullName?: string },
-): Promise<AuthenticatedUser> {
-  const user = await prisma.user.upsert({
-    where: { clerkId },
-    update: {},
-    create: {
-      clerkId,
-      email: profile.email,
-      ...(profile.fullName ? { fullName: profile.fullName } : {}),
-    },
-    select: { id: true },
+export async function authenticate(request: Request): Promise<AuthenticatedSession | null> {
+  const token = readSessionCookie(request)
+  if (token === null) return null
+
+  const identity = await resolveSession(token)
+  if (identity === null) return null
+
+  /*
+   * An unverified address cannot act.
+   *
+   * The account exists and the password was right, so this is not a failed
+   * sign-in — it is an account that has not finished being created. Treating it
+   * as unauthenticated here means no route has to remember to check.
+   */
+  if (!identity.emailVerified) {
+    logger.info("auth.unverified", { userId: identity.userId })
+    return null
+  }
+
+  // Recorded so a person can tell a live session from a forgotten one. Not
+  // awaited: the request does not depend on it, and a slow write should not
+  // slow a page down.
+  void touchSession(identity.sessionId).catch((error: unknown) => {
+    logger.warn("auth.touch_failed", { sessionId: identity.sessionId }, error)
   })
 
-  return { userId: user.id }
-}
-
-export interface AuthenticatorOptions {
-  resolveSession: SessionResolver
-  /** Looks up the Clerk profile. Only called for a new local user. */
-  loadProfile: (clerkId: string) => Promise<{ email: string; fullName?: string }>
-}
-
-export function createAuthenticator(options: AuthenticatorOptions) {
-  return async function authenticate(request: Request): Promise<AuthenticatedUser | null> {
-    if (!isAuthConfigured()) {
-      logger.warn("auth.not_configured", {
-        detail: "CLERK_SECRET_KEY is a placeholder; refusing the request",
-      })
-      return null
-    }
-
-    const session = await options.resolveSession(request)
-    if (!session.userId) return null
-
-    const existing = await prisma.user.findUnique({
-      where: { clerkId: session.userId },
-      select: { id: true },
-    })
-
-    if (existing) return { userId: existing.id }
-
-    const profile = await options.loadProfile(session.userId)
-    return resolveLocalUser(session.userId, profile)
+  return {
+    userId: identity.userId,
+    sessionId: identity.sessionId,
+    email: identity.email,
+    emailVerified: identity.emailVerified,
   }
 }
 
 /** For public endpoints that still want the caller when one is present. */
-export const anonymous: SessionResolver = async () => ({ userId: null })
+export async function optionalAuthentication(
+  request: Request,
+): Promise<AuthenticatedSession | null> {
+  return authenticate(request)
+}

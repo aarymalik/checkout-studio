@@ -1,8 +1,18 @@
 {
   "extends": "@checkout-studio/config/typescript/next.json",
   "compilerOptions": {
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*", "next-env.d.ts", ".next/types/**/*.ts", "*.config.ts", "e2e/**/*"],
+  "include": [
+    "src/**/*",
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "*.config.ts",
+    "vitest.setup.ts",
+    "e2e/**/*",
+    "visual/**/*"
+  ],
   "exclude": ["node_modules", ".next"]
 }

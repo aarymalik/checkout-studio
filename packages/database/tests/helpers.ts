@@ -9,7 +9,13 @@ export async function createTenant(): Promise<TenantContext & { userId: string }
   const suffix = `${Date.now()}-${counter}`
 
   const user = await prisma.user.create({
-    data: { clerkId: `clerk_${suffix}`, email: `user-${suffix}@example.test` },
+    data: {
+      email: `user-${suffix}@example.test`,
+      // A value that is not an Argon2id hash and therefore verifies against
+      // nothing. These fixtures are never signed in as.
+      passwordHash: "fixture:no-password",
+      emailVerifiedAt: new Date(),
+    },
   })
 
   return { userId: user.id }

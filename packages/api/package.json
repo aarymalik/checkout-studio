@@ -5,7 +5,8 @@
   "license": "UNLICENSED",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./edge": "./src/edge.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -15,6 +16,7 @@
     "clean": "rm -rf coverage .turbo"
   },
   "dependencies": {
+    "@checkout-studio/cache": "workspace:*",
     "@checkout-studio/database": "workspace:*",
     "@checkout-studio/observability": "workspace:*",
     "@checkout-studio/plugin-sdk": "workspace:*",
@@ -22,15 +24,15 @@
     "@checkout-studio/schema": "workspace:*",
     "@checkout-studio/types": "workspace:*",
     "@checkout-studio/utils": "workspace:*",
-    "zod": "4.6.5",
-    "@checkout-studio/cache": "workspace:*",
-    "server-only": "0.0.1"
+    "@node-rs/argon2": "2.2.1",
+    "server-only": "0.0.1",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",
+    "@vitest/coverage-v8": "5.0.1",
     "eslint": "10.11.0",
     "typescript": "5.9.3",
-    "vitest": "5.0.1",
-    "@vitest/coverage-v8": "5.0.1"
+    "vitest": "5.0.1"
   }
 }

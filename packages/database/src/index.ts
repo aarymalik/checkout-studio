@@ -15,3 +15,15 @@ export type { CreateRevisionInput, RevisionKind } from "./repositories/revision"
 
 export { auditRepository } from "./repositories/audit"
 export type { AuditEntry, ActorType } from "./repositories/audit"
+
+export {
+  identityRepository,
+  sessionRepository,
+  verificationTokenRepository,
+} from "./repositories/identity"
+export type {
+  CreateAccountInput,
+  CreateSessionInput,
+  CreateTokenInput,
+  VerificationPurpose,
+} from "./repositories/identity"

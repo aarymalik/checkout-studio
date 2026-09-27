@@ -173,17 +173,14 @@ apps/renderer   → http://localhost:3001
 
 ## Environment Variables
 
-These are replaced in Phase 3A, where the Clerk variables give way to
-`AUTH_SESSION_SECRET`, `RESEND_API_KEY` and `EMAIL_FROM` — the schema validates
-them, so they change together with the code that reads them.
-
 `.env.example` is the authoritative list. Every variable is validated at startup by a Zod schema; a missing or malformed value fails fast with a precise message rather than producing a mysterious runtime error.
 
 ```
 DATABASE_URL                      Local PostgreSQL
 REDIS_URL                         Local Redis
-CLERK_SECRET_KEY                  Clerk development instance
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+AUTH_SESSION_SECRET               Any long random string locally
+RESEND_API_KEY                    Without a real key, email goes to the log
+EMAIL_FROM                        The address verification mail comes from
 STRIPE_SECRET_KEY                 Test mode only (sk_test_…)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 STRIPE_WEBHOOK_SECRET             From `stripe listen`
