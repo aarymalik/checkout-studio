@@ -25,17 +25,17 @@
   --cs-gray-850: #1f1f23;
   --cs-gray-900: #18181b;
   --cs-gray-950: #0a0a0b;
-  --cs-blue-50: #eff6ff;
-  --cs-blue-100: #dbeafe;
-  --cs-blue-200: #bfdbfe;
-  --cs-blue-300: #93c5fd;
-  --cs-blue-400: #60a5fa;
-  --cs-blue-500: #3b82f6;
-  --cs-blue-600: #2563eb;
-  --cs-blue-700: #1d4ed8;
-  --cs-blue-800: #1e40af;
-  --cs-blue-900: #1e3a8a;
-  --cs-blue-950: #172554;
+  --cs-indigo-50: #eef2ff;
+  --cs-indigo-100: #e0e7ff;
+  --cs-indigo-200: #c7d2fe;
+  --cs-indigo-300: #a5b4fc;
+  --cs-indigo-400: #818cf8;
+  --cs-indigo-500: #6366f1;
+  --cs-indigo-600: #4f46e5;
+  --cs-indigo-700: #4338ca;
+  --cs-indigo-800: #3730a3;
+  --cs-indigo-900: #312e81;
+  --cs-indigo-950: #1e1b4b;
   --cs-green-50: #f0fdf4;
   --cs-green-100: #dcfce7;
   --cs-green-200: #bbf7d0;
@@ -197,11 +197,11 @@
   --cs-color-foreground-muted: var(--cs-gray-600);
   --cs-color-foreground-subtle: var(--cs-gray-500);
   --cs-color-foreground-inverse: var(--cs-gray-0);
-  --cs-color-primary: var(--cs-blue-600);
-  --cs-color-primary-hover: var(--cs-blue-700);
-  --cs-color-primary-active: var(--cs-blue-800);
+  --cs-color-primary: var(--cs-indigo-600);
+  --cs-color-primary-hover: var(--cs-indigo-700);
+  --cs-color-primary-active: var(--cs-indigo-800);
   --cs-color-primary-foreground: var(--cs-gray-0);
-  --cs-color-primary-subtle: var(--cs-blue-50);
+  --cs-color-primary-subtle: var(--cs-indigo-50);
   --cs-color-success: var(--cs-green-700);
   --cs-color-success-foreground: var(--cs-gray-0);
   --cs-color-success-subtle: var(--cs-green-50);
@@ -213,8 +213,8 @@
   --cs-color-danger-active: var(--cs-red-800);
   --cs-color-danger-foreground: var(--cs-gray-0);
   --cs-color-danger-subtle: var(--cs-red-50);
-  --cs-color-focus-ring: var(--cs-blue-600);
-  --cs-color-selection: color-mix(in oklab, var(--cs-blue-600) var(--cs-alpha-selection), transparent);
+  --cs-color-focus-ring: var(--cs-indigo-600);
+  --cs-color-selection: color-mix(in oklab, var(--cs-indigo-600) var(--cs-alpha-selection), transparent);
   --cs-color-overlay: color-mix(in oklab, var(--cs-gray-950) var(--cs-alpha-overlay), transparent);
 }
 
@@ -233,11 +233,11 @@
   --cs-color-foreground-muted: var(--cs-gray-400);
   --cs-color-foreground-subtle: var(--cs-gray-500);
   --cs-color-foreground-inverse: var(--cs-gray-950);
-  --cs-color-primary: var(--cs-blue-400);
-  --cs-color-primary-hover: var(--cs-blue-300);
-  --cs-color-primary-active: var(--cs-blue-200);
+  --cs-color-primary: var(--cs-indigo-400);
+  --cs-color-primary-hover: var(--cs-indigo-300);
+  --cs-color-primary-active: var(--cs-indigo-200);
   --cs-color-primary-foreground: var(--cs-gray-950);
-  --cs-color-primary-subtle: var(--cs-blue-950);
+  --cs-color-primary-subtle: var(--cs-indigo-950);
   --cs-color-success: var(--cs-green-400);
   --cs-color-success-foreground: var(--cs-gray-950);
   --cs-color-success-subtle: var(--cs-green-950);
@@ -249,8 +249,8 @@
   --cs-color-danger-active: var(--cs-red-200);
   --cs-color-danger-foreground: var(--cs-gray-950);
   --cs-color-danger-subtle: var(--cs-red-950);
-  --cs-color-focus-ring: var(--cs-blue-400);
-  --cs-color-selection: color-mix(in oklab, var(--cs-blue-400) var(--cs-alpha-selection), transparent);
+  --cs-color-focus-ring: var(--cs-indigo-400);
+  --cs-color-selection: color-mix(in oklab, var(--cs-indigo-400) var(--cs-alpha-selection), transparent);
   --cs-color-overlay: color-mix(in oklab, var(--cs-gray-950) var(--cs-alpha-overlay), transparent);
 }
 

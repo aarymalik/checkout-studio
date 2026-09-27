@@ -40,7 +40,23 @@ export default defineConfig({
       // Animations are frozen at their first frame; without this a spinner is a
       // different picture every run.
       animations: "disabled",
-      // Room for a single-pixel antialiasing difference, and no more.
+
+      /*
+       * How different a single pixel may be before it counts as different at
+       * all, in YIQ space, from 0 to 1.
+       *
+       * Playwright's default is 0.2, and 0.2 is enough to hide a change of
+       * brand. Swapping the primary from blue to indigo repainted every button,
+       * link and focus ring in the gallery, and all thirty-eight screenshots
+       * still passed: the two hues sit close enough in perceived colour that no
+       * pixel was ever counted.
+       *
+       * At 0.05 the same change fails loudly, which is the only reason to have
+       * these files at all.
+       */
+      threshold: 0.05,
+
+      // Room for a little antialiasing, and no more.
       maxDiffPixelRatio: 0.002,
     },
   },

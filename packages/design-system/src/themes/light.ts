@@ -26,11 +26,11 @@ export const light: ColorTheme = {
   "color-foreground-subtle": "gray-500",
   "color-foreground-inverse": "gray-0",
 
-  "color-primary": "blue-600",
-  "color-primary-hover": "blue-700",
-  "color-primary-active": "blue-800",
+  "color-primary": "indigo-600",
+  "color-primary-hover": "indigo-700",
+  "color-primary-active": "indigo-800",
   "color-primary-foreground": "gray-0",
-  "color-primary-subtle": "blue-50",
+  "color-primary-subtle": "indigo-50",
 
   // Green 700 rather than 600: white on green-600 measures 3.3:1, which fails
   // AA for the label a solid status pill carries.
@@ -52,7 +52,7 @@ export const light: ColorTheme = {
 
   // Solid, not a wash: a 40% tint of the seed measures under 3:1 against white
   // and a focus ring nobody can see is not a focus ring.
-  "color-focus-ring": "blue-600",
-  "color-selection": { alphaOf: "blue-600", alpha: "alpha-selection" },
+  "color-focus-ring": "indigo-600",
+  "color-selection": { alphaOf: "indigo-600", alpha: "alpha-selection" },
   "color-overlay": { alphaOf: "gray-950", alpha: "alpha-overlay" },
 }

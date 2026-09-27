@@ -16,7 +16,7 @@ import { BRAND, BRAND_ACCENT, BRAND_MID, GLYPH, INK, MUTED, PAPER } from "./colo
  */
 describe("the literal colours", () => {
   it.each([
-    ["BRAND", BRAND, "blue-600"],
+    ["BRAND", BRAND, "indigo-600"],
     ["GLYPH", GLYPH, "gray-0"],
     ["INK", INK, "gray-950"],
     ["PAPER", PAPER, "gray-50"],

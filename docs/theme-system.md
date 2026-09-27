@@ -128,7 +128,7 @@ Every semantic pairing is checked against WCAG AA at authoring time.
 Raw values. No meaning. Never referenced by a component.
 
 ```
---cs-blue-50 … --cs-blue-950
+--cs-indigo-50 … --cs-indigo-950
 --cs-gray-0 … --cs-gray-950
 --cs-green, --cs-amber, --cs-red scales
 --cs-size-0 … --cs-size-24
@@ -214,7 +214,7 @@ Component-scoped bindings. Optional, used when a component needs to deviate cohe
 Component tokens resolve to semantics, never to primitives.
 
 ```
---cs-button-primary-bg  →  --cs-color-primary  →  --cs-blue-600
+--cs-button-primary-bg  →  --cs-color-primary  →  --cs-indigo-600
 ```
 
 Three hops maximum. A fourth hop is a design smell.
