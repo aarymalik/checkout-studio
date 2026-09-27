@@ -1,10 +1,10 @@
 import { ImageResponse } from "next/og"
-import { BRAND, GLYPH, INK, MUTED, PAPER } from "@/components/brand/colors"
+import { BRAND, BRAND_ACCENT, BRAND_MID, GLYPH, INK, MUTED, PAPER } from "@/components/brand/colors"
 
 /**
  * The card a link to this product unfurls into.
  *
- * Deliberately plain: a name, a line and the mark. A link preview is read in
+ * Deliberately plain: the mark, a name and a line. A link preview is read in
  * half a second at the size of a playing card, and anything more detailed
  * arrives as noise.
  */
@@ -26,11 +26,22 @@ export default function OpengraphImage() {
         background: INK,
       }}
     >
-      <svg width="96" height="96" viewBox="0 0 32 32">
-        <rect width="32" height="32" rx="8" fill={BRAND} />
-        <path d="M7 15 L12.5 20.5 L10 23 L4.5 17.5 Z" fill={GLYPH} fillOpacity="0.5" />
-        <path d="M24.5 8.5 L27 11 L13.5 24.5 L11 22 Z" fill={GLYPH} />
-      </svg>
+      <div
+        style={{
+          display: "flex",
+          width: 112,
+          height: 112,
+          borderRadius: 28,
+          alignItems: "center",
+          justifyContent: "center",
+          background: `linear-gradient(135deg, ${BRAND}, ${BRAND_ACCENT})`,
+        }}
+      >
+        <svg width="88" height="88" viewBox="0 0 32 32">
+          <rect x="6" y="10" width="20" height="13" rx="2.5" fill={GLYPH} />
+          <rect x="6" y="13.2" width="20" height="3.4" fill={BRAND_MID} />
+        </svg>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ fontSize: 72, fontWeight: 600, color: PAPER, letterSpacing: -2 }}>

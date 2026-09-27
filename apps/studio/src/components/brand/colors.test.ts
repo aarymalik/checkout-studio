@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { primitives } from "@checkout-studio/design-system"
-import { BRAND, GLYPH, INK, MUTED, PAPER } from "./colors"
+import { BRAND, BRAND_ACCENT, BRAND_MID, GLYPH, INK, MUTED, PAPER } from "./colors"
 
 /**
  * The five literal colours, held to the palette.
@@ -23,6 +23,34 @@ describe("the literal colours", () => {
     ["MUTED", MUTED, "gray-400"],
   ])("%s is the palette's %s", (_, value, token) => {
     expect(value).toBe(primitives[token as keyof typeof primitives])
+  })
+
+  it("keeps the gradient's midpoint between its ends", () => {
+    /*
+     * The rendered icons use a solid sample where a browser would show the
+     * gradient continuing. If the ends move and the sample does not, the PNGs
+     * quietly stop matching the SVG.
+     */
+    const channels = (hex: string): [number, number, number] => [
+      Number.parseInt(hex.slice(1, 3), 16),
+      Number.parseInt(hex.slice(3, 5), 16),
+      Number.parseInt(hex.slice(5, 7), 16),
+    ]
+
+    const [fromRed, fromGreen, fromBlue] = channels(BRAND)
+    const [midRed, midGreen, midBlue] = channels(BRAND_MID)
+    const [toRed, toGreen, toBlue] = channels(BRAND_ACCENT)
+
+    // Within one, because the midpoint of two odd numbers rounds either way.
+    expect(Math.abs(midRed - (fromRed + toRed) / 2)).toBeLessThanOrEqual(1)
+    expect(Math.abs(midGreen - (fromGreen + toGreen) / 2)).toBeLessThanOrEqual(1)
+    expect(Math.abs(midBlue - (fromBlue + toBlue) / 2)).toBeLessThanOrEqual(1)
+  })
+
+  it("keeps violet out of the interface palette", () => {
+    // The mark is allowed a colour of its own. The palette is not: colour in
+    // the interface is reserved for actions.
+    expect(Object.values(primitives)).not.toContain(BRAND_ACCENT)
   })
 
   it("matches what the favicon is drawn with", async () => {

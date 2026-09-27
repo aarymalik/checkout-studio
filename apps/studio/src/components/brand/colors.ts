@@ -20,6 +20,29 @@
 // design-system-ignore: the brand colour, which is fixed across themes
 export const BRAND = "#2563eb"
 
+/**
+ * The far end of the mark's gradient.
+ *
+ * Violet is not in the palette and is not going to be. Nothing in the interface
+ * is this colour: the palette stays blue, green, amber and red, because
+ * docs/design-system.md asks for colour to be reserved for actions. A logo is
+ * not an action, and it is the one place allowed a colour of its own.
+ */
+// design-system-ignore: the brand gradient's second stop, deliberately outside the palette
+export const BRAND_ACCENT = "#7c3aed"
+
+/**
+ * The midpoint of the two.
+ *
+ * The icons rendered to PNG are drawn with a layout engine, not a browser: it
+ * can fill a box with a gradient but cannot continue one across a child, so the
+ * card's stripe would restart the gradient inside its own 20 pixels. A solid
+ * sample from the middle is what the stripe would have been at that position,
+ * and is indistinguishable at the sizes those files are seen at.
+ */
+// design-system-ignore: sampled from the gradient above, not a palette colour
+export const BRAND_MID = "#504eec"
+
 // design-system-ignore: rendered outside a browser, where no token resolves
 export const GLYPH = "#ffffff"
 

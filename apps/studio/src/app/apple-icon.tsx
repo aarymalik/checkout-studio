@@ -1,15 +1,20 @@
 import { ImageResponse } from "next/og"
-import { BRAND, GLYPH } from "@/components/brand/colors"
+import { BRAND, BRAND_ACCENT, BRAND_MID, GLYPH } from "@/components/brand/colors"
 
 /**
  * The icon iOS uses on a home screen.
  *
- * Generated rather than committed as a binary: it is the same two shapes as
+ * Generated rather than committed as a binary: it is the same three shapes as
  * icon.svg, and a second copy in a format nobody can read in a diff is a second
  * copy to forget about when the mark changes.
  *
- * No rounded corners here — iOS applies its own mask, and a tile that rounds
- * itself first ends up with a pale ring around it.
+ * No rounded corners — iOS applies its own mask, and a tile that rounds itself
+ * first ends up with a pale ring around it.
+ *
+ * The stripe is a solid sample from the middle of the gradient. This is drawn
+ * by a layout engine rather than a browser: it can fill a box with a gradient
+ * but cannot continue one across a child, so a gradient on the stripe would
+ * restart inside its own 20 pixels.
  */
 export const size = { width: 180, height: 180 }
 export const contentType = "image/png"
@@ -23,12 +28,12 @@ export default function AppleIcon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: BRAND,
+        background: `linear-gradient(135deg, ${BRAND}, ${BRAND_ACCENT})`,
       }}
     >
-      <svg width="112" height="112" viewBox="0 0 32 32">
-        <path d="M7 15 L12.5 20.5 L10 23 L4.5 17.5 Z" fill={GLYPH} fillOpacity="0.5" />
-        <path d="M24.5 8.5 L27 11 L13.5 24.5 L11 22 Z" fill={GLYPH} />
+      <svg width="140" height="140" viewBox="0 0 32 32">
+        <rect x="6" y="10" width="20" height="13" rx="2.5" fill={GLYPH} />
+        <rect x="6" y="13.2" width="20" height="3.4" fill={BRAND_MID} />
       </svg>
     </div>,
     size,
