@@ -25,9 +25,18 @@ enum PlatformRole {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  clerkId      String       @unique
-  email        String       @unique
+  id String @id @default(cuid())
+
+  /// Stored lowercased. Two spellings of an address are one account.
+  email String @unique
+
+  /// Null until the address is proven. An unverified account cannot sign in.
+  emailVerifiedAt DateTime?
+
+  /// Argon2id. Read by exactly one function, which returns a boolean — see
+  /// docs/database.md. Never selected into anything the product can serialise.
+  passwordHash String
+
   fullName     String?
   avatarUrl    String?
   platformRole PlatformRole @default(user)
@@ -38,8 +47,68 @@ model User {
   projects     Project[]
   subscription Subscription?
   auditEntries AuditLog[]
+  sessions     Session[]
+  tokens       VerificationToken[]
 
   @@index([createdAt])
+}
+
+/// A signed-in browser.
+///
+/// One row per session, so any one of them can be ended: signing out, changing
+/// a password and "sign out everywhere" are the same operation with different
+/// filters. See docs/security.md § Session Security.
+model Session {
+  id     String @id @default(cuid())
+  userId String
+
+  /// The cookie's value, hashed. A leaked table yields no working cookie.
+  tokenHash String @unique
+
+  expiresAt DateTime
+  /// Null while the session is live.
+  revokedAt DateTime?
+
+  /// What a person sees on their active sessions screen.
+  userAgent String?
+  /// Hashed, never the address itself — docs/observability.md § Redaction.
+  ipHash String?
+
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+enum VerificationPurpose {
+  verify_email
+  reset_password
+}
+
+/// A one-time link: confirm an address, or reset a password.
+///
+/// Consumed in the same transaction as its effect. A reset that succeeds while
+/// the token stays unconsumed is a link that works twice.
+model VerificationToken {
+  id     String @id @default(cuid())
+  userId String
+
+  /// Hashed, for the same reason a session token is.
+  tokenHash String              @unique
+  purpose   VerificationPurpose
+
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, consumedAt])
+  @@index([expiresAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
