@@ -462,6 +462,17 @@ After pressing an insertion key, the component is placed inside the current sele
 | `@`      | Filter to components on this page                |
 | `:`      | Jump to a node by name                           |
 
+Only `⌘K` is a registered shortcut. Everything below it belongs to the palette
+the way a select's arrow keys belong to the select: the component owns the
+highlight and handles them against it, and binding them globally as well would
+move the highlight twice on every press. They are declared as data in
+`defaults/overlay.ts` so the reference sheet can show them under their own
+heading — a key nobody can look up does not exist.
+
+A filter prefix is only a filter when a source is registered for it. Pages,
+components and nodes register their own as those features arrive; until then `#`
+is a character somebody typed, and the palette searches for it.
+
 ## Dialogs
 
 | Shortcut       | Command                        |
@@ -521,30 +532,33 @@ packages/editor/src/keyboard/
 ├── index.ts                  Public API
 ├── registry.ts               KeymapRegistry
 ├── dispatcher.ts             Keystroke → command resolution
+├── context.tsx               One listener and one scope stack, for React
 ├── scopes.ts                 Scope stack and activation
 ├── normalize.ts              Platform + layout normalization
 ├── chords.ts                 Multi-stroke sequence buffer
 ├── guards.ts                 Text input guard
 ├── conflicts.ts              Startup conflict detection
 ├── reserved.ts               Reserved key table
+├── persistence.ts            User customizations
 ├── defaults/
 │   ├── global.ts
-│   ├── canvas.ts
-│   ├── layers.ts
-│   ├── inspector.ts
-│   ├── insertion.ts
-│   └── overlay.ts
-├── presets/
-│   ├── default.ts
-│   ├── figma.ts
-│   └── framer.ts
-├── persistence.ts            User customizations
+│   ├── shell.ts              Panels and sidebar tabs
+│   └── overlay.ts            The palette's own keys, documented not bound
 ├── hooks/
 │   ├── useShortcut.ts
 │   ├── useScope.ts
 │   └── useShortcutLabel.ts
 └── types.ts
 ```
+
+`defaults/` grows a file per scope as the features arrive: canvas with the state
+engine, layers with the tree, insertion with the block system. A binding to a
+command that does not exist yet is a conflict error, which is deliberate — it
+keeps the keymap honest about what the product can do.
+
+There is no `presets/` yet. Figma and Framer presets differ only in canvas
+bindings, and there are no canvas bindings to differ; a preset selector that
+changed nothing would be a control that lies.
 
 ## Types
 
@@ -622,21 +636,61 @@ export type ScopeId =
 
 export interface KeymapRegistry {
   register(registration: ShortcutRegistration): Disposable
-  unregister(commandId: string, scope: ScopeId): void
-  resolve(event: KeyboardEvent, activeScopes: ScopeId[]): Command | null
+  registerAll(registrations: readonly ShortcutRegistration[]): Disposable
+  /** Every binding of a command in a scope. Returns how many went. */
+  unregister(commandId: string, scope: ScopeId): number
+  removePlugin(pluginId: string): number
+  all(): readonly ShortcutRegistration[]
+
+  /**
+   * What a keystroke means right now.
+   *
+   * Takes a binding rather than an event, because resolving the primary modifier
+   * is the dispatcher's job and doing it twice is how the two disagree. Returns a
+   * miss rather than null, since "nothing is bound to this" and "something is,
+   * but it cannot run" lead to different answers: the second hands the key back
+   * to the browser, which is what lets ⌘D duplicate a node and still bookmark
+   * the page when nothing is selected.
+   */
+  resolve(
+    binding: KeyBinding,
+    activeScopes: readonly ScopeId[],
+    context: EditorContext,
+  ): { match: ShortcutMatch } | { miss: "unbound" | "unavailable" }
+
+  /** The sequences a held leader could still complete, for the hint bar. */
+  chordContinuations(
+    leader: KeyBinding,
+    activeScopes: readonly ScopeId[],
+    context: EditorContext,
+  ): readonly ChordContinuation[]
+
   /** For rendering labels in menus, tooltips, and the palette. */
   bindingFor(commandId: string): KeyBinding | null
   format(binding: KeyBinding, platform: Platform): string
-  conflicts(): ShortcutConflict[]
+  conflicts(): readonly ShortcutConflict[]
+  /** Throws on errors, returns warnings. Called at startup and per plugin load. */
+  assertNoConflicts(): readonly ShortcutConflict[]
+}
+
+export interface ShortcutMatch {
+  registration: ShortcutRegistration
+  command: Command
 }
 
 export interface ShortcutConflict {
   binding: KeyBinding
   scope: ScopeId
-  commandIds: string[]
+  commandIds: readonly string[]
   severity: "error" | "warning"
+  /** What to do about it, for the console and for CI. */
+  reason: string
 }
 ```
+
+The `global` scope is always active and nothing declares it. That is what
+"anywhere" means: `⌘K` works on the dashboard, in the editor, and inside a panel
+alike.
 
 ## Registration
 
@@ -712,25 +766,40 @@ Users may rebind any non-reserved shortcut.
 
 ```ts
 export interface UserKeymap {
-  userId: string
-  preset: "default" | "figma" | "framer" | "custom"
-  /** Sparse. Only what differs from the preset. */
+  /** Sparse. Only what differs from what the product ships. */
   overrides: Array<{
     commandId: string
     scope: ScopeId
     binding: KeyBinding | null // null disables the shortcut
   }>
-  updatedAt: string
+  /**
+   * WCAG 2.1.4.
+   *
+   * A shortcut that is a single character with no modifier can be triggered by
+   * speech input — dictating a sentence into a page that binds "S" inserts a
+   * section. It must be possible to switch them off, and this is the switch.
+   */
+  characterKeysEnabled: boolean
 }
 ```
+
+Stored as a `UserPreference` row under `keyboard.keymap`, so it follows a person
+between devices. A `preset` field arrives with the presets themselves.
 
 Rules
 
 - Overrides are stored per user and sync across devices.
 - Rebinding onto a reserved key is refused with an explanation.
-- Rebinding onto an occupied key shows the conflict and offers to unbind the incumbent.
-- A single "Reset all" restores the active preset.
-- Keymaps export and import as JSON.
+- Rebinding onto an occupied key names the incumbent and is refused.
+- A single "Reset all" restores what the product ships.
+- One override replaces every binding a command had in that scope. A couple of
+  commands ship with two spellings — the reference sheet is `⌘/` and also plain
+  `?` — and applying an override to each would register the chosen key twice,
+  which conflict detection would rightly call ambiguous. Somebody who picks a key
+  has picked the key.
+- A stored override naming a reserved key is ignored rather than applied, and the
+  shipped binding stands. Settings refuses those, so a stored one can only mean
+  the rules tightened since it was saved.
 
 The customization UI lives in Settings → Keyboard and doubles as the searchable shortcut reference.
 

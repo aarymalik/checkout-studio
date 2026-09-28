@@ -53,6 +53,30 @@ Target ratio
 
 - Playwright
 
+Three things about the harness, each of which cost an afternoon to find and each
+of which looks like a broken feature rather than a broken test:
+
+**The tests visit `localhost`, not `127.0.0.1`.** Next's dev server treats a
+different host as a cross-origin dev request and refuses to serve part of the
+client runtime. The page renders, React loads, and nothing is interactive — which
+reads exactly like a hydration bug in the application.
+
+**Interaction waits for hydration.** A keystroke or a click that lands before
+React has taken over is simply lost: the markup is there, the handlers are not.
+`e2e/support/hydration.ts` waits for the marker React leaves on the container it
+hydrated. Without it, a test races the client bundle and fails on a busy machine.
+
+**Fixtures need `--conditions=react-server`.** They create their account through
+the same repositories the product uses, and those repositories declare themselves
+`server-only` — correctly, since importing them from a client component would
+leak database credentials into a bundle. That package throws unless the condition
+is set, which Next sets and Playwright does not. The dev server must not inherit
+it, so `webServer` clears `NODE_OPTIONS`.
+
+**Sign in once per file.** Signing in per test spends the sign-in rate limit on
+fixtures rather than on anything being tested, and that limit exists for a reason.
+Create the session through the API once and add its cookie to each context.
+
 ---
 
 ## Accessibility Testing

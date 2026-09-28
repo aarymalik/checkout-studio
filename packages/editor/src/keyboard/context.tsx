@@ -39,11 +39,13 @@ function createScopeStore(): ScopeStore {
   // Entries rather than a Set, so the same scope mounted twice must be released
   // twice — otherwise unmounting one of two open dialogs drops the scope.
   let entries: Array<{ scope: ScopeId }> = []
-  let snapshot: readonly ScopeId[] = []
+  // Global is always active, and nothing declares it. It is what "anywhere"
+  // means: ⌘K works on the dashboard, in the editor and inside a panel alike.
+  let snapshot: readonly ScopeId[] = ["global"]
   const listeners = new Set<() => void>()
 
   const commit = (): void => {
-    snapshot = entries.map((entry) => entry.scope)
+    snapshot = ["global", ...entries.map((entry) => entry.scope)]
     for (const listener of listeners) listener()
   }
 

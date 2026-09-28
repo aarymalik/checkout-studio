@@ -63,6 +63,29 @@ describe("KeyboardProvider", () => {
     expect(ran).toEqual(["palette"])
   })
 
+  /*
+   * Global is what "anywhere" means, and nothing declares it — so without this,
+   * ⌘K works in no part of the product at all.
+   */
+  it("keeps the global scope active without anything declaring it", () => {
+    commands.register(makeCommand({ id: "help.palette", run: () => void ran.push("palette") }))
+    keymap.register({
+      commandId: "help.palette",
+      binding: { key: "KeyK", mod: true },
+      scope: "global",
+    })
+
+    render(
+      <Provider>
+        <Scoped scope="studio" />
+      </Provider>,
+    )
+
+    press({ key: "KeyK", mod: true })
+
+    expect(ran).toEqual(["palette"])
+  })
+
   it("stops listening when it unmounts", () => {
     commands.register(makeCommand({ id: "help.palette", run: () => void ran.push("palette") }))
     keymap.register({
@@ -102,7 +125,7 @@ describe("KeyboardProvider", () => {
         </Provider>,
       )
 
-      expect(screen.getByTestId("scopes")).toHaveTextContent("canvas")
+      expect(screen.getByTestId("scopes")).toHaveTextContent("global,canvas")
     })
 
     it("releases it on unmount", () => {
@@ -126,13 +149,13 @@ describe("KeyboardProvider", () => {
         </Provider>,
       )
 
-      expect(screen.getByTestId("scopes")).toHaveTextContent("overlay.dialog")
+      expect(screen.getByTestId("scopes")).toHaveTextContent("global,overlay.dialog")
 
       act(() => {
         screen.getByRole("button").click()
       })
 
-      expect(screen.getByTestId("scopes")).toHaveTextContent("")
+      expect(screen.getByTestId("scopes")).toHaveTextContent("global")
     })
 
     // Unmounting one of two open dialogs must not drop the scope the other needs.
@@ -178,7 +201,7 @@ describe("KeyboardProvider", () => {
         </Provider>,
       )
 
-      expect(screen.getByTestId("scopes")).toHaveTextContent("")
+      expect(screen.getByTestId("scopes")).toHaveTextContent("global")
     })
   })
 

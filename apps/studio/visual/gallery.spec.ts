@@ -23,8 +23,26 @@ for (const testCase of CASES) {
       // picture every run.
       await page.evaluate(() => document.fonts.ready)
 
+      /*
+       * The overlays need React before they exist.
+       *
+       * A dialog, a menu and the palette all render through a portal that only
+       * the client creates. Photographing before hydration photographs an empty
+       * page — which is what these baselines were until the suite started
+       * visiting a host Next's dev server is willing to hydrate.
+       */
+      await page.waitForFunction(() =>
+        Object.keys(document).some((key) => key.startsWith("__reactContainer$")),
+      )
+
       await expect(page).toHaveScreenshot(`${testCase.id}-${colorScheme}.png`, {
         fullPage: true,
+        /*
+         * Next's development indicator is not part of the design system, and it
+         * moves and restyles between framework releases. Masking it keeps a
+         * Next upgrade from failing every screenshot at once.
+         */
+        mask: [page.locator("nextjs-portal")],
       })
     })
   }

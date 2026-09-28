@@ -12,7 +12,7 @@ import { defineConfig, devices } from "@playwright/test"
  * second attempt is a screenshot nobody can trust.
  */
 const PORT = Number(process.env["PORT"] ?? 3100)
-const baseURL = `http://127.0.0.1:${PORT}`
+const baseURL = `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: "./visual",

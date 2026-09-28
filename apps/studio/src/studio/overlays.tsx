@@ -1,6 +1,14 @@
 "use client"
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 
 /**
  * Which overlay is open.
@@ -22,6 +30,33 @@ const OverlayContext = createContext<OverlayContextValue | null>(null)
 
 export function OverlayProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<OverlayId | null>(null)
+
+  /*
+   * Where focus was before an overlay opened.
+   *
+   * Radix restores focus to a <DialogTrigger>, and these overlays have none:
+   * ⌘K opens the palette from anywhere. Without this, dismissing it drops focus
+   * to the body, and a keyboard user loses their place in the page — which is
+   * the whole cost of having opened it by accident.
+   */
+  const previous = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (open !== null) {
+      previous.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+      return
+    }
+
+    // Runs after the overlay has unmounted, so this is the last word on focus.
+    const target = previous.current
+    previous.current = null
+
+    // Still in the document: a command that navigated away has taken its own
+    // focus somewhere, and pulling it back would undo that.
+    if (target !== null && target.isConnected) target.focus()
+  }, [open])
 
   const value = useMemo<OverlayContextValue>(
     () => ({
