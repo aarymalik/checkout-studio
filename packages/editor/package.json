@@ -15,6 +15,7 @@
     "clean": "rm -rf coverage .turbo"
   },
   "dependencies": {
+    "@checkout-studio/design-system": "workspace:*",
     "@checkout-studio/hooks": "workspace:*",
     "@checkout-studio/plugin-sdk": "workspace:*",
     "@checkout-studio/renderer": "workspace:*",
@@ -25,11 +26,18 @@
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitest/coverage-v8": "5.0.1",
     "eslint": "10.11.0",
-    "typescript": "5.9.3",
-    "vitest": "5.0.1",
     "jsdom": "30.1.1",
-    "@vitest/coverage-v8": "5.0.1"
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",

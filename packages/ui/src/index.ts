@@ -112,9 +112,6 @@ export type { FileUploadProps } from "./composites/FileUpload"
 export { CommandPalette } from "./composites/CommandPalette"
 export type { CommandPaletteProps, PaletteItem } from "./composites/CommandPalette"
 
-export { PALETTE_MODES, parseQuery } from "./composites/parseQuery"
-export type { PaletteMode, ParsedQuery } from "./composites/parseQuery"
-
 // Feedback
 export { Spinner } from "./feedback/Spinner"
 export type { SpinnerProps } from "./feedback/Spinner"

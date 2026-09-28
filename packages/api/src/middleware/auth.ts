@@ -50,6 +50,17 @@ export async function authenticate(request: Request): Promise<AuthenticatedSessi
   const token = readSessionCookie(request)
   if (token === null) return null
 
+  return authenticateToken(token)
+}
+
+/**
+ * The same thing, for a caller that already holds the token.
+ *
+ * A server component has cookies but no Request. Every rule about who may act
+ * lives here rather than being repeated at each entry point, because a rule
+ * written twice is a rule that will be changed once.
+ */
+export async function authenticateToken(token: string): Promise<AuthenticatedSession | null> {
   const identity = await resolveSession(token)
   if (identity === null) return null
 

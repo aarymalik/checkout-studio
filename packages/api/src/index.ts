@@ -8,7 +8,12 @@ export type {
 
 export { withErrorHandling } from "./errors/withErrorHandling"
 
-export { authenticate, optionalAuthentication, readSessionCookie } from "./middleware/auth"
+export {
+  authenticate,
+  authenticateToken,
+  optionalAuthentication,
+  readSessionCookie,
+} from "./middleware/auth"
 export type { AuthenticatedSession } from "./middleware/auth"
 
 export {

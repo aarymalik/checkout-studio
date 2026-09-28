@@ -1,7 +1,10 @@
 /**
  * @checkout-studio/editor — the visual editing engine.
  *
- * Scaffolded in Phase 1. Its first exports land in Phase 4.
- * See docs/phases.md.
+ * Phase 4 ships the parts of it that have nothing to do with editing: commands,
+ * the keyboard system, and the command palette's search. The state engine, the
+ * canvas and the schema arrive in Phase 5 and beyond.
  */
-export {}
+export * from "./commands"
+export * from "./keyboard"
+export * from "./shell"

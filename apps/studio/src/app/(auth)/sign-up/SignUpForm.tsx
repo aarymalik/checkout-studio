@@ -53,8 +53,16 @@ export function SignUpForm() {
     )
   }
 
+  /*
+   * The form posts, although `onSubmit` is what actually submits it.
+   *
+   * A click that lands before React has hydrated gets the browser's own submit,
+   * and a form with no method does that as a GET — which would put an email
+   * address and a password into the URL, the session history, and every access
+   * log between here and the server. Posting keeps them in a body.
+   */
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+    <form method="post" onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       {problem === null ? null : <Alert variant="danger" title={problem} />}
 
       <Input label="Name" name="fullName" autoComplete="name" autoFocus />

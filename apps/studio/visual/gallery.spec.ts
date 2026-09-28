@@ -23,6 +23,33 @@ for (const testCase of CASES) {
       // picture every run.
       await page.evaluate(() => document.fonts.ready)
 
+      /*
+       * The overlays need React before they exist.
+       *
+       * A dialog, a menu and the palette all render through a portal that only
+       * the client creates. Photographing before hydration photographs an empty
+       * page — which is what these baselines were until the suite started
+       * visiting a host Next's dev server is willing to hydrate.
+       */
+      await page.waitForFunction(() =>
+        Object.keys(document).some((key) => key.startsWith("__reactContainer$")),
+      )
+
+      /*
+       * Next's development indicator is not part of the design system, and it
+       * moves and restyles between framework releases — a Next upgrade would
+       * otherwise fail all 38 screenshots at once.
+       *
+       * Removed rather than masked or hidden. It renders inside a shadow root,
+       * so the host element has no box and Playwright's `mask` silently covers
+       * nothing; and the overlay sets its own display, so a stylesheet rule does
+       * not win. Taking the element out is the one approach that is not quietly
+       * a no-op.
+       */
+      await page.evaluate(() => {
+        document.querySelector("nextjs-portal")?.remove()
+      })
+
       await expect(page).toHaveScreenshot(`${testCase.id}-${colorScheme}.png`, {
         fullPage: true,
       })

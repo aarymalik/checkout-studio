@@ -1,7 +1,19 @@
+import { existsSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { defineConfig, devices } from "@playwright/test"
 
+/**
+ * The fixtures create their account through the same repositories the product
+ * uses, so the test process needs the same database the server is using.
+ * Playwright does not read the workspace environment file, and Next does.
+ */
+const envFile = fileURLToPath(new URL("../../.env.local", import.meta.url))
+if (existsSync(envFile)) {
+  process.loadEnvFile(envFile)
+}
+
 const PORT = Number(process.env["PORT"] ?? 3000)
-const baseURL = `http://127.0.0.1:${PORT}`
+const baseURL = `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: "./e2e",
@@ -16,5 +28,15 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env["CI"],
     timeout: 120_000,
+    /*
+     * The test process runs with `--conditions=react-server` so that it can
+     * import the repositories, which declare themselves `server-only` — that
+     * package throws unless the condition is set, and Playwright does not set it.
+     *
+     * The server must not inherit it. Next resolves its own conditions per
+     * module graph, and forcing react-server on the whole process makes
+     * react-dom/server unavailable to the parts that legitimately need it.
+     */
+    env: { NODE_OPTIONS: "" },
   },
 })

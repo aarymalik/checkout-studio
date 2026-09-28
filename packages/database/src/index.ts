@@ -7,6 +7,9 @@ export type { TenantContext } from "./tenant"
 export { projectRepository } from "./repositories/project"
 export type { CreateProjectInput, UpdateProjectInput } from "./repositories/project"
 
+export { preferenceRepository, isPreferenceKey, PREFERENCE_KEYS } from "./repositories/preference"
+export type { PreferenceKey } from "./repositories/preference"
+
 export { pageRepository, DraftConflictError } from "./repositories/page"
 export type { CreatePageInput } from "./repositories/page"
 

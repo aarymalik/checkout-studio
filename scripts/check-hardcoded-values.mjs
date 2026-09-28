@@ -22,13 +22,7 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const SEARCH = ["packages/ui/src", "packages/editor/src", "packages/renderer/src", "apps"]
 
 /** The tier that is allowed to hold raw values, plus what cannot be tokenised. */
-const EXEMPT = [
-  "packages/design-system/src",
-  "/node_modules/",
-  "/.next/",
-  "/coverage/",
-  "/.turbo/",
-]
+const EXEMPT = ["packages/design-system/src", "/node_modules/", "/.next/", "/coverage/", "/.turbo/"]
 
 /**
  * The 8px spacing system from docs/design-system.md, as Tailwind multiples of

@@ -25,6 +25,9 @@ export type {
   StaticSemanticName,
 } from "./tokens/semantics"
 
+export { LAYOUT, clampWidth } from "./layout/shell"
+export type { PanelBounds } from "./layout/shell"
+
 export { componentTokens } from "./tokens/components"
 export type { ComponentTokenName } from "./tokens/components"
 

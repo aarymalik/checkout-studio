@@ -164,6 +164,36 @@ Relationships:
 
 ---
 
+## UserPreference
+
+How somebody has arranged the product: the panel layout they left, and the
+shortcuts they changed.
+
+Fields:
+
+- userId
+- key (`shell.layout` · `keyboard.keymap`)
+- value (JSONB)
+- updatedAt
+
+Keyed by user and name, with no surrogate id: there is nothing else to address a
+row by, so writing one is an upsert on the primary key and reading a person's
+whole set is one index scan.
+
+One row per setting rather than a column per setting. Both values are opaque to
+the database, both change shape as the product does, and neither is ever queried
+by its contents — so a migration per preference would be a migration nobody
+needs. The trade is that the database cannot validate them, which is why nothing
+trusts the stored shape: every reader validates it and falls back to the default,
+because a row written by an older version of the product is the ordinary case
+rather than corruption.
+
+Relationships:
+
+- belongs to User, and is deleted with it
+
+---
+
 ## Project
 
 Represents a business or workspace.

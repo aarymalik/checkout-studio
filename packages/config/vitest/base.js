@@ -12,10 +12,20 @@ export const coverageThresholds = {
 }
 
 /**
+ * Coverage thresholds, optionally raised for a subset of files.
+ *
+ * A glob key holds its own thresholds, which is how a critical module is held
+ * to 100% without raising the floor for everything around it.
+ *
+ * @typedef {typeof coverageThresholds} Thresholds
+ * @typedef {Thresholds & { [glob: string]: Thresholds | number }} ScopedThresholds
+ */
+
+/**
  * @param {{
  *   environment?: "node" | "jsdom",
  *   setupFiles?: string[],
- *   thresholds?: typeof coverageThresholds,
+ *   thresholds?: ScopedThresholds,
  *   coverageInclude?: string[],
  *   alias?: Record<string, string>,
  *   env?: Record<string, string>,
