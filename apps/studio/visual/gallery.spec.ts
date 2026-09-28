@@ -35,14 +35,23 @@ for (const testCase of CASES) {
         Object.keys(document).some((key) => key.startsWith("__reactContainer$")),
       )
 
+      /*
+       * Next's development indicator is not part of the design system, and it
+       * moves and restyles between framework releases — a Next upgrade would
+       * otherwise fail all 38 screenshots at once.
+       *
+       * Removed rather than masked or hidden. It renders inside a shadow root,
+       * so the host element has no box and Playwright's `mask` silently covers
+       * nothing; and the overlay sets its own display, so a stylesheet rule does
+       * not win. Taking the element out is the one approach that is not quietly
+       * a no-op.
+       */
+      await page.evaluate(() => {
+        document.querySelector("nextjs-portal")?.remove()
+      })
+
       await expect(page).toHaveScreenshot(`${testCase.id}-${colorScheme}.png`, {
         fullPage: true,
-        /*
-         * Next's development indicator is not part of the design system, and it
-         * moves and restyles between framework releases. Masking it keeps a
-         * Next upgrade from failing every screenshot at once.
-         */
-        mask: [page.locator("nextjs-portal")],
       })
     })
   }
