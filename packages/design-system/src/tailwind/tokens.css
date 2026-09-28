@@ -101,6 +101,18 @@
    * that overshoots draws attention to itself instead. */
   --ease-standard: var(--cs-easing-standard);
 
+  /* The studio frame. Bound into the spacing namespace, which is what Tailwind
+   * builds its width and height utilities from: h-toolbar, w-panel-left. */
+  --spacing-toolbar: var(--cs-toolbar-height);
+  --spacing-status-bar: var(--cs-status-bar-height);
+  --spacing-panel-left: var(--cs-panel-width-left);
+  --spacing-panel-left-min: var(--cs-panel-width-left-min);
+  --spacing-panel-left-max: var(--cs-panel-width-left-max);
+  --spacing-panel-rail: var(--cs-panel-width-left-collapsed);
+  --spacing-panel-right: var(--cs-panel-width-right);
+  --spacing-panel-right-min: var(--cs-panel-width-right-min);
+  --spacing-panel-right-max: var(--cs-panel-width-right-max);
+
   /* The 8px system. 4px is the unit, so the documented scale is 1, 2, 3, 4, 6,
    * 8, 10, 12, 16, 20 and 24. */
   --spacing: 4px;
@@ -162,5 +174,20 @@
   height: var(--cs-control-height-md);
 }
 @utility h-control-lg {
+  height: var(--cs-control-height-lg);
+}
+
+/* Square controls: an icon button's hit area is its height in both directions,
+ * and writing that as a spacing step would let the two drift apart. */
+@utility size-control-sm {
+  width: var(--cs-control-height-sm);
+  height: var(--cs-control-height-sm);
+}
+@utility size-control-md {
+  width: var(--cs-control-height-md);
+  height: var(--cs-control-height-md);
+}
+@utility size-control-lg {
+  width: var(--cs-control-height-lg);
   height: var(--cs-control-height-lg);
 }

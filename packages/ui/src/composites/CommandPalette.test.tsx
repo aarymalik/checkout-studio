@@ -18,6 +18,39 @@ function Palette(props: Partial<Parameters<typeof CommandPalette>[0]> = {}) {
   return <CommandPalette open onOpenChange={vi.fn()} items={ITEMS} onSelect={vi.fn()} {...props} />
 }
 
+/**
+ * A palette wired to a search, the way the application wires one.
+ *
+ * Searching belongs to the caller, so the tests that exercise filtering supply
+ * one rather than asserting a behaviour the component no longer has.
+ */
+function SearchablePalette({ search = substring }: { search?: (query: string) => PaletteItem[] }) {
+  const [query, setQuery] = useState("")
+
+  return (
+    <CommandPalette
+      open
+      onOpenChange={vi.fn()}
+      items={search(query)}
+      onSelect={vi.fn()}
+      query={query}
+      onQueryChange={setQuery}
+    />
+  )
+}
+
+function substring(query: string): PaletteItem[] {
+  if (query === "") return ITEMS
+
+  const needle = query.toLowerCase()
+
+  return ITEMS.filter(
+    (item) =>
+      item.label.toLowerCase().includes(needle) ||
+      (item.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(needle)),
+  )
+}
+
 function options(): string[] {
   return screen.getAllByRole("option").map((option) => option.textContent ?? "")
 }
@@ -52,7 +85,7 @@ describe("CommandPalette", () => {
     expect(field).toHaveFocus()
   })
 
-  it("shows every item, grouped, until something is typed", () => {
+  it("shows every item it is given, grouped", () => {
     render(<Palette />)
 
     expect(options()).toHaveLength(4)
@@ -60,47 +93,40 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Pages")).toBeInTheDocument()
   })
 
-  it("filters as the reader types", async () => {
-    render(<Palette />)
+  describe("searching", () => {
+    it("reports every keystroke, so the caller can search", async () => {
+      const onQueryChange = vi.fn()
+      render(<Palette onQueryChange={onQueryChange} />)
 
-    await userEvent.type(screen.getByRole("combobox"), "dup")
+      await userEvent.type(screen.getByRole("combobox"), "dup")
 
-    expect(options()).toEqual(["Duplicate page"])
-  })
-
-  it("matches on keywords, not only on the label", async () => {
-    render(<Palette />)
-
-    await userEvent.type(screen.getByRole("combobox"), "deploy")
-
-    expect(options()[0]).toContain("Publish page")
-  })
-
-  it("says so when nothing matches", async () => {
-    render(<Palette />)
-
-    await userEvent.type(screen.getByRole("combobox"), "zzz")
-
-    expect(screen.getByText("No results.")).toBeInTheDocument()
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
-  })
-
-  describe("mode prefixes", () => {
-    it("reports the mode so the caller can narrow the list", async () => {
-      const onModeChange = vi.fn()
-      render(<Palette onModeChange={onModeChange} />)
-
-      await userEvent.type(screen.getByRole("combobox"), "#home")
-
-      expect(onModeChange).toHaveBeenLastCalledWith("pages")
+      expect(onQueryChange).toHaveBeenLastCalledWith("dup")
     })
 
-    it("searches on what is left after the prefix", async () => {
-      render(<Palette />)
+    it("shows the results it is handed, and nothing else", async () => {
+      render(<SearchablePalette />)
+
+      await userEvent.type(screen.getByRole("combobox"), "dup")
+
+      expect(options()).toEqual(["Duplicate page"])
+    })
+
+    // A prefix is a filter the registry understands; the component passes the
+    // whole input through and renders whatever comes back.
+    it("does not interpret a prefix itself", async () => {
+      const search = vi.fn(() => ITEMS)
+      render(<SearchablePalette search={search} />)
 
       await userEvent.type(screen.getByRole("combobox"), ">dup")
 
-      expect(options()).toEqual(["Duplicate page"])
+      expect(search).toHaveBeenLastCalledWith(">dup")
+    })
+
+    it("says so when it is given nothing to show", () => {
+      render(<Palette items={[]} />)
+
+      expect(screen.getByText("No results.")).toBeInTheDocument()
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
     })
   })
 
@@ -193,7 +219,7 @@ describe("CommandPalette", () => {
   it("keeps the highlight inside a list that shrinks", async () => {
     // A highlight left pointing past the end of a filtered list highlights
     // nothing, and Enter then does nothing.
-    render(<Palette />)
+    render(<SearchablePalette />)
 
     await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}")
     await userEvent.type(screen.getByRole("combobox"), "publish")
@@ -215,6 +241,7 @@ describe("CommandPalette", () => {
     render(<Reopenable />)
 
     await userEvent.type(screen.getByRole("combobox"), "dup")
+
     await userEvent.keyboard("{Escape}")
     await userEvent.click(screen.getByRole("button", { name: "Open" }))
 

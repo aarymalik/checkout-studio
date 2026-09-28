@@ -11,6 +11,7 @@ export {
   bindingFromEvent,
   detectPlatform,
   formatBinding,
+  platformFor,
   serializeBinding,
   serializeEvent,
 } from "./normalize"
@@ -66,4 +67,14 @@ export {
 
 export { useScope, useShortcut, useShortcutLabel } from "./hooks"
 
-export { defaultShortcuts, globalShortcuts, paletteShortcuts, shellShortcuts } from "./defaults"
+export {
+  DEFAULT_KEYMAP,
+  explainRebinding,
+  isCharacterKey,
+  normalizeKeymap,
+  resolveShortcuts,
+} from "./persistence"
+export type { KeymapOverride, UserKeymap } from "./persistence"
+
+export { defaultShortcuts, globalShortcuts, paletteKeys, shellShortcuts } from "./defaults"
+export type { ContextualKey } from "./defaults"

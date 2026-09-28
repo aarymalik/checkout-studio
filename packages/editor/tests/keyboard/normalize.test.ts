@@ -4,10 +4,33 @@ import {
   bindingFromEvent,
   detectPlatform,
   formatBinding,
+  platformFor,
   serializeBinding,
   serializeEvent,
 } from "../../src/keyboard/normalize"
 import { keyEvent } from "../support"
+
+describe("platformFor", () => {
+  it("reads a Mac out of any of the strings a browser offers", () => {
+    expect(platformFor("macOS")).toBe("mac")
+    expect(platformFor("MacIntel")).toBe("mac")
+    expect(platformFor("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")).toBe("mac")
+    expect(platformFor("iPhone")).toBe("mac")
+    expect(platformFor("iPad")).toBe("mac")
+  })
+
+  it("reports other for anything that is not Apple", () => {
+    expect(platformFor("Win32")).toBe("other")
+    expect(platformFor("Linux x86_64")).toBe("other")
+  })
+
+  // A request with no user-agent header at all, which is not an error.
+  it("reports other for nothing", () => {
+    expect(platformFor(null)).toBe("other")
+    expect(platformFor(undefined)).toBe("other")
+    expect(platformFor("")).toBe("other")
+  })
+})
 
 describe("detectPlatform", () => {
   const original = Object.getOwnPropertyDescriptor(globalThis, "navigator")
@@ -54,6 +77,24 @@ describe("detectPlatform", () => {
     Reflect.deleteProperty(globalThis, "navigator")
 
     expect(detectPlatform()).toBe("other")
+  })
+
+  /*
+   * Node reports the *server's* platform: navigator.platform is "MacIntel" on a
+   * developer's machine and "Linux x86_64" in production. Trusting it on the
+   * server would render Ctrl to a Mac user and flip it to ⌘ on hydration, so
+   * this refuses to answer off the browser at all.
+   */
+  it("refuses to guess where there is no window, whatever navigator says", () => {
+    withNavigator({ platform: "MacIntel" })
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, "window")
+    Reflect.deleteProperty(globalThis, "window")
+
+    try {
+      expect(detectPlatform()).toBe("other")
+    } finally {
+      if (descriptor !== undefined) Object.defineProperty(globalThis, "window", descriptor)
+    }
   })
 })
 
@@ -177,6 +218,9 @@ describe("formatBinding", () => {
     expect(formatBinding({ key: "Minus" }, "mac")).toBe("−")
     expect(formatBinding({ key: "Equal" }, "mac")).toBe("+")
     expect(formatBinding({ key: "BracketRight" }, "mac")).toBe("]")
+    expect(formatBinding({ key: "Backslash" }, "mac")).toBe("\\")
+    expect(formatBinding({ key: "Semicolon" }, "mac")).toBe(";")
+    expect(formatBinding({ key: "Quote" }, "mac")).toBe("'")
   })
 
   // An unlisted code is shown as-is rather than hidden: a wrong-looking label is

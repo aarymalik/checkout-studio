@@ -1,11 +1,11 @@
 import type { ShortcutRegistration } from "../types"
 import { globalShortcuts } from "./global"
 import { shellShortcuts } from "./shell"
-import { paletteShortcuts } from "./overlay"
 
 export { globalShortcuts } from "./global"
 export { shellShortcuts } from "./shell"
-export { paletteShortcuts } from "./overlay"
+export { paletteKeys } from "./overlay"
+export type { ContextualKey } from "./overlay"
 
 /**
  * Every binding the core editor ships.
@@ -18,5 +18,4 @@ export { paletteShortcuts } from "./overlay"
 export const defaultShortcuts: readonly ShortcutRegistration[] = [
   ...globalShortcuts,
   ...shellShortcuts,
-  ...paletteShortcuts,
 ]

@@ -49,6 +49,7 @@ model User {
   auditEntries AuditLog[]
   sessions     Session[]
   tokens       VerificationToken[]
+  preferences  UserPreference[]
 
   @@index([createdAt])
 }
@@ -81,6 +82,28 @@ model Session {
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
+}
+
+/// A person's studio preferences.
+///
+/// One row per user per key rather than a column per setting. The shell's panel
+/// layout and a custom keymap are both opaque to the database, both change shape
+/// as the product does, and neither is ever queried by its contents — so a
+/// migration per preference would be a migration nobody needs.
+///
+/// Nothing trusts the stored shape. Every reader validates it and falls back to
+/// the default, because a row written by an older version of the product is the
+/// normal case, not an error.
+model UserPreference {
+  userId String
+  key    String
+  value  Json
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
 }
 
 enum VerificationPurpose {

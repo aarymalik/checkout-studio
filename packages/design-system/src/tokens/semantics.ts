@@ -136,7 +136,12 @@ export const staticSemantics = {
   "toolbar-height": "layout-toolbar",
   "status-bar-height": "layout-status-bar",
   "panel-width-left": "layout-panel-left",
+  "panel-width-left-min": "layout-panel-left-min",
+  "panel-width-left-max": "layout-panel-left-max",
+  "panel-width-left-collapsed": "layout-panel-left-collapsed",
   "panel-width-right": "layout-panel-right",
+  "panel-width-right-min": "layout-panel-right-min",
+  "panel-width-right-max": "layout-panel-right-max",
 } as const satisfies Record<string, PrimitiveName>
 
 export type StaticSemanticName = keyof typeof staticSemantics

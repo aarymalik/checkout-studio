@@ -39,14 +39,21 @@ export interface EditorContext {
   isDirty: boolean
 }
 
-export interface Command {
-  /** Stable, dotted, and never translated: "edit.duplicate". */
+/**
+ * What a command is, without what it does.
+ *
+ * A screen that lists shortcuts needs titles and categories but has no business
+ * being able to run anything — and building a command set from stub actions just
+ * to read its titles would be a lie in the shape of a factory.
+ */
+export interface CommandDescriptor {
   id: string
-  /** Shown to a person. Sentence case, no trailing punctuation. */
   title: string
   category: CommandCategory
-  /** Extra words the palette should match on. */
   keywords?: readonly string[]
+}
+
+export interface Command extends CommandDescriptor {
   /**
    * May this run right now?
    *

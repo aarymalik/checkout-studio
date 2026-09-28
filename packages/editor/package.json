@@ -15,6 +15,7 @@
     "clean": "rm -rf coverage .turbo"
   },
   "dependencies": {
+    "@checkout-studio/design-system": "workspace:*",
     "@checkout-studio/hooks": "workspace:*",
     "@checkout-studio/plugin-sdk": "workspace:*",
     "@checkout-studio/renderer": "workspace:*",

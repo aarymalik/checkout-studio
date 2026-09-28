@@ -1,4 +1,5 @@
 export { createEnv, EnvironmentError } from "./env"
+export { slugify, uniqueSlug } from "./text/slug"
 export * from "./errors"
 export {
   stripeSecretKey,

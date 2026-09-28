@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   defaultShortcuts,
   globalShortcuts,
-  paletteShortcuts,
+  paletteKeys,
   shellShortcuts,
 } from "../../src/keyboard/defaults"
 import { detectConflicts } from "../../src/keyboard/conflicts"
@@ -15,9 +15,7 @@ const PHYSICAL_KEY =
 
 describe("the shipped keymap", () => {
   it("is the sum of its parts", () => {
-    expect(defaultShortcuts).toHaveLength(
-      globalShortcuts.length + shellShortcuts.length + paletteShortcuts.length,
-    )
+    expect(defaultShortcuts).toHaveLength(globalShortcuts.length + shellShortcuts.length)
   })
 
   // Exit criterion: a conflicting shortcut registration fails at startup. That
@@ -63,11 +61,9 @@ describe("the shipped keymap", () => {
   it("only repeats bindings that are safe to repeat", () => {
     const repeating = defaultShortcuts.filter((registration) => registration.allowRepeat === true)
 
-    // Moving through a list. Nothing that changes the document repeats.
-    expect(repeating.map((registration) => registration.commandId)).toEqual([
-      "palette.next",
-      "palette.previous",
-    ])
+    // Nothing the editor ships yet repeats. Nudging will, when there is
+    // something on the canvas to nudge.
+    expect(repeating).toEqual([])
   })
 })
 
@@ -113,19 +109,34 @@ describe("shell shortcuts", () => {
   })
 })
 
-describe("palette shortcuts", () => {
-  it("scopes everything in it to the palette overlay", () => {
-    for (const registration of paletteShortcuts)
-      expect(registration.scope).toBe("overlay.command-palette")
+describe("the palette's own keys", () => {
+  // Not registered: the palette is a combobox and handles them itself. Binding
+  // them globally as well would move the highlight twice on every press.
+  it("is not part of the keymap", () => {
+    const registered = new Set(defaultShortcuts.map((registration) => registration.binding.key))
+
+    for (const key of paletteKeys) {
+      expect(registered.has(key.binding.key)).toBe(false)
+    }
+  })
+
+  it("describes every key, so the reference sheet can show them", () => {
+    expect(paletteKeys.length).toBeGreaterThan(0)
+
+    for (const key of paletteKeys) {
+      expect(key.description).not.toBe("")
+      expect(key.binding.key).toMatch(PHYSICAL_KEY)
+    }
   })
 
   it("covers navigating, running and closing", () => {
-    expect(paletteShortcuts.map((registration) => registration.commandId)).toEqual([
-      "palette.next",
-      "palette.previous",
-      "palette.run",
-      "palette.run-alternate",
-      "palette.close",
+    expect(paletteKeys.map((key) => key.description)).toEqual([
+      "Next result",
+      "Previous result",
+      "Run",
+      "Run in a new context",
+      "Enter a result's sub-menu",
+      "Close",
     ])
   })
 })

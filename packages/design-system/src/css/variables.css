@@ -179,7 +179,12 @@
   --cs-toolbar-height: var(--cs-layout-toolbar);
   --cs-status-bar-height: var(--cs-layout-status-bar);
   --cs-panel-width-left: var(--cs-layout-panel-left);
+  --cs-panel-width-left-min: var(--cs-layout-panel-left-min);
+  --cs-panel-width-left-max: var(--cs-layout-panel-left-max);
+  --cs-panel-width-left-collapsed: var(--cs-layout-panel-left-collapsed);
   --cs-panel-width-right: var(--cs-layout-panel-right);
+  --cs-panel-width-right-min: var(--cs-layout-panel-right-min);
+  --cs-panel-width-right-max: var(--cs-layout-panel-right-max);
 }
 
 /* Tier 2 — colour, light mode. The default, so an unresolved document still paints. */

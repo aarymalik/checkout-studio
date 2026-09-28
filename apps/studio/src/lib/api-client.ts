@@ -58,7 +58,7 @@ export async function post<T>(path: string, body: unknown): Promise<ApiResult<T>
 
 export async function send<T>(
   path: string,
-  method: "GET" | "DELETE",
+  method: "GET" | "DELETE" | "PUT" | "PATCH",
   body?: unknown,
 ): Promise<ApiResult<T>> {
   try {

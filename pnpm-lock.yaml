@@ -420,6 +420,9 @@ importers:
 
   packages/editor:
     dependencies:
+      '@checkout-studio/design-system':
+        specifier: workspace:*
+        version: link:../design-system
       '@checkout-studio/hooks':
         specifier: workspace:*
         version: link:../hooks

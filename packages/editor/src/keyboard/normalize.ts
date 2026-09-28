@@ -11,19 +11,35 @@ import type { KeyBinding, Platform } from "./types"
  * physical key.
  */
 
-/** What platform this is running on. Falls back to "other" off the browser. */
-export function detectPlatform(): Platform {
-  if (typeof navigator === "undefined") return "other"
+/**
+ * The platform a hint describes.
+ *
+ * A hint rather than a guarantee, which is fine: the cost of being wrong is a
+ * label showing Ctrl to somebody holding Command, not a shortcut that fails.
+ */
+export function platformFor(hint: string | null | undefined): Platform {
+  return hint !== null && hint !== undefined && /mac|iphone|ipad|ipod/i.test(hint) ? "mac" : "other"
+}
 
-  // userAgentData where it exists, userAgent where it does not. Both are
-  // hints rather than guarantees, which is fine: the cost of being wrong is a
-  // shortcut label showing Ctrl to somebody holding Command.
+/**
+ * What platform this browser is.
+ *
+ * Only correct in a browser, and deliberately so. Node reports the *server's*
+ * platform — `navigator.platform` is "MacIntel" on a developer's machine and
+ * "Linux x86_64" in production — so rendering a label from it on the server
+ * would show Ctrl to a Mac user and then flip to ⌘ on hydration. The server
+ * reads the request's user agent instead and passes the answer down.
+ */
+export function detectPlatform(): Platform {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return "other"
+
+  // userAgentData where it exists, userAgent where it does not.
   const platform =
     (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
     navigator.platform ??
     navigator.userAgent
 
-  return /mac|iphone|ipad|ipod/i.test(platform) ? "mac" : "other"
+  return platformFor(platform)
 }
 
 /**
@@ -107,7 +123,10 @@ function keyLabel(code: string, platform: Platform): string {
     Period: ".",
     BracketLeft: "[",
     BracketRight: "]",
+    Backslash: "\\",
     Backquote: "`",
+    Semicolon: ";",
+    Quote: "'",
     Minus: "−",
     Equal: "+",
     Tab: "Tab",

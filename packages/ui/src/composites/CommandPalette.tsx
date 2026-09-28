@@ -3,8 +3,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { Dialog, DialogContent } from "../overlays/Dialog"
-import { parseQuery } from "./parseQuery"
-import type { PaletteMode } from "./parseQuery"
 import { cn } from "../lib/cn"
 
 /**
@@ -15,9 +13,11 @@ import { cn } from "../lib/cn"
  * lets a reader keep typing. Moving real focus onto each result would take it
  * out of the field after every keystroke.
  *
- * This is the shell. What appears in it comes from the command registry in
- * Phase 4 — the palette knows how to search, choose and announce, and nothing
- * about what a command does.
+ * Searching is the caller's, and deliberately so: what matches "dp" is a
+ * ranking question that the command registry answers with fuzzy scoring and
+ * source filters, and a second substring filter in here would throw away the
+ * results the first one found. This component renders what it is given, keeps
+ * the highlight in the right place, and announces all of it correctly.
  *
  * Long result lists are not virtualised yet; docs/performance.md puts that with
  * the other lists in Phase 19.
@@ -51,21 +51,12 @@ export interface CommandPaletteProps {
   onSelect: (item: PaletteItem, options: { alternate: boolean }) => void
   /** Called when the reader asks to enter an item's sub-menu with Tab. */
   onEnterSubmenu?: (item: PaletteItem) => void
-  /** Narrows the list itself. Called whenever the mode prefix changes. */
-  onModeChange?: (mode: PaletteMode) => void
+  /** What is in the field. Controlled when given. */
+  query?: string
+  /** Every keystroke, so the caller can search. */
+  onQueryChange?: (query: string) => void
   placeholder?: string
   emptyMessage?: string
-}
-
-/** Matches on the label and any keywords, case-insensitively. */
-function matches(item: PaletteItem, query: string): boolean {
-  if (query === "") return true
-
-  const needle = query.toLowerCase()
-  return (
-    item.label.toLowerCase().includes(needle) ||
-    (item.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(needle))
-  )
 }
 
 export function CommandPalette({
@@ -74,31 +65,29 @@ export function CommandPalette({
   items,
   onSelect,
   onEnterSubmenu,
-  onModeChange,
+  query,
+  onQueryChange,
   placeholder = "Search commands, pages and components…",
   emptyMessage = "No results.",
 }: CommandPaletteProps) {
   const listId = useId()
   const inputId = `${listId}-input`
-  const [input, setInput] = useState("")
+  const [uncontrolled, setUncontrolled] = useState("")
+  const input = query ?? uncontrolled
   const [highlighted, setHighlighted] = useState(0)
   const listRef = useRef<HTMLUListElement>(null)
 
-  const { mode, query } = parseQuery(input)
-  const results = useMemo(() => items.filter((item) => matches(item, query)), [items, query])
+  const results = items
 
   // Reopening a palette that remembered the last search is a palette that has
   // to be cleared before it can be used.
   useEffect(() => {
     if (open) {
-      setInput("")
+      setUncontrolled("")
       setHighlighted(0)
+      onQueryChange?.("")
     }
-  }, [open])
-
-  useEffect(() => {
-    onModeChange?.(mode)
-  }, [mode, onModeChange])
+  }, [open, onQueryChange])
 
   // A highlight pointing past the end of a shrinking list highlights nothing.
   useEffect(() => {
@@ -161,7 +150,10 @@ export function CommandPalette({
           spellCheck={false}
           value={input}
           placeholder={placeholder}
-          onChange={(event) => setInput(event.target.value)}
+          onChange={(event) => {
+            setUncontrolled(event.target.value)
+            onQueryChange?.(event.target.value)
+          }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") {
               event.preventDefault()
