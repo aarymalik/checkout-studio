@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import { expect, type Locator, type Page } from "@playwright/test"
 
 /**
  * Waits until React has taken over the page.
@@ -9,10 +9,33 @@ import type { Page } from "@playwright/test"
  * flake, because it looks like the feature.
  *
  * React marks the container it hydrated, which is `document` for the App Router.
- * That marker is the closest thing to a hydration event the browser offers.
  */
 export async function waitForHydration(page: Page): Promise<void> {
   await page.waitForFunction(() =>
     Object.keys(document).some((key) => key.startsWith("__reactContainer$")),
   )
+}
+
+/**
+ * Presses a shortcut until it takes effect.
+ *
+ * The marker above appears when React starts hydrating; the shell's keyboard
+ * listener is attached in an effect, which runs after. Between the two there is
+ * a window where the page looks ready and swallows keystrokes, and no DOM change
+ * marks its end — a global listener leaves no trace.
+ *
+ * So the gate is the behaviour rather than a proxy for it. Each press is checked
+ * before the next, which matters because these shortcuts toggle: a press that
+ * worked is never followed by one that undoes it.
+ */
+export async function pressUntil(page: Page, keys: string, expected: Locator): Promise<void> {
+  await expect
+    .poll(async () => {
+      if ((await expected.count()) > 0) return true
+
+      await page.keyboard.press(keys)
+
+      return (await expected.count()) > 0
+    })
+    .toBe(true)
 }

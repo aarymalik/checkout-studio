@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Cookie, type Page } from "@playwright/test"
 
 import { createAccount, removeAccount, PASSWORD, type Account } from "./support/account"
-import { waitForHydration } from "./support/hydration"
+import { pressUntil, waitForHydration } from "./support/hydration"
 
 /**
  * The editor shell, in a real browser.
@@ -162,9 +162,8 @@ test.describe("the editor", () => {
 
     await expect(page.getByRole("region", { name: "Components" })).toBeVisible()
 
-    await page.keyboard.press(`${MOD}+k`)
-
     const search = page.getByRole("combobox")
+    await pressUntil(page, `${MOD}+k`, search)
     await expect(search).toBeFocused()
 
     await search.fill("left sidebar")
@@ -181,7 +180,7 @@ test.describe("the editor", () => {
     const toggle = page.getByRole("button", { name: "Toggle inspector" })
     await toggle.focus()
 
-    await page.keyboard.press(`${MOD}+k`)
+    await pressUntil(page, `${MOD}+k`, page.getByRole("combobox"))
     await expect(page.getByRole("combobox")).toBeFocused()
 
     await page.keyboard.press("Escape")
@@ -194,9 +193,8 @@ test.describe("the editor", () => {
     await signIn(context)
     await openEditor(page)
 
-    await page.keyboard.press(`${MOD}+Slash`)
-
     const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" })
+    await pressUntil(page, `${MOD}+Slash`, sheet)
     await expect(sheet).toBeVisible()
     await expect(sheet.getByText("Toggle left sidebar")).toBeVisible()
   })
@@ -207,9 +205,18 @@ test.describe("the editor", () => {
     await openEditor(page)
 
     await page.getByRole("banner", { name: "Toolbar" }).focus()
-    await page.keyboard.press("F6")
 
-    await expect(page.getByRole("region", { name: "Components" })).toBeFocused()
+    // The first press also waits out the gap between hydration and the shell's
+    // listener; after that the keyboard is live.
+    await expect
+      .poll(async () => {
+        await page.keyboard.press("F6")
+
+        return page
+          .getByRole("region", { name: "Components" })
+          .evaluate((element) => element === document.activeElement)
+      })
+      .toBe(true)
 
     await page.keyboard.press("F6")
     await expect(page.getByRole("main", { name: "Canvas" })).toBeFocused()
