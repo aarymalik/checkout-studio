@@ -19,5 +19,18 @@ export default createVitestConfig({
       functions: 100,
       lines: 100,
     },
+    /*
+     * The state engine, likewise, per docs/phases.md Phase 5.
+     *
+     * Every branch here decides what happens to somebody's page. An untested
+     * one is a way to lose work, and the first anyone would know is a document
+     * that no longer matches what they built.
+     */
+    "src/state/*.ts": {
+      statements: 100,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+    },
   },
 })

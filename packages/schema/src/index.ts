@@ -66,4 +66,10 @@ export { ancestors, collect, isDescendant, siblings, subtreeIds, traverse } from
 export type { VisitContext } from "./tree/traverse"
 
 export { duplicate, insert, move, remove, unwrap, update, wrap } from "./tree/operations"
-export type { TreeErrorCode, TreeFailure, TreeOptions, TreeResult } from "./tree/operations"
+export type {
+  DuplicateResult,
+  TreeErrorCode,
+  TreeFailure,
+  TreeOptions,
+  TreeResult,
+} from "./tree/operations"

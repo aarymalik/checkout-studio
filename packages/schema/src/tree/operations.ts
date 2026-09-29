@@ -36,6 +36,9 @@ export interface TreeFailure {
 
 export type TreeResult = { ok: true; document: CheckoutSchema } | TreeFailure
 
+/** Like a `TreeResult`, and says what the copy is called. */
+export type DuplicateResult = { ok: true; document: CheckoutSchema; newId: string } | TreeFailure
+
 export interface TreeOptions {
   /**
    * Whether a node may hold children.
@@ -240,7 +243,7 @@ export function duplicate(
   document: CheckoutSchema,
   id: string,
   options: TreeOptions = {},
-): TreeResult & { newId?: string } {
+): DuplicateResult {
   const node = document.nodes[id]
 
   if (node === undefined) return fail("missing-node", `There is no node "${id}".`, [id])
@@ -256,7 +259,7 @@ export function duplicate(
 
   const result = insert(document, copy, node.parentId, after, options)
 
-  return result.ok ? { ...result, newId: copy.rootId } : result
+  return result.ok ? { ok: true, document: result.document, newId: copy.rootId } : result
 }
 
 /**

@@ -21,6 +21,13 @@ function expectValid(document: Parameters<typeof validateReferences>[0]): void {
   expect(validateReferences(document)).toEqual([])
 }
 
+/** The new id a successful duplicate reports. */
+function duplicatedId(result: ReturnType<typeof duplicate>): string {
+  expect(result.ok, result.ok ? "" : result.message).toBe(true)
+
+  return (result as { ok: true; newId: string }).newId
+}
+
 function ok(result: ReturnType<typeof insert>) {
   expect(result.ok, "ok" in result && !result.ok ? result.message : "").toBe(true)
 
@@ -260,7 +267,7 @@ describe("duplicate", () => {
     const result = duplicate(sampleDocument(), "heading", { random: sequentialRandom() })
     const document = ok(result)
 
-    expect(document.nodes["section"]?.children).toEqual(["heading", result.newId, "text"])
+    expect(document.nodes["section"]?.children).toEqual(["heading", duplicatedId(result), "text"])
     expectValid(document)
   })
 
@@ -268,7 +275,7 @@ describe("duplicate", () => {
     const result = duplicate(sampleDocument(), "section", { random: sequentialRandom() })
     const document = ok(result)
 
-    expect(subtreeIds(document, result.newId as string)).toHaveLength(3)
+    expect(subtreeIds(document, duplicatedId(result))).toHaveLength(3)
     expectValid(document)
   })
 
@@ -277,7 +284,7 @@ describe("duplicate", () => {
     const result = duplicate(before, "section", { random: sequentialRandom() })
     const document = ok(result)
 
-    const copies = subtreeIds(document, result.newId as string)
+    const copies = subtreeIds(document, duplicatedId(result))
 
     for (const id of copies) expect(before.nodes[id]).toBeUndefined()
   })
@@ -286,13 +293,13 @@ describe("duplicate", () => {
   it("rewrites every reference inside the copy", () => {
     const result = duplicate(sampleDocument(), "section", { random: sequentialRandom() })
     const document = ok(result)
-    const copies = new Set(subtreeIds(document, result.newId as string))
+    const copies = new Set(subtreeIds(document, duplicatedId(result)))
 
     for (const id of copies) {
       const node = document.nodes[id] as Node
 
       for (const child of node.children) expect(copies.has(child)).toBe(true)
-      if (id !== result.newId) expect(copies.has(node.parentId as string)).toBe(true)
+      if (id !== duplicatedId(result)) expect(copies.has(node.parentId as string)).toBe(true)
     }
   })
 
@@ -330,10 +337,11 @@ describe("duplicate", () => {
     for (let run = 0; run < 300; run += 1) {
       const result = duplicate(document, "heading")
 
-      expect(result.ok).toBe(true)
-      expect(seen.has(result.newId as string)).toBe(false)
+      const created = duplicatedId(result)
 
-      seen.add(result.newId as string)
+      expect(seen.has(created)).toBe(false)
+
+      seen.add(created)
       document = (result as { document: typeof document }).document
     }
 
