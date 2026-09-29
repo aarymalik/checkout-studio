@@ -171,6 +171,15 @@ apps/studio     → http://localhost:3000
 apps/renderer   → http://localhost:3001
 ```
 
+The studio's development port comes from `APP_URL`, not from a flag. That one
+value is also what every verification and password-reset link is built from, so
+binding a different port would print links to somewhere nothing is listening —
+and with no mail provider configured the message goes to the log, where the only
+symptom is somebody saying they never got the email.
+
+If 3000 is taken on your machine, change `APP_URL` in `.env.local` and the server
+follows it. `PORT` still wins where it is set, for a platform that assigns one.
+
 ## Environment Variables
 
 `.env.example` is the authoritative list. Every variable is validated at startup by a Zod schema; a missing or malformed value fails fast with a precise message rather than producing a mysterious runtime error.
