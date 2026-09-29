@@ -1,7 +1,69 @@
 /**
  * @checkout-studio/schema — the checkout document and its operations.
  *
- * Scaffolded in Phase 1. Its first exports land in Phase 5.
- * See docs/phases.md.
+ * The one language the editor and the renderer share. Pure: no React, no DOM,
+ * no server, and no knowledge of what a component is. Every rule specific to a
+ * component arrives through a registry.
+ *
+ * See docs/schema.md.
  */
-export {}
+
+export {
+  BREAKPOINTS,
+  STATES,
+  UNSUPPORTED_TYPE,
+  checkoutSchema,
+  node as nodeSchema,
+  typeId,
+} from "./document/schema"
+export type {
+  Animation,
+  AssetReference,
+  Breakpoint,
+  CheckoutSchema,
+  CheckoutSchemaInput,
+  Node,
+  NodeMetadata,
+  PageSettings,
+  PropValue,
+  ResponsiveStyles,
+  StateStyles,
+  StyleProperties,
+  StyleState,
+  ThemeReference,
+  TrackingIntegration,
+  VariableDefinition,
+  VariableReference,
+  Visibility,
+  VisibilityCondition,
+} from "./document/schema"
+
+export { createId, prefixFor } from "./document/ids"
+export type { RandomSource } from "./document/ids"
+
+export { parseDocument, validate, validateReferences } from "./document/validate"
+export type {
+  ComponentValidator,
+  ProblemCode,
+  SchemaProblem,
+  ValidateOptions,
+  ValidationResult,
+} from "./document/validate"
+
+export { canonicalJson, equivalent, normalize } from "./document/normalize"
+export { deserialize, serialize } from "./document/serialize"
+export type { DeserializeOptions, DeserializeResult } from "./document/serialize"
+
+export { MigrationError, MigrationRegistry, compareVersions } from "./migrate/registry"
+export type { Migration } from "./migrate/registry"
+export { canMigrate, migrate } from "./migrate/migrate"
+export type { MigrationOutcome } from "./migrate/migrate"
+
+export { createNode, extract, regenerateIds } from "./tree/fragment"
+export type { Fragment } from "./tree/fragment"
+
+export { ancestors, collect, isDescendant, siblings, subtreeIds, traverse } from "./tree/traverse"
+export type { VisitContext } from "./tree/traverse"
+
+export { duplicate, insert, move, remove, unwrap, update, wrap } from "./tree/operations"
+export type { TreeErrorCode, TreeFailure, TreeOptions, TreeResult } from "./tree/operations"
