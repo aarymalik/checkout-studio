@@ -51,6 +51,8 @@ export type {
 } from "./document/validate"
 
 export { canonicalJson, equivalent, normalize } from "./document/normalize"
+export { diff, summarize, unchanged } from "./document/diff"
+export type { DocumentDiff } from "./document/diff"
 export { deserialize, serialize } from "./document/serialize"
 export type { DeserializeOptions, DeserializeResult } from "./document/serialize"
 
