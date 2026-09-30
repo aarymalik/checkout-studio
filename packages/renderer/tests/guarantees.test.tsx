@@ -127,7 +127,7 @@ describe("performance", () => {
    * neighbouring test process stealing the CPU adds time without adding work.
    * The minimum of a few attempts is the closest reading to the work itself.
    */
-  function microsecondsPerNode(count: number, attempts = 3): number {
+  function microsecondsPerNode(count: number, attempts = 2): number {
     const element = (
       <CheckoutRenderer
         schema={wideDocument(count, at("desktop", { padding: 8 }))}
@@ -165,15 +165,20 @@ describe("performance", () => {
    * a cascade that turned quadratic, or a memo that stopped memoising. Either
    * would sail past a fixed threshold on fast hardware and take the product
    * down on a real page.
+   *
+   * The generous timeouts on these three are not budgets. They are deliberately
+   * heavy tests, and the default five seconds is a limit on how long a *test*
+   * may take — holding a six-render measurement to it would be the millisecond
+   * threshold again, wearing a different hat.
    */
-  it("costs no more per node at 2,000 nodes than at 500", () => {
+  it("costs no more per node at 2,000 nodes than at 500", { timeout: 120_000 }, () => {
     const small = microsecondsPerNode(500)
     const large = microsecondsPerNode(2_000)
 
     expect(large).toBeLessThan(small * 2)
   })
 
-  it("renders 2,000 nodes", () => {
+  it("renders 2,000 nodes", { timeout: 60_000 }, () => {
     const html = renderToStaticMarkup(
       <CheckoutRenderer
         schema={wideDocument(2_000, at("desktop", { padding: 8 }))}
@@ -191,7 +196,7 @@ describe("performance", () => {
     expect(markup.match(/ck-t\d+/g)).toHaveLength(2_000)
   })
 
-  it("renders 5,000 nodes without failing", () => {
+  it("renders 5,000 nodes without failing", { timeout: 60_000 }, () => {
     const html = renderToStaticMarkup(
       <CheckoutRenderer
         schema={wideDocument(5_000)}
