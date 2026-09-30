@@ -1325,6 +1325,17 @@ refuses `eval`, the `Function` constructor, and any `dangerouslySetInnerHTML`
 outside the one call that writes the stylesheet. Sanitisation belongs with the
 component that needs it, where a DOM is a legitimate server-side dependency.
 
+**The 2,000-node budget is verified by measurement, not by a CI gate.**
+16.5 ms on an M-series laptop, against the 100 ms criterion — the fastest of
+five renders after a warm-up, which is the reading closest to the work itself.
+It is not asserted as a millisecond threshold in CI: a shared runner executing
+fifteen packages' suites in parallel workers measures contention rather than
+capability, and the first version of that assertion failed there at 1,166 ms
+while taking 16 ms on a quiet machine. What CI asserts instead is that the cost
+per node does not grow with the tree, which holds on any hardware and catches
+the failure that actually matters — a cascade gone quadratic, or a memo that
+stopped memoising.
+
 **The budget is 89% spent before a single component exists.** The published
 route serves 133.6 KB gzipped, and none of it is ours — it is React plus the
 Next.js App Router client runtime. Phases 9 to 11 have about 16 KB between them.
