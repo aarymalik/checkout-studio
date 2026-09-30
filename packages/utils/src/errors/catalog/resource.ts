@@ -30,6 +30,33 @@ export const resourceErrors = {
       status: 409,
     }),
 
+  /**
+   * A draft write made against a version that has moved on.
+   *
+   * Carries the version that won, so the client knows what to fetch. It does
+   * not carry the document: a page is measured in hundreds of kilobytes, and
+   * the client has to fetch the draft anyway in order to show it. See
+   * docs/history-versioning.md § Conflict Resolution.
+   */
+  draftConflict: (currentVersion: number) =>
+    createError({
+      code: "DRAFT_CONFLICT",
+      domain: "resource",
+      severity: "warning",
+      recoverability: "user-retryable",
+      message: `Draft has moved on to version ${currentVersion}`,
+      userMessage: "This page was changed in another session.",
+      details: [
+        {
+          path: "baseVersion",
+          code: "stale",
+          message: `The draft is now at version ${currentVersion}.`,
+        },
+      ],
+      context: { currentVersion },
+      status: 409,
+    }),
+
   quotaExceeded: (input: {
     action: string
     limit: number | "unlimited"

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation"
+import { listPages } from "@checkout-studio/api"
 import { preferenceRepository, projectRepository } from "@checkout-studio/database"
 import { normalizeKeymap, normalizeLayout } from "@checkout-studio/editor"
 
+import { PagesPanel } from "@/studio/PagesPanel"
 import { StudioShell } from "@/studio/StudioShell"
 import { requestPlatform } from "@/lib/platform"
 import { requireSession } from "@/lib/session"
@@ -9,25 +11,46 @@ import { requireSession } from "@/lib/session"
 /**
  * The editor.
  *
- * The layout is resolved here rather than in the browser, so the first paint is
- * the arrangement they left. Fetching it after hydration would show the default
- * frame and then move it, which is the layout jump docs/ui-guidelines.md
- * forbids.
+ * Everything the shell needs is resolved here rather than fetched after
+ * hydration: the panel layout, the keymap, the page list and the page itself.
+ * Fetching them in the browser would paint a default frame and then move it,
+ * which is the layout jump docs/ui-guidelines.md forbids.
  */
-export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ projectId: string }>
+  searchParams: Promise<{ page?: string }>
+}) {
   const { projectId } = await params
+  const { page: requestedPageId } = await searchParams
   const session = await requireSession(`/projects/${projectId}`)
   const tenant = { userId: session.userId, projectId }
 
-  const [project, preferences, platform] = await Promise.all([
+  const [project, preferences, platform, pages] = await Promise.all([
     projectRepository.findById(tenant, projectId),
     preferenceRepository.all(tenant),
     requestPlatform(),
+    listPages(tenant),
   ])
 
   // A project belonging to somebody else answers the same way as one that never
   // existed, because telling the two apart tells the caller something.
   if (project === null) notFound()
+
+  /*
+   * The page in the URL, or the most recently changed one.
+   *
+   * A requested page that is not in the list is ignored rather than refused: a
+   * stale link — a page deleted in another tab, most often — should open the
+   * project, not an error.
+   *
+   * Its document is deliberately not loaded yet. The store that would hold it
+   * has nothing to show it with until the canvas arrives in Phase 7, and
+   * machinery with no producer is machinery nobody has run.
+   */
+  const current = pages.find((item) => item.id === requestedPageId) ?? pages[0] ?? null
 
   return (
     <StudioShell
@@ -35,6 +58,21 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
       initialLayout={normalizeLayout(preferences["shell.layout"])}
       userKeymap={normalizeKeymap(preferences["keyboard.keymap"])}
       platform={platform}
+      panels={{
+        pages: (
+          <PagesPanel
+            projectId={projectId}
+            currentPageId={current?.id ?? null}
+            pages={pages.map((item) => ({
+              id: item.id,
+              title: item.title,
+              slug: item.slug,
+              status: item.status,
+              updatedAt: item.updatedAt.toISOString(),
+            }))}
+          />
+        ),
+      }}
     />
   )
 }

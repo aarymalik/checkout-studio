@@ -9,7 +9,7 @@ import {
   Layers,
   Palette,
 } from "lucide-react"
-import type { ComponentType } from "react"
+import type { ComponentType, ReactNode } from "react"
 import { EmptyState, Panel, Splitter, Tooltip, cn } from "@checkout-studio/ui"
 import { LAYOUT } from "@checkout-studio/design-system"
 import {
@@ -70,10 +70,20 @@ const TABS: Record<
   },
 }
 
-export function Sidebar() {
+/**
+ * What each tab shows, for the tabs that have something to show.
+ *
+ * A tab with no entry falls back to saying what will be there. That is the
+ * whole shape of this phase of the product: the frame exists, and each panel
+ * arrives with the feature it belongs to.
+ */
+export type SidebarPanels = Partial<Record<SidebarTabId, ReactNode>>
+
+export function Sidebar({ panels }: { panels: SidebarPanels }) {
   const layout = useShellLayout()
   const actions = useShellActions()
   const active = TABS[layout.sidebarTab]
+  const panel = panels[layout.sidebarTab]
 
   if (layout.leftCollapsed) {
     return (
@@ -118,7 +128,7 @@ export function Sidebar() {
         style={{ width: layout.leftWidth }}
         className="min-w-0"
       >
-        <EmptyState title={active.label} description={active.waitingFor} />
+        {panel ?? <EmptyState title={active.label} description={active.waitingFor} />}
       </Panel>
 
       <Splitter
