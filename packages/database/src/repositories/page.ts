@@ -94,6 +94,24 @@ export const pageRepository = {
     throw new DraftConflictError(baseVersion, current.draftVersion)
   },
 
+  /**
+   * Rename a page.
+   *
+   * The slug is deliberately not recomputed: a published page's URL is a link
+   * somebody may have shared, and renaming is not moving.
+   *
+   * Not a draft write, so it does not touch `draftVersion` — a rename during
+   * somebody else's editing session must not invalidate their next save.
+   */
+  async rename(tenant: TenantContext, id: string, title: string) {
+    const result = await prisma.page.updateMany({
+      where: { id, ...ownedBy(tenant) },
+      data: { title },
+    })
+
+    return result.count === 1 ? this.findById(tenant, id) : null
+  },
+
   async softDelete(tenant: TenantContext, id: string) {
     const result = await prisma.page.updateMany({
       where: { id, ...ownedBy(tenant) },

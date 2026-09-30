@@ -90,6 +90,16 @@ export {
 } from "./services/pages/session"
 export type { ClaimResult, EditSession } from "./services/pages/session"
 
+export {
+  createPage,
+  deletePage,
+  documentFor,
+  duplicatePage,
+  listPages,
+  renamePage,
+} from "./services/pages/pages"
+export type { DuplicateOutcome, PageSummary } from "./services/pages/pages"
+
 export { readDraft, saveDraft } from "./services/pages/draft"
 export type { DraftWriteResult } from "./services/pages/draft"
 

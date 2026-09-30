@@ -78,6 +78,15 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # The schema and the state engine are held at 100%, per docs/phases.md
+      # Phase 5. The thresholds live in each package's vitest config, and
+      # `pnpm test` does not measure coverage — so without this step the
+      # requirement is a comment rather than a gate.
+      - name: Coverage on the engine
+        run: >-
+          pnpm --filter @checkout-studio/schema --filter @checkout-studio/editor
+          test:coverage
+
       - name: Build
         run: pnpm build
 

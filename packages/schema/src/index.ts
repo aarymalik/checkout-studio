@@ -38,6 +38,8 @@ export type {
   VisibilityCondition,
 } from "./document/schema"
 
+export { CURRENT_VERSION, ROOT_TYPE, createDocument, rehome } from "./document/create"
+
 export { createId, prefixFor } from "./document/ids"
 export type { RandomSource } from "./document/ids"
 

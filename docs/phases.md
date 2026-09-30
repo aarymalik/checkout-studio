@@ -218,7 +218,7 @@ These apply to **every** phase, in addition to its specific criteria.
 | 3     | Design System                   | **Complete** | 1          |
 | 3A    | Authentication                  | **Complete** | 2, 3       |
 | 4     | Studio Shell                    | **Complete** | 3A         |
-| 5     | Editor State Engine             | Not Started  | 2          |
+| 5     | Editor State Engine             | **Complete** | 2          |
 | 6     | Renderer Engine                 | Not Started  | 2, 5       |
 | 7     | Visual Canvas                   | Not Started  | 4, 6       |
 | 8     | Drag & Drop Engine              | Not Started  | 7          |
