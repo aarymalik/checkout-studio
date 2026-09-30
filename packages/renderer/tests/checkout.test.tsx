@@ -3,6 +3,7 @@ import { renderToStaticMarkup, renderToString } from "react-dom/server"
 import { act, render } from "@testing-library/react"
 import { RegistryBuilder } from "@checkout-studio/plugin-sdk"
 import type { ProviderProps, RendererRegistry } from "@checkout-studio/plugin-sdk"
+import { logger } from "@checkout-studio/observability"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ReactElement, ReactNode } from "react"
 
@@ -325,18 +326,22 @@ describe("the providers", () => {
       .provider({ id: "analytics", component: Exploding })
       .build()
 
-    const onPluginError = vi.fn()
+    const reported = vi.spyOn(logger, "error").mockImplementation(() => {})
     const error = vi.spyOn(console, "error").mockImplementation(() => {})
 
     try {
-      const { container } = render(checkout({ registry, onPluginError }))
+      const { container } = render(checkout({ registry }))
 
       // A checkout whose analytics provider failed should still take money.
       expect(container.querySelector(".ck-text")).not.toBeNull()
-      expect(onPluginError).toHaveBeenCalledTimes(1)
-      expect(onPluginError.mock.calls[0]?.[1]).toBe("analytics")
+      expect(reported).toHaveBeenCalledWith(
+        "renderer.plugin.failed",
+        { pluginId: "analytics" },
+        expect.objectContaining({ message: "no context for you" }),
+      )
     } finally {
       error.mockRestore()
+      reported.mockRestore()
     }
   })
 })

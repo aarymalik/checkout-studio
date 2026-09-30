@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server"
 import { render, screen } from "@testing-library/react"
 import type { AssetUrls } from "@checkout-studio/plugin-sdk"
+import { logger } from "@checkout-studio/observability"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 
@@ -270,19 +271,21 @@ describe("the plugin boundary", () => {
     }
   })
 
-  it("needs no callback", () => {
+  it("reports the plugin it was guarding", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {})
+    const reported = vi.spyOn(logger, "error").mockImplementation(() => {})
 
     try {
-      expect(() =>
-        render(
-          <PluginErrorBoundary pluginId="forms" fallback={null}>
-            <Exploding />
-          </PluginErrorBoundary>,
-        ),
-      ).not.toThrow()
+      render(
+        <PluginErrorBoundary pluginId="forms" fallback={null}>
+          <Exploding />
+        </PluginErrorBoundary>,
+      )
+
+      expect(reported.mock.calls[0]?.[1]).toEqual({ pluginId: "forms" })
     } finally {
       error.mockRestore()
+      reported.mockRestore()
     }
   })
 })

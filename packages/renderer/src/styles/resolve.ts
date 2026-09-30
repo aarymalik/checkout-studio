@@ -49,23 +49,34 @@ import { resolveDeclarations } from "./tokens"
  */
 export function themeStyles(
   theme: CheckoutTheme,
-  definition: ComponentDefinition,
+  definition: ComponentDefinition | null,
   node: Node,
 ): StyleProperties {
-  const slot = definition.themeSlot
+  const slot = definition?.themeSlot
 
   if (slot === undefined || slot.toStyles === undefined) return {}
 
-  return slot.toStyles({ ...slot.defaults, ...theme.components[definition.type] }, node)
+  return slot.toStyles(
+    { ...slot.defaults, ...theme.components[(definition as ComponentDefinition).type] },
+    node,
+  )
 }
 
-/** Stages 1 and 2, in order: the flat layer beneath every node style. */
+/**
+ * Stages 1 and 2, in order: the flat layer beneath every node style.
+ *
+ * A null definition means no component is registered for this node's type. Both
+ * stages come from the definition, so both contribute nothing — but stages 3 to
+ * 5 still apply, which is how the unsupported placeholder keeps the box the
+ * node would have occupied. A live page that collapsed around a missing plugin
+ * would spend the CLS budget on it.
+ */
 export function baseLayer(
   theme: CheckoutTheme,
-  definition: ComponentDefinition,
+  definition: ComponentDefinition | null,
   node: Node,
 ): StyleProperties {
-  return { ...themeStyles(theme, definition, node), ...definition.defaultStyles }
+  return { ...themeStyles(theme, definition, node), ...definition?.defaultStyles }
 }
 
 /** The breakpoints a value at `breakpoint` inherits through, widest first. */
@@ -104,7 +115,8 @@ export function layeredProperties(
 
 export interface ResolveOptions {
   theme: CheckoutTheme
-  definition: ComponentDefinition
+  /** Null when no component is registered for the node's type. */
+  definition: ComponentDefinition | null
   node: Node
   breakpoint: Breakpoint
   state: StyleState
@@ -120,7 +132,7 @@ export function resolveStyle(options: ResolveOptions): ResolvedDeclarations {
     ...layeredProperties(node, breakpoint, state),
   }
 
-  return resolveDeclarations(theme, properties, definition.defaultStyles)
+  return resolveDeclarations(theme, properties, definition?.defaultStyles ?? {})
 }
 
 /** The states a node actually declares, in cascade order. `base` is always present. */
@@ -154,7 +166,7 @@ export interface ResolvedNodeStyles {
  */
 export function resolveAllStyles(
   theme: CheckoutTheme,
-  definition: ComponentDefinition,
+  definition: ComponentDefinition | null,
   node: Node,
 ): ResolvedNodeStyles {
   const states = declaredStates(node)

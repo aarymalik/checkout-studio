@@ -1,10 +1,12 @@
 import { render, screen } from "@testing-library/react"
+import { logger } from "@checkout-studio/observability"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ComponentRenderProps } from "@checkout-studio/plugin-sdk"
 import type { ReactNode } from "react"
 
 import { RenderNode } from "../src/runtime/RenderNode"
 import { planTree } from "../src/runtime/plan"
+import { buildStylesheet } from "../src/runtime/stylesheet"
 import { clearThemeCache } from "../src/theme/compile"
 import {
   Box,
@@ -173,15 +175,30 @@ describe("component resolution", () => {
     expect(container.querySelector("span")).not.toBeNull()
   })
 
-  it("does not render the children of an unsupported node", () => {
+  it("still renders the children of an unsupported node", () => {
     const document = documentOf("page", [
       { id: "page", type: "checkout.coupon", children: ["text"] },
       { id: "text", type: "core.text", props: { text: "inside" } },
     ])
 
-    render(<RenderNode nodeId="page" context={contextFor(document)} />)
+    const { container } = render(<RenderNode nodeId="page" context={contextFor(document)} />)
 
-    expect(screen.queryByText("inside")).toBeNull()
+    // A missing layout plugin costs its own frame, not everything inside it. A
+    // page that went blank below one uninstalled container would be the
+    // failure the boundaries exist to prevent.
+    expect(screen.getByText("inside")).toBeInTheDocument()
+    expect(container.querySelector("[data-ck-unsupported] .ck-text")).not.toBeNull()
+  })
+
+  it("keeps the box an unsupported node would have occupied", () => {
+    const document = documentOf("page", [
+      { id: "page", type: "checkout.coupon", styles: { desktop: { base: { minHeight: 240 } } } },
+    ])
+
+    // Both stages that come from a definition contribute nothing, and the
+    // node's own styles still apply — so a live page does not reflow around a
+    // plugin nobody installed.
+    expect(buildStylesheet(contextFor(document)).css).toContain("min-height: 240px;")
   })
 })
 
@@ -234,24 +251,26 @@ describe("a component that throws", () => {
   })
 
   it("reports before it renders the fallback", () => {
-    const onError = vi.fn()
+    const reported = vi.spyOn(logger, "error").mockImplementation(() => {})
 
     quietly(() => {
-      render(
-        <RenderNode
-          nodeId="page"
-          context={contextFor(document, { registry: registry() })}
-          onError={onError}
-        />,
-      )
+      render(<RenderNode nodeId="page" context={contextFor(document, { registry: registry() })} />)
     })
 
-    expect(onError).toHaveBeenCalledTimes(1)
-    expect(onError.mock.calls[0]?.[1]).toBe("broken")
+    // By logging, not by a callback: a published page renders on the server and
+    // the boundary is a client component, so a function prop could not reach it.
+    expect(reported).toHaveBeenCalledTimes(1)
+    expect(reported.mock.calls[0]?.[0]).toBe("renderer.node.failed")
+    expect(reported.mock.calls[0]?.[1]).toMatchObject({
+      nodeId: "broken",
+      component: "Broken Thing",
+    })
     // Normalised first: a boundary that catches a string cannot say whether a
     // retry would help, and one that renders String(thrown) shows a customer a
     // stack trace.
-    expect(onError.mock.calls[0]?.[0]).toMatchObject({ message: "could not render" })
+    expect(reported.mock.calls[0]?.[2]).toMatchObject({ message: "could not render" })
+
+    reported.mockRestore()
   })
 
   it("survives a component throwing something that is not an error", () => {
@@ -259,7 +278,7 @@ describe("a component that throws", () => {
       throw "just a string"
     }
 
-    const onError = vi.fn()
+    const reported = vi.spyOn(logger, "error").mockImplementation(() => {})
 
     quietly(() => {
       render(
@@ -268,12 +287,15 @@ describe("a component that throws", () => {
           context={contextFor(documentOf("page", [{ id: "page", type: "core.rude" }]), {
             registry: registryWith(definition("core.rude", { renderer: Rude })),
           })}
-          onError={onError}
         />,
       )
     })
 
-    expect(onError).toHaveBeenCalledTimes(1)
+    expect(reported.mock.calls[0]?.[2]).toMatchObject({
+      message: "Unexpected value thrown: just a string",
+    })
+
+    reported.mockRestore()
   })
 })
 

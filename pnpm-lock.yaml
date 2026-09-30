@@ -63,6 +63,9 @@ importers:
       '@checkout-studio/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@checkout-studio/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
       '@checkout-studio/renderer':
         specifier: workspace:*
         version: link:../../packages/renderer

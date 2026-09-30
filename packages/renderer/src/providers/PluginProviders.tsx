@@ -1,6 +1,5 @@
 import type { ReactElement, ReactNode } from "react"
 import type { ProviderRegistration } from "@checkout-studio/plugin-sdk"
-import type { AppError } from "@checkout-studio/utils"
 
 import { PluginErrorBoundary } from "../fallback/PluginErrorBoundary"
 
@@ -24,15 +23,10 @@ import { PluginErrorBoundary } from "../fallback/PluginErrorBoundary"
 export interface PluginProvidersProps {
   /** Outermost first. */
   providers: readonly ProviderRegistration[]
-  onError?: ((error: AppError, pluginId: string) => void) | undefined
   children: ReactNode
 }
 
-export function PluginProviders({
-  providers,
-  onError,
-  children,
-}: PluginProvidersProps): ReactElement {
+export function PluginProviders({ providers, children }: PluginProvidersProps): ReactElement {
   let tree = <>{children}</>
 
   // Innermost first, so the outermost registration ends up on the outside.
@@ -41,7 +35,7 @@ export function PluginProviders({
     const inner = tree
 
     tree = (
-      <PluginErrorBoundary pluginId={registration.id} fallback={inner} onError={onError}>
+      <PluginErrorBoundary pluginId={registration.id} fallback={inner}>
         <Provider>{inner}</Provider>
       </PluginErrorBoundary>
     )

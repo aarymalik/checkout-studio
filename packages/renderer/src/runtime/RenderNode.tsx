@@ -1,6 +1,5 @@
 import type { Node } from "@checkout-studio/schema"
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
-import type { AppError } from "@checkout-studio/utils"
 import type { ReactElement, ReactNode } from "react"
 
 import { NodeErrorBoundary } from "../fallback/NodeErrorBoundary"
@@ -28,15 +27,18 @@ import { resolveProps } from "./props"
 export interface RenderNodeProps {
   nodeId: string
   context: RenderContext
-  onError?: ((error: AppError, nodeId: string) => void) | undefined
 }
 
-export function RenderNode({ nodeId, context, onError }: RenderNodeProps): ReactElement | null {
+export function RenderNode({ nodeId, context }: RenderNodeProps): ReactElement | null {
   const plan = planNode(nodeId, context)
 
   if (plan === null) return null
 
   const { node, definition, className } = plan
+
+  // Resolved before the component is constructed, so a node whose styles cannot
+  // resolve is reported even when the component then throws.
+  context.styles(node, definition)
 
   if (definition === null) {
     context.warn({
@@ -45,12 +47,15 @@ export function RenderNode({ nodeId, context, onError }: RenderNodeProps): React
       message: `No component is registered for "${node.type}".`,
     })
 
-    return <Unsupported type={node.type} className={className} mode={context.mode} />
+    // Its children still render. A missing layout plugin costs its own frame,
+    // not everything inside it — a page that went blank below one uninstalled
+    // container would be the failure the boundaries exist to prevent.
+    return (
+      <Unsupported type={node.type} className={className} mode={context.mode}>
+        {renderChildren(node, definition, context)}
+      </Unsupported>
+    )
   }
-
-  // Resolved before the component is constructed, so a node whose styles cannot
-  // resolve is reported even when the component then throws.
-  context.styles(node, definition)
 
   const Component = definition.renderer
 
@@ -60,7 +65,6 @@ export function RenderNode({ nodeId, context, onError }: RenderNodeProps): React
       componentName={definition.name}
       className={className}
       mode={context.mode}
-      onError={onError}
     >
       <Component
         node={node}
@@ -68,7 +72,7 @@ export function RenderNode({ nodeId, context, onError }: RenderNodeProps): React
         className={className}
         mode={context.mode}
       >
-        {renderChildren(node, definition, context, onError)}
+        {renderChildren(node, definition, context)}
       </Component>
     </NodeErrorBoundary>
   )
@@ -76,18 +80,20 @@ export function RenderNode({ nodeId, context, onError }: RenderNodeProps): React
 
 function renderChildren(
   node: Node,
-  definition: ComponentDefinition,
+  definition: ComponentDefinition | null,
   context: RenderContext,
-  onError: ((error: AppError, nodeId: string) => void) | undefined,
 ): ReactNode {
   if (node.children.length === 0) return null
 
   // A component that does not hold children renders none, whatever the document
   // says — and a document can say anything, having possibly been imported or
   // authored against a version where the component did take them.
-  if (!definition.container) return null
+  //
+  // A node with no component at all is treated as a container, because whether
+  // it holds children is the one thing the document does know.
+  if (definition !== null && !definition.container) return null
 
   return node.children.map((childId) => (
-    <RenderNode key={childId} nodeId={childId} context={context} onError={onError} />
+    <RenderNode key={childId} nodeId={childId} context={context} />
   ))
 }

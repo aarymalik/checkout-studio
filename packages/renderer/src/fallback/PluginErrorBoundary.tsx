@@ -4,7 +4,6 @@ import { Component } from "react"
 import type { ReactNode } from "react"
 import { logger } from "@checkout-studio/observability"
 import { normalizeError } from "@checkout-studio/utils"
-import type { AppError } from "@checkout-studio/utils"
 
 /**
  * One boundary per plugin provider.
@@ -24,7 +23,6 @@ import type { AppError } from "@checkout-studio/utils"
 export interface PluginErrorBoundaryProps {
   /** The provider's id, for the report. */
   pluginId: string
-  onError?: ((error: AppError, pluginId: string) => void) | undefined
   /** Rendered with the provider. */
   children: ReactNode
   /** Rendered without it, once it has failed. */
@@ -47,8 +45,6 @@ export class PluginErrorBoundary extends Component<PluginErrorBoundaryProps, Sta
     const error = normalizeError(thrown)
 
     logger.error("renderer.plugin.failed", { pluginId: this.props.pluginId }, error)
-
-    this.props.onError?.(error, this.props.pluginId)
   }
 
   override render(): ReactNode {

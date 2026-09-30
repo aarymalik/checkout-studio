@@ -63,8 +63,9 @@ export function buildStylesheet(
   for (const plan of planTree(context)) {
     for (const className of plan.hiding) used.add(className)
 
-    if (plan.definition === null) continue
-
+    // Including the nodes with no component. Their placeholder keeps the box
+    // the node would have occupied, which is what stops a live page reflowing
+    // around a plugin nobody installed.
     css += emitNodeCss(plan.node.id, context.styles(plan.node, plan.definition), emitOptions)
   }
 

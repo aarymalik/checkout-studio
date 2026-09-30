@@ -1,7 +1,6 @@
 import type { ReactElement } from "react"
 import type { Breakpoint, CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 import type { AssetUrls, RenderMode, RendererRegistry } from "@checkout-studio/plugin-sdk"
-import type { AppError } from "@checkout-studio/utils"
 
 import { PluginProviders } from "../providers/PluginProviders"
 import { ThemeProvider } from "../providers/ThemeProvider"
@@ -58,12 +57,12 @@ export interface CheckoutRendererProps {
    * Called *during* render, because a published page is rendered on the server
    * where there are no effects. It is for reporting only — a callback that set
    * state here would re-render the tree that is still rendering.
+   *
+   * There is no matching callback for a component that throws. Those are caught
+   * by a client-side boundary, which a server component cannot hand a function
+   * to; the boundaries log instead, identically wherever the page rendered.
    */
   onWarnings?: ((warnings: readonly RenderWarning[]) => void) | undefined
-  /** A component threw. Its node renders a fallback; the rest of the page is unaffected. */
-  onError?: ((error: AppError, nodeId: string) => void) | undefined
-  /** A plugin's provider threw. Its context is dropped; the tree still renders. */
-  onPluginError?: ((error: AppError, pluginId: string) => void) | undefined
 }
 
 export function CheckoutRenderer(props: CheckoutRendererProps): ReactElement {
@@ -79,8 +78,6 @@ export function CheckoutRenderer(props: CheckoutRendererProps): ReactElement {
     conditions,
     fontUrl,
     onWarnings,
-    onError,
-    onPluginError,
   } = props
 
   const context = createRenderContext({
@@ -100,7 +97,7 @@ export function CheckoutRenderer(props: CheckoutRendererProps): ReactElement {
   // what lets one call report them all.
   const stylesheet = buildStylesheet(context, { fontUrl })
 
-  const tree = <RenderNode nodeId={schema.root} context={context} onError={onError} />
+  const tree = <RenderNode nodeId={schema.root} context={context} />
 
   onWarnings?.(context.warnings())
 
@@ -120,9 +117,7 @@ export function CheckoutRenderer(props: CheckoutRendererProps): ReactElement {
       />
       <ThemeProvider theme={theme} mode={mode} breakpoint={breakpoint}>
         <VariableProvider definitions={schema.variables} values={variables ?? {}}>
-          <PluginProviders providers={registry.providers()} onError={onPluginError}>
-            {tree}
-          </PluginProviders>
+          <PluginProviders providers={registry.providers()}>{tree}</PluginProviders>
         </VariableProvider>
       </ThemeProvider>
     </div>

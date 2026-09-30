@@ -5,7 +5,6 @@ import type { ErrorInfo, ReactNode } from "react"
 import { logger } from "@checkout-studio/observability"
 import type { RenderMode } from "@checkout-studio/plugin-sdk"
 import { normalizeError } from "@checkout-studio/utils"
-import type { AppError } from "@checkout-studio/utils"
 
 import { behaviourOf } from "./modes"
 
@@ -23,7 +22,17 @@ import { behaviourOf } from "./modes"
  * free, because the canvas renders through the renderer.
  *
  * Reporting happens before the fallback renders, and is never conditional on
- * the fallback succeeding. See docs/error-handling.md § Boundaries.
+ * the fallback succeeding.
+ *
+ * It reports by logging, and takes no callback. A published page renders on the
+ * server and this is a client component, so a function prop could not reach it
+ * anyway — React refuses to hand one across that boundary. The logger works in
+ * both places, which makes it the one channel that reports identically wherever
+ * the page was rendered. When the canvas needs per-node failures for its own UI
+ * in Phase 7, it can subscribe on the client rather than pass a prop from the
+ * server.
+ *
+ * See docs/error-handling.md § Boundaries.
  */
 
 export interface NodeErrorBoundaryProps {
@@ -32,7 +41,6 @@ export interface NodeErrorBoundaryProps {
   componentName: string
   className: string
   mode: RenderMode
-  onError?: ((error: AppError, nodeId: string) => void) | undefined
   children: ReactNode
 }
 
@@ -68,8 +76,6 @@ export class NodeErrorBoundary extends Component<NodeErrorBoundaryProps, State> 
       },
       error,
     )
-
-    this.props.onError?.(error, this.props.nodeId)
   }
 
   override render(): ReactNode {

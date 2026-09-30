@@ -75,8 +75,8 @@ export interface RenderContext {
   warn(warning: RenderWarning): void
   /** Everything reported so far, in order. */
   warnings(): readonly RenderWarning[]
-  /** Resolved styles for a node, memoised. */
-  styles(node: Node, definition: ComponentDefinition): ResolvedNodeStyles
+  /** Resolved styles for a node, memoised. Null definition: no component is registered. */
+  styles(node: Node, definition: ComponentDefinition | null): ResolvedNodeStyles
 }
 
 /**
@@ -123,7 +123,7 @@ export function createRenderContext(input: RenderContextInput): RenderContext {
       collected.push(warning)
     },
     warnings: () => collected,
-    styles: (node: Node, definition: ComponentDefinition) => {
+    styles: (node: Node, definition: ComponentDefinition | null) => {
       const key = styleKey(node, theme, breakpoint)
       const cached = cache.get(key)
 

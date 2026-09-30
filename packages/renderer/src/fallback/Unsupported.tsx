@@ -1,4 +1,4 @@
-import type { ReactElement } from "react"
+import type { ReactElement, ReactNode } from "react"
 import type { RenderMode } from "@checkout-studio/plugin-sdk"
 
 import { behaviourOf } from "./modes"
@@ -22,11 +22,23 @@ export interface UnsupportedProps {
   type: string
   className: string
   mode: RenderMode
+  /**
+   * The node's children, rendered.
+   *
+   * A missing plugin costs its own frame and not what is inside it. A bare box
+   * is a poor approximation of whatever the plugin would have laid out, and a
+   * far better outcome than a blank page below the node.
+   */
+  children?: ReactNode | undefined
 }
 
-export function Unsupported({ type, className, mode }: UnsupportedProps): ReactElement {
+export function Unsupported({ type, className, mode, children }: UnsupportedProps): ReactElement {
   if (!behaviourOf(mode).visibleFallbacks) {
-    return <div className={className} data-ck-unsupported={type} />
+    return (
+      <div className={className} data-ck-unsupported={type}>
+        {children}
+      </div>
+    )
   }
 
   return (
@@ -39,6 +51,7 @@ export function Unsupported({ type, className, mode }: UnsupportedProps): ReactE
           "” needs a plugin that is not installed. Its content is safe and will come back when the plugin does."
         }
       </span>
+      {children}
     </div>
   )
 }
