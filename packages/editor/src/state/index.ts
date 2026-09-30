@@ -37,6 +37,9 @@ export type { Autosave, AutosaveOptions, SaveOutcome, SaveRequest } from "./auto
 export { createIndexedDbQueue, createMemoryQueue } from "./queue"
 export type { QueuedSave, SaveQueue } from "./queue"
 
+export { describeConflict } from "./conflict"
+export type { ConflictSummary } from "./conflict"
+
 export { findProblems, inspect, isValid, walkBack } from "./recovery"
 export type { Corruption, Recovery, RecoveryReport } from "./recovery"
 

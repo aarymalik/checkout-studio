@@ -79,5 +79,19 @@ export type { AuthDependencies, SignInResult } from "./services/auth/accounts"
 export { loggingSender, recordingSender, resendSender, senderFor } from "./services/auth/email"
 export type { EmailSender, Message } from "./services/auth/email"
 
+export {
+  HEARTBEAT_SECONDS,
+  SESSION_TTL_SECONDS,
+  claim,
+  current as currentEditSession,
+  heartbeat,
+  release,
+  takeover,
+} from "./services/pages/session"
+export type { ClaimResult, EditSession } from "./services/pages/session"
+
+export { readDraft, saveDraft } from "./services/pages/draft"
+export type { DraftWriteResult } from "./services/pages/draft"
+
 export { SESSION_GRACE, TOKEN_GRACE, sweepExpired } from "./services/auth/sweep"
 export type { SweepResult } from "./services/auth/sweep"
