@@ -56,6 +56,8 @@ export {
   isLength,
   isSafeCssValue,
   isShadow,
+  isTokenReference,
+  tokenPath,
   validateTheme,
 } from "./validate"
 export type { ThemeProblem } from "./validate"

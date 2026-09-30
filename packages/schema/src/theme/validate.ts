@@ -22,6 +22,33 @@ import type { CheckoutTheme, FontDefinition, ThemeShadows, TypeStyle } from "./t
  * See docs/theme-system.md § Security Considerations.
  */
 
+/**
+ * A token reference: `{colors.primary}`.
+ *
+ * A theme value may be one instead of a literal, which is how a custom colour
+ * tracks the brand rather than restating it. Reference syntax is the same in a
+ * theme value and in a node's styles, so both read the same way in the
+ * inspector.
+ *
+ * The typed checks below skip references — `{colors.primary}` is not a colour,
+ * and asking whether it is one would reject every alias in the product.
+ * Whether a reference *resolves*, and whether it chains in a circle, is
+ * answered where the theme is flat and complete: the renderer, before it
+ * renders. See docs/theme-system.md § Reference Syntax.
+ */
+const REFERENCE = /^\{([a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9-]+)+)\}$/
+
+export function isTokenReference(value: string): boolean {
+  return REFERENCE.test(value.trim())
+}
+
+/** The path inside a reference, or null if the value is not one. */
+export function tokenPath(value: string): string | null {
+  const trimmed = value.trim()
+
+  return REFERENCE.test(trimmed) ? trimmed.slice(1, -1) : null
+}
+
 export interface ThemeProblem {
   /** Dotted path into the theme, e.g. `colors.primary`. */
   path: string
@@ -309,6 +336,7 @@ function check(
   ok: (value: string) => boolean,
   reason: string,
 ): void {
+  if (isTokenReference(value)) return
   if (!ok(value)) problems.push({ path, value, reason })
 }
 

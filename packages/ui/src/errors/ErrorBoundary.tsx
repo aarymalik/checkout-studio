@@ -35,13 +35,14 @@ interface ErrorBoundaryState {
 }
 
 /*
- * The one class component in the codebase.
+ * A class, like the renderer's two node and plugin boundaries and for the same
+ * reason.
  *
  * React offers no hook that does what componentDidCatch does: there is no way
  * to stop a render error from unmounting the tree above it from inside a
- * function component. Every other component here is a function, and the rule
- * that says so is worth keeping for the sake of the one place it cannot hold.
- * Recorded in docs/coding-standards.md.
+ * function component. Every component in the codebase that is not a boundary is
+ * a function, and the rule that says so is worth keeping for the sake of the
+ * three places it cannot hold. Recorded in docs/coding-standards.md.
  */
 // eslint-disable-next-line no-restricted-syntax -- React provides no functional equivalent
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
