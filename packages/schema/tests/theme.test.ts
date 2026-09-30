@@ -12,6 +12,8 @@ import {
   isLength,
   isSafeCssValue,
   isShadow,
+  isTokenReference,
+  tokenPath,
   validateTheme,
 } from "../src/theme/validate"
 
@@ -272,6 +274,50 @@ describe("typed CSS values", () => {
     expect(isFontFamily("Inter, sans-serif")).toBe(false)
     expect(isFontFamily("Inter!")).toBe(false)
     expect(isFontFamily("url(javascript:alert(1))")).toBe(false)
+  })
+})
+
+describe("token references", () => {
+  it("recognises a reference", () => {
+    expect(isTokenReference("{colors.primary}")).toBe(true)
+    expect(isTokenReference("  {spacing.6}  ")).toBe(true)
+    expect(isTokenReference("{typography.scale.h1.fontSize}")).toBe(true)
+    expect(isTokenReference("{colors.custom.mint-green}")).toBe(true)
+  })
+
+  it("refuses anything that is not one", () => {
+    for (const value of [
+      "#4f46e5",
+      "{colors}",
+      "{}",
+      "colors.primary",
+      "{colors.primary",
+      "{Colors.primary}",
+      "{colors.primary} {colors.surface}",
+      "var(--ck-color-primary)",
+    ]) {
+      expect(isTokenReference(value), value).toBe(false)
+    }
+  })
+
+  it("reads the path out of a reference", () => {
+    expect(tokenPath("{colors.primary}")).toBe("colors.primary")
+    expect(tokenPath("  {spacing.6}  ")).toBe("spacing.6")
+    expect(tokenPath("#4f46e5")).toBeNull()
+  })
+
+  it("does not ask whether a reference is a colour, because it is not one", () => {
+    // `{colors.primary}` is not a colour, and asking whether it is one would
+    // reject every alias in the product. Whether it *resolves* is answered
+    // where the theme is flat and complete — in the renderer, before it renders.
+    const problems = validateTheme({
+      ...defaultTheme,
+      colors: { ...defaultTheme.colors, primary: "{colors.custom.brand}" },
+      radius: { ...defaultTheme.radius, lg: "{spacing.6}" },
+      motion: { ...defaultTheme.motion, easing: "{motion.easing}" },
+    })
+
+    expect(problems).toEqual([])
   })
 })
 
