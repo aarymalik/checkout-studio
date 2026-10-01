@@ -170,6 +170,19 @@ This budget covers **first-party** JavaScript on the `apps/renderer` published r
 
 First-party means everything served from our origin, including the React and Next.js runtime. Third-party means scripts from other origins: Stripe.js and enabled tracking integrations.
 
+**Split in two, as built.** Measurement in Phase 6 found that 126.8 KB of the 133.6 KB the route serves is React DOM and Next's App Router client runtime, leaving 6.8 KB that is ours. One figure covering both would hold the component library to about 16 KB, so it is now two:
+
+```
+First-party       < 60 KB   the gate — our code, and what it imports
+Framework floor   < 150 KB  a tripwire — nothing we write moves it
+```
+
+Together these stay well inside the 350 KB maximum above.
+
+The floor is not removable without giving up something worth more than the bytes. A Route Handler rendering the HTML itself ships zero JavaScript, but React's server layer has no `Component` and no `createContext`, so it cannot host the error boundaries that keep a broken component from breaking a page, nor the plugin providers that carry a cart to a checkout component. The Pages Router keeps both and sheds the App Router's unused ~80 KB of routing and prefetching, but its page graph is shared with the client, so `server-only` stops protecting the database. Both were built and measured; see Phase 6 § As Built in [phases.md](./phases.md).
+
+What makes a budget of this shape sound rather than a concession: the published page is visually complete from the server's HTML, and nothing in the tree waits on hydration to render. This JavaScript governs when the payment element becomes interactive — INP — not when the page paints. Enforced per build by `pnpm renderer:bundle`.
+
 Deferred third-party dependencies are budgeted separately.
 
 Stripe.js is approximately 100–130 KB gzipped and would consume most of this budget on its own. It is therefore loaded on interaction — first form focus, or 3 seconds after LCP — never on the critical path, and is excluded from the first-party measurement. See [stripe-integration.md](./stripe-integration.md).
@@ -634,7 +647,9 @@ Metric Target
 
 Initial JS < 250 KB
 
-Published JS (first-party) < 150 KB
+Published JS (first-party) < 60 KB
+
+Published JS (framework floor) < 150 KB
 
 LCP < 2.5s
 
