@@ -75,8 +75,13 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Capped so the runner is not oversubscribed. Turbo defaults to ten
+      # concurrent tasks; on a two-core runner, ten packages' test suites at
+      # once turns a 116ms test into a five-second timeout.
       - name: Test
         run: pnpm test
+        env:
+          TURBO_CONCURRENCY: 4
 
       # The schema and the state engine are held at 100%, per docs/phases.md
       # Phase 5. The thresholds live in each package's vitest config, and

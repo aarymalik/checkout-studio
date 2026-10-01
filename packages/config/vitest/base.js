@@ -1,3 +1,5 @@
+import process from "node:process"
+
 import { defineConfig } from "vitest/config"
 
 /**
@@ -45,6 +47,17 @@ export function createVitestConfig(options = {}) {
       // Integration tests that share one database must not run in parallel:
       // one file's cleanup would wipe another file's fixtures mid-test.
       ...(options.sequential ? { fileParallelism: false, maxWorkers: 1 } : {}),
+      // One worker per package in CI.
+      //
+      // Turbo runs several packages' suites at once, and each vitest pool sizes
+      // itself to the machine's cores — so sixteen packages on a two-core runner
+      // oversubscribe it by an order of magnitude. A shell test that takes
+      // 116ms on a laptop took five seconds there and failed on the default
+      // timeout, which measured the contention rather than the code.
+      //
+      // Packages still run in parallel; each is just no longer trying to use
+      // the whole machine.
+      ...(process.env["CI"] && !options.sequential ? { maxWorkers: 1 } : {}),
       ...(options.globalSetup ? { globalSetup: options.globalSetup } : {}),
       include: ["src/**/*.test.{ts,tsx,js}", "tests/**/*.test.{ts,tsx,js}"],
       passWithNoTests: true,

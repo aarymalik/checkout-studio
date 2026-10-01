@@ -1294,9 +1294,9 @@ node scripts/check-renderer-deps.mjs
 ✓ All universal criteria
 ✓ 100% coverage on renderer and plugin-sdk
 ✓ Zero imports of editor, ui, or design-system in packages/renderer
-✓ apps/renderer published route: first-party JavaScript under 150 KB gzipped
-  (first-party = everything served from our origin, including the React and Next.js runtime;
-   third-party = other origins, such as Stripe.js)
+✓ apps/renderer published route: first-party JavaScript under 60 KB gzipped,
+  framework floor under 150 KB — split from one 150 KB figure, which turned out
+  to describe React and the App Router rather than anything we write. See As Built.
 ✓ Renderer is pure — same input, same output, input never mutated
 ✓ A broken component never breaks a page
 ✓ Zero hydration mismatches
@@ -1336,20 +1336,50 @@ per node does not grow with the tree, which holds on any hardware and catches
 the failure that actually matters — a cascade gone quadratic, or a memo that
 stopped memoising.
 
-**The budget is 89% spent before a single component exists.** The published
-route serves 133.6 KB gzipped, and none of it is ours — it is React plus the
-Next.js App Router client runtime. Phases 9 to 11 have about 16 KB between them.
-That is not enough for the component library, the form system and Stripe
-Elements, so one of three things has to give before Phase 11: the components
-ship as server components with no client runtime of their own, the published
-route leaves the App Router for a leaner delivery path, or the figure changes.
-Measured by `pnpm renderer:bundle` on every build, so the number is never a
-guess.
+**The 150 KB figure described the framework, not our code — so the criterion
+was wrong, and it has been split.**
 
-Getting there also found 93 KB gzipped of zod in every customer's browser,
-reached from a client-side error boundary through the `utils` barrel, which
-re-exports Stripe key validators that build schemas at module scope. The pure
-packages now declare `sideEffects: false`, which lets the bundler drop it.
+The published route serves 133.6 KB gzipped. 6.8 KB of that is ours; the rest is
+React DOM and Next's App Router client runtime. Read as a single budget, Phases 9
+to 11 had about 16 KB between them for a component library, a form system and a
+payment element, which was never going to work. Two alternatives were built and
+measured before concluding that the number was the problem rather than the
+architecture:
+
+- **A Route Handler that renders the HTML itself** ships _zero_ JavaScript, and
+  works. But React's server layer has neither `Component` nor `createContext`,
+  so it cannot host error boundaries or context providers. Per-node error
+  isolation is a Phase 6 guarantee — a broken component must never break a page
+  — and the plugin provider slot is how a cart ever reaches a checkout
+  component. The 45 KB of React DOM in the floor is what buys both.
+- **The Pages Router** keeps boundaries and context and sheds the App Router's
+  ~80 KB, which is the part a single-page checkout genuinely does not use: no
+  links to prefetch, no client-side navigation, no segment cache. But a Pages
+  Router page's module graph is shared with the client, so `server-only` stops
+  protecting the database. Not a trade to make on a payments application.
+
+So `pnpm renderer:bundle` now measures two numbers:
+
+```
+First-party       6.8 KB of 60 KB     ← the gate; our code, and what it imports
+Framework floor   126.8 KB of 150 KB  ← a tripwire; nothing we write moves it
+```
+
+The gate is the one that matters, because it is the only one we can act on. It
+is also what makes the earlier zod finding impossible to repeat: 93 KB gzipped
+of it was reaching every customer's browser from a client-side error boundary,
+through the `utils` barrel, which re-exports Stripe key validators that build
+schemas at module scope. The pure packages now declare `sideEffects: false`.
+
+The floor keeps the original 150 KB as a ceiling rather than a target, so a
+framework upgrade that adds 40 KB to every checkout is something we find out
+about in CI rather than in a Lighthouse report.
+
+What makes a budget of this shape defensible, rather than a concession: the page
+is visually complete from the server's HTML. Nothing in the tree waits on
+hydration to render, so this JavaScript governs when the payment element becomes
+interactive, not when the page paints. That is the number Phases 9 to 11 should
+be held to, and 60 KB of first-party code is a generous allowance for it.
 
 ---
 
