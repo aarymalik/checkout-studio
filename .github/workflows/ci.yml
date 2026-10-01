@@ -85,10 +85,19 @@ jobs:
       - name: Coverage on the engine
         run: >-
           pnpm --filter @checkout-studio/schema --filter @checkout-studio/editor
+          --filter @checkout-studio/renderer --filter @checkout-studio/plugin-sdk
           test:coverage
 
       - name: Build
         run: pnpm build
+
+      # The published checkout's budget, from the build that just ran. A
+      # transitive import is the usual way this breaks, and neither the layer
+      # model nor a lint rule can see one — the first run of this check found
+      # 93 KB of zod in every customer's browser, reached from a client-side
+      # error boundary through a barrel that re-exports server-only modules.
+      - name: The published checkout stays inside its JavaScript budget
+        run: pnpm renderer:bundle
 
   boundaries:
     name: layer boundaries
@@ -108,6 +117,11 @@ jobs:
 
       - name: No component carries a value that belongs in the design system
         run: pnpm tokens:check
+
+      # What the layer model cannot see: eval, raw HTML, and literal values
+      # inside the one package that ships to a customer's browser.
+      - name: The renderer executes nothing and hardcodes nothing
+        run: pnpm renderer:deps
 
   visual:
     name: visual regression

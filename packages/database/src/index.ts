@@ -13,6 +13,9 @@ export type { PreferenceKey } from "./repositories/preference"
 export { pageRepository, DraftConflictError } from "./repositories/page"
 export type { CreatePageInput } from "./repositories/page"
 
+export { publishedRepository } from "./repositories/published"
+export type { PublishedPage } from "./repositories/published"
+
 export { revisionRepository } from "./repositories/revision"
 export type { CreateRevisionInput, RevisionKind } from "./repositories/revision"
 

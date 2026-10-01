@@ -219,7 +219,7 @@ These apply to **every** phase, in addition to its specific criteria.
 | 3A    | Authentication                  | **Complete** | 2, 3       |
 | 4     | Studio Shell                    | **Complete** | 3A         |
 | 5     | Editor State Engine             | **Complete** | 2          |
-| 6     | Renderer Engine                 | Not Started  | 2, 5       |
+| 6     | Renderer Engine                 | **Complete** | 2, 5       |
 | 7     | Visual Canvas                   | Not Started  | 4, 6       |
 | 8     | Drag & Drop Engine              | Not Started  | 7          |
 | 9     | Core Component Library          | Not Started  | 8          |
@@ -1302,6 +1302,54 @@ node scripts/check-renderer-deps.mjs
 ✓ Zero hydration mismatches
 ✓ 2,000-node render under 100ms
 ```
+
+### As Built
+
+Two deliberate departures from the plan above, and one measurement worth
+carrying into Phase 9.
+
+**The checkout theme landed in `packages/schema`, not the renderer.**
+[theme-system.md](./theme-system.md) places `CheckoutTheme` there, and it has to
+be there: the API validates a theme on write, the editor edits one, publishing
+snapshots one, and the renderer compiles one. The schema package is the only
+layer all four may import, and a theme type inside the renderer would leave the
+schema unable to reference its own theme. `packages/database` also gained a
+`publishedRepository`, since the published route is the one query in the product
+with no tenant to scope to.
+
+**HTML and SVG sanitisation moved to Phase 9.** The `core.html` component and
+the asset pipeline are both out of scope here, so there was nothing to sanitise
+and no DOM implementation the renderer could justify carrying. What this phase
+enforces instead is stronger and permanent: `scripts/check-renderer-deps.mjs`
+refuses `eval`, the `Function` constructor, and any `dangerouslySetInnerHTML`
+outside the one call that writes the stylesheet. Sanitisation belongs with the
+component that needs it, where a DOM is a legitimate server-side dependency.
+
+**The 2,000-node budget is verified by measurement, not by a CI gate.**
+16.5 ms on an M-series laptop, against the 100 ms criterion — the fastest of
+five renders after a warm-up, which is the reading closest to the work itself.
+It is not asserted as a millisecond threshold in CI: a shared runner executing
+fifteen packages' suites in parallel workers measures contention rather than
+capability, and the first version of that assertion failed there at 1,166 ms
+while taking 16 ms on a quiet machine. What CI asserts instead is that the cost
+per node does not grow with the tree, which holds on any hardware and catches
+the failure that actually matters — a cascade gone quadratic, or a memo that
+stopped memoising.
+
+**The budget is 89% spent before a single component exists.** The published
+route serves 133.6 KB gzipped, and none of it is ours — it is React plus the
+Next.js App Router client runtime. Phases 9 to 11 have about 16 KB between them.
+That is not enough for the component library, the form system and Stripe
+Elements, so one of three things has to give before Phase 11: the components
+ship as server components with no client runtime of their own, the published
+route leaves the App Router for a leaner delivery path, or the figure changes.
+Measured by `pnpm renderer:bundle` on every build, so the number is never a
+guess.
+
+Getting there also found 93 KB gzipped of zod in every customer's browser,
+reached from a client-side error boundary through the `utils` barrel, which
+re-exports Stripe key validators that build schemas at module scope. The pure
+packages now declare `sideEffects: false`, which lets the bundler drop it.
 
 ---
 

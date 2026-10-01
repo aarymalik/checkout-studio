@@ -11,22 +11,23 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "NODE_OPTIONS=--conditions=react-server playwright test",
     "clean": "rm -rf .next coverage playwright-report .turbo"
   },
   "dependencies": {
+    "@checkout-studio/api": "workspace:*",
+    "@checkout-studio/cache": "workspace:*",
+    "@checkout-studio/database": "workspace:*",
     "@checkout-studio/observability": "workspace:*",
+    "@checkout-studio/plugin-sdk": "workspace:*",
     "@checkout-studio/renderer": "workspace:*",
     "@checkout-studio/schema": "workspace:*",
     "@checkout-studio/types": "workspace:*",
     "@checkout-studio/utils": "workspace:*",
-    "next": "16.3.5",
+    "next": "16.3.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.6.5",
-    "@checkout-studio/api": "workspace:*",
-    "@checkout-studio/cache": "workspace:*",
-    "@checkout-studio/database": "workspace:*"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",
