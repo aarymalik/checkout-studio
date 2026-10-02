@@ -102,6 +102,27 @@ describe("Panel", () => {
     })
   })
 
+  describe("its own scroll", () => {
+    it("scrolls its body, so a long list does not scroll the page", () => {
+      const { container } = render(<Panel title="Layers">content</Panel>)
+
+      expect(container.querySelector("[data-radix-scroll-area-viewport]")).toBeInTheDocument()
+    })
+
+    it("hands the scrolling over when asked", () => {
+      // What a virtualized list needs: it owns the scroller, because it has to
+      // know the offset and the height of the element the user is scrolling.
+      const { container } = render(
+        <Panel title="Layers" scroll={false}>
+          content
+        </Panel>,
+      )
+
+      expect(container.querySelector("[data-radix-scroll-area-viewport]")).not.toBeInTheDocument()
+      expect(screen.getByText("content")).toBeInTheDocument()
+    })
+  })
+
   it("reports no axe violations", async () => {
     const { container } = render(
       <Panel title="Layers" onCollapsedChange={vi.fn()} actions={<Button size="sm">Add</Button>}>

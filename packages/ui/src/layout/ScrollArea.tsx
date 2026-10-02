@@ -1,7 +1,7 @@
 "use client"
 
 import * as RadixScrollArea from "@radix-ui/react-scroll-area"
-import type { ComponentPropsWithRef } from "react"
+import type { ComponentPropsWithRef, Ref } from "react"
 import { cn } from "../lib/cn"
 
 /**
@@ -17,11 +17,20 @@ export interface ScrollAreaProps extends ComponentPropsWithRef<typeof RadixScrol
   /** Announced when the region is focusable, which it must be to be scrollable by keyboard. */
   label?: string
   viewportClassName?: string
+  /**
+   * The scrolling element itself.
+   *
+   * What a virtualized list needs: it has to read the scroll offset and the
+   * visible height from the element that actually scrolls, and that element is
+   * inside here rather than being the root.
+   */
+  viewportRef?: Ref<HTMLDivElement>
 }
 
 export function ScrollArea({
   className,
   viewportClassName,
+  viewportRef,
   orientation = "vertical",
   label,
   children,
@@ -36,6 +45,7 @@ export function ScrollArea({
       {...props}
     >
       <RadixScrollArea.Viewport
+        ref={viewportRef}
         // A scrollable region needs to be focusable, or a keyboard user cannot
         // scroll it at all. With a tabindex it needs a name and a role, so it
         // is announced as something scrollable rather than as a stray group.

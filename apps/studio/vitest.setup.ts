@@ -27,6 +27,19 @@ Object.assign(process.env, {
 })
 
 /**
+ * jsdom has no ResizeObserver.
+ *
+ * A stub rather than a polyfill: the components that observe their own size
+ * need the constructor to exist, and a test asserting on a measured layout
+ * would be asserting on jsdom's zero-height boxes rather than on the design.
+ */
+globalThis.ResizeObserver ??= class {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+/**
  * Every test gets a clean document. Without this, a component left mounted by
  * one test is found by the next one's queries.
  */

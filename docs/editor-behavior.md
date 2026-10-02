@@ -429,6 +429,93 @@ Rename
 
 Search
 
+## Virtualization
+
+The panel renders the rows in view plus a margin, and replaces the rest with
+spacer height so the scrollbar reports the length of the document rather than
+the length of the window. Rows are a fixed height, which is what makes the
+window arithmetic a division instead of a measured layout pass.
+
+A panel that virtualizes owns its scroller. It has to read the scroll offset and
+the visible height from the element the user is actually scrolling, so the
+surrounding panel hands the scrolling over rather than nesting one scroller
+inside another.
+
+## Structure
+
+The panel is a tree to a screen reader and a flat list to the DOM: `role="tree"`
+with `aria-level` on each row carries the depth that indentation shows sighted
+users. A nested list would say the same thing and could not be windowed.
+
+One tab stop for the whole tree, with `aria-activedescendant` naming the current
+row. Two thousand rows are not two thousand tab stops.
+
+The page root is not listed. It cannot be selected on the canvas, and a row that
+cannot be chosen teaches people to stop trying.
+
+## Expansion
+
+The panel stores what the user **collapsed**, not what is expanded. A new page,
+or a container added to the open one, is expanded without anything having to
+notice it appeared — and a seed taken once from the document goes stale the
+moment the document is replaced.
+
+Selecting a node anywhere expands its ancestors first. Scrolling to a row inside
+a collapsed parent scrolls to a row that was never rendered.
+
+## Keyboard
+
+| Key         | Behaviour                                           |
+| ----------- | --------------------------------------------------- |
+| `↑` / `↓`   | Move through the visible rows, selecting as it goes |
+| `→`         | Expand the current row                              |
+| `←`         | Collapse the current row                            |
+| `⌥↑` / `⌥↓` | Move the node earlier or later                      |
+| `⌥→`        | Make the node a child of the sibling above it       |
+| `⌥←`        | Lift the node out of its parent                     |
+| `F2`        | Rename in place                                     |
+
+`↑` and `↓` step through the rows on screen rather than through siblings, so
+what the user sees is what moves. `⌥↑` at the top of a container lifts the node
+out to sit before its parent, and `⌥↓` past the last sibling drops it after —
+which is how a node escapes a container without a pointer.
+
+Every one of these produces a **move**: a parent and an index. Not a swap, not a
+shift, so undo, autosave and the renderer all see one kind of change.
+
+Enter is not bound here. [keyboard-shortcuts.md](./keyboard-shortcuts.md)
+reserves it for walking the tree, and a second meaning in this panel would
+collide with it.
+
+A locked row can still be focused and selected. Locking stops a node being
+edited, not being looked at — and a user has to reach a locked row to unlock it.
+
+## Hide and lock
+
+The eye and the padlock appear on the hovered row and stay visible once used. A
+column of them down every row is noise.
+
+Hiding a node dims its descendants but does not mark them hidden: the ancestor's
+row says what was switched off, and repeating it down the subtree would suggest
+nine decisions where there was one.
+
+## Rename
+
+`F2`, or a double click on the label. The field opens with the text selected,
+because a rename almost always replaces the name rather than appending to it.
+Enter and blur commit, Escape abandons, and focus returns to the tree so the
+keyboard keeps working.
+
+Clearing the name commits it as empty, which drops the custom name and returns
+the row to the component's own — `checkout.order-summary` reads as "Order
+summary".
+
+## Search
+
+The same fuzzy matcher as the command palette, so `ordsum` finds the order
+summary in both places. A match keeps its ancestors: a row shown without the
+chain above it is a row with no context.
+
 ---
 
 # Breadcrumb Navigation

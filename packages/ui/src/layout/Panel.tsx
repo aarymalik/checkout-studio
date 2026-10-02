@@ -24,6 +24,15 @@ export interface PanelProps extends Omit<ComponentPropsWithRef<"section">, "titl
   onCollapsedChange?: (collapsed: boolean) => void
   /** Which edge it sits on, which decides the direction the collapse arrow points. */
   side?: "start" | "end"
+  /**
+   * Whether the panel scrolls its own body.
+   *
+   * True for almost everything. False for a panel that virtualizes: a windowed
+   * list owns the scroller, because it has to know the offset and the height of
+   * the element the user is scrolling, and nesting one scroller in another
+   * gives the panel two scrollbars and the list the wrong height.
+   */
+  scroll?: boolean
 }
 
 export function Panel({
@@ -34,6 +43,7 @@ export function Panel({
   collapsed = false,
   onCollapsedChange,
   side = "start",
+  scroll = true,
   children,
   ...props
 }: PanelProps) {
@@ -86,10 +96,12 @@ export function Panel({
         </div>
       </header>
 
-      {collapsed ? null : (
+      {collapsed ? null : scroll ? (
         <ScrollArea className="min-h-0 flex-1" viewportClassName="p-3">
           {children}
         </ScrollArea>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col p-3">{children}</div>
       )}
     </section>
   )
