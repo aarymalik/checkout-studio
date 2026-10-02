@@ -12,7 +12,28 @@ if (existsSync(envFile)) {
   process.loadEnvFile(envFile)
 }
 
-const PORT = Number(process.env["PORT"] ?? 3000)
+/*
+ * The port this application believes it is on.
+ *
+ * `PORT`, then the port in `APP_URL`, then the default — the same order
+ * scripts/dev.mjs uses, and for the same reason: a suite that assumes 3000
+ * while the server is on 3002 does not fail, it talks to whatever else is
+ * listening there. That is how these tests came to be asserting against an
+ * unrelated application's 404 page.
+ */
+const PORT = Number(process.env["PORT"] ?? portOf(process.env["APP_URL"]) ?? 3000)
+
+function portOf(url: string | undefined): string | null {
+  if (url === undefined || url === "") return null
+
+  try {
+    const { port } = new URL(url)
+
+    return port === "" ? null : port
+  } catch {
+    return null
+  }
+}
 const baseURL = `http://localhost:${PORT}`
 
 export default defineConfig({

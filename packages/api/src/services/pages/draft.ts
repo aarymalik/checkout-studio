@@ -8,7 +8,19 @@ import {
   type CheckoutSchema,
   type SchemaProblem,
 } from "@checkout-studio/schema"
-import { applyPatch, type Operation } from "fast-json-patch"
+/*
+ * A default import, destructured.
+ *
+ * `fast-json-patch` declares no `exports` map, so Node ignores its ESM entry
+ * and loads the CommonJS bundle — whose named exports its lexer cannot see.
+ * A named import works under a bundler and throws in plain Node, which is how
+ * the Studio's whole end-to-end suite came to be unrunnable without anybody
+ * noticing: Playwright loads these modules directly.
+ */
+import jsonpatch from "fast-json-patch"
+import type { Operation } from "fast-json-patch"
+
+const { applyPatch } = jsonpatch
 
 /**
  * Writing the draft.

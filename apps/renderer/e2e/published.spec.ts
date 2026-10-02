@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test"
-import { BREAKPOINT_MAX_WIDTH } from "@checkout-studio/renderer"
 import { defaultTheme } from "@checkout-studio/schema"
 
 import { MOBILE_PADDING, publish, unpublish } from "./support/publish"
@@ -76,8 +75,19 @@ test("the breakpoint styles are media queries, not a second tree", async ({ page
 
   const css = await page.locator(".checkout-root style").innerText()
 
-  expect(css).toContain(`@media (max-width: ${BREAKPOINT_MAX_WIDTH.mobile}px)`)
-  expect(css).toContain(`padding: ${MOBILE_PADDING}px`)
+  /*
+   * The relationship, not the pixel.
+   *
+   * Which pixel is the breakpoint is pinned by the renderer's own tests. This
+   * asserts the narrow override arrives inside a media query rather than as a
+   * second tree — and it does so without importing the renderer, whose error
+   * boundaries are class components. React's server build has no `Component`,
+   * and this process runs with `--conditions=react-server` so it can import
+   * the repositories.
+   */
+  expect(css).toMatch(
+    new RegExp(`@media \\(max-width: \\d+px\\) \\{[^}]*padding: ${MOBILE_PADDING}px`),
+  )
 })
 
 test("serves nothing for a domain nobody published to", async ({ page }) => {

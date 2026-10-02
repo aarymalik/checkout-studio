@@ -12,10 +12,17 @@ if (existsSync(envFile)) {
   process.loadEnvFile(envFile)
 }
 
+/*
+ * The renderer's own port, which is 3001 unless `PORT` says otherwise — the
+ * same default as its `dev` script.
+ *
+ * Deliberately not derived from `APP_URL`: that names the *studio*, and
+ * guessing the renderer's port from it would be a second source of truth that
+ * drifts the first time either moves. The studio's config does read it, because
+ * there `APP_URL` is the application's own address.
+ */
 const PORT = Number(process.env["PORT"] ?? 3001)
-// localhost, not 127.0.0.1. Next binds localhost, and it withholds part of the
-// client runtime to a cross-origin request — so a suite that visits the loopback
-// address photographs a page that never hydrated. Learned in Phase 4.
+
 const baseURL = `http://localhost:${PORT}`
 
 export default defineConfig({

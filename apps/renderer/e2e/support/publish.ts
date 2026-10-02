@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto"
+
 import { prisma } from "@checkout-studio/database"
 import { createDocument, defaultTheme, serialize } from "@checkout-studio/schema"
 import type { CheckoutSchema } from "@checkout-studio/schema"
@@ -64,7 +66,9 @@ function document(): CheckoutSchema {
 }
 
 export async function publish(label: string): Promise<Published> {
-  const stamp = Date.now()
+  // Unique per worker, not per millisecond: parallel workers each run their own
+  // beforeAll, and two in the same millisecond collide on a unique index.
+  const stamp = `${Date.now()}-${randomUUID().slice(0, 8)}`
   const hostname = `e2e-${label}-${stamp}.example.test`
   const slug = "checkout"
 

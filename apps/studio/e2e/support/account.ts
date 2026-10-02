@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto"
+
 import { hashPassword } from "@checkout-studio/api"
 import { prisma } from "@checkout-studio/database"
 
@@ -19,7 +21,11 @@ export interface Account {
 }
 
 export async function createAccount(label: string): Promise<Account> {
-  const email = `e2e-${label}-${Date.now()}@example.test`
+  // A timestamp alone is not unique. Playwright runs files in parallel workers,
+  // each with its own beforeAll, and two starting in the same millisecond
+  // collide on the email's unique index — which fails as a constraint error in
+  // a fixture rather than as anything to do with the test.
+  const email = `e2e-${label}-${Date.now()}-${randomUUID().slice(0, 8)}@example.test`
 
   const user = await prisma.user.create({
     data: {
@@ -31,7 +37,7 @@ export async function createAccount(label: string): Promise<Account> {
   })
 
   const project = await prisma.project.create({
-    data: { userId: user.id, name: "Spring Sale", slug: `spring-sale-${Date.now()}` },
+    data: { userId: user.id, name: "Spring Sale", slug: `spring-sale-${randomUUID().slice(0, 8)}` },
   })
 
   return { userId: user.id, email, projectId: project.id }
