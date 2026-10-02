@@ -181,8 +181,27 @@ describe("PagesPanel", () => {
       ])
     })
 
-    // A published page's URL is a link somebody may have shared.
-    it("does not ask the server to change the slug", async () => {
+    // A published page's URL is a link somebody may have shared, so renaming
+    // leaves it alone.
+    it("does not move a page that was only renamed", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+
+      await user.click(screen.getByRole("button", { name: "Actions for Checkout" }))
+      await user.click(screen.getByRole("menuitem", { name: "Rename" }))
+
+      const field = screen.getByRole("textbox", { name: "Name" })
+      await user.clear(field)
+      await user.type(field, "Order form")
+      await user.click(screen.getByRole("button", { name: "Save" }))
+
+      await waitFor(() => {
+        expect(calls).toHaveLength(1)
+      })
+      expect(calls[0]?.body).not.toHaveProperty("slug")
+    })
+
+    it("asks for nothing when nothing changed", async () => {
       const user = userEvent.setup()
       renderPanel()
 
@@ -191,8 +210,148 @@ describe("PagesPanel", () => {
       await user.click(screen.getByRole("button", { name: "Save" }))
 
       await waitFor(() => {
-        expect(calls[0]?.body).not.toHaveProperty("slug")
+        expect(screen.queryByRole("dialog")).toBeNull()
       })
+      expect(calls).toEqual([])
+    })
+  })
+
+  describe("moving a page to another address", () => {
+    async function openDetails(user: ReturnType<typeof userEvent.setup>, name = "Checkout") {
+      await user.click(screen.getByRole("button", { name: `Actions for ${name}` }))
+      await user.click(screen.getByRole("menuitem", { name: "Rename" }))
+    }
+
+    it("patches the slug alone when only the address changed", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user)
+
+      const field = screen.getByRole("textbox", { name: "Address" })
+      await user.clear(field)
+      await user.type(field, "black-friday")
+      await user.click(screen.getByRole("button", { name: "Save" }))
+
+      await waitFor(() => {
+        expect(refresh).toHaveBeenCalled()
+      })
+
+      // A move is rate-limited and consequential in a way a rename is not, so
+      // only what changed is sent.
+      expect(calls).toEqual([
+        { url: "/api/pages/pag_one", method: "PATCH", body: { slug: "black-friday" } },
+      ])
+    })
+
+    it("sends both when both changed", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user)
+
+      const name = screen.getByRole("textbox", { name: "Name" })
+      await user.clear(name)
+      await user.type(name, "Black Friday")
+
+      const address = screen.getByRole("textbox", { name: "Address" })
+      await user.clear(address)
+      await user.type(address, "black-friday")
+      await user.click(screen.getByRole("button", { name: "Save" }))
+
+      await waitFor(() => {
+        expect(calls).toHaveLength(1)
+      })
+      expect(calls[0]?.body).toEqual({ title: "Black Friday", slug: "black-friday" })
+    })
+
+    it("shows what the address will become as it is typed", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      // The draft page, so the live-page warning does not also render the
+      // address and leave two matches to pick between.
+      await openDetails(user, "Upsell")
+
+      const field = screen.getByRole("textbox", { name: "Address" })
+      await user.clear(field)
+      await user.type(field, "Black Friday!")
+
+      // Accepted and corrected, with the result shown before Save rather than
+      // applied silently after it.
+      expect(screen.getByText("/black-friday")).toBeInTheDocument()
+    })
+
+    it("sends the corrected address, not what was typed", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user)
+
+      const field = screen.getByRole("textbox", { name: "Address" })
+      await user.clear(field)
+      await user.type(field, "Black Friday!")
+      await user.click(screen.getByRole("button", { name: "Save" }))
+
+      await waitFor(() => {
+        expect(calls).toHaveLength(1)
+      })
+      expect(calls[0]?.body).toEqual({ slug: "black-friday" })
+    })
+
+    it("warns before moving a page that is live", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user)
+
+      const field = screen.getByRole("textbox", { name: "Address" })
+      await user.clear(field)
+      await user.type(field, "black-friday")
+
+      expect(screen.getByText("This page is live")).toBeInTheDocument()
+    })
+
+    it("does not warn when the page is not live", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user, "Upsell")
+
+      const field = screen.getByRole("textbox", { name: "Address" })
+      await user.clear(field)
+      await user.type(field, "black-friday")
+
+      // Nothing points at an unpublished page, so there is nothing to break.
+      expect(screen.queryByText("This page is live")).toBeNull()
+    })
+
+    it("does not warn for a rename alone", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user)
+
+      const field = screen.getByRole("textbox", { name: "Name" })
+      await user.clear(field)
+      await user.type(field, "Order form")
+
+      // A notice on every edit is noise everybody learns to ignore.
+      expect(screen.queryByText("This page is live")).toBeNull()
+    })
+
+    it("will not save an address with nothing in it", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user)
+
+      const field = screen.getByRole("textbox", { name: "Address" })
+      await user.clear(field)
+      await user.type(field, "！！！")
+
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+      expect(screen.getByText("An address needs a letter or a number.")).toBeInTheDocument()
+    })
+
+    it("shows the address the page already has", async () => {
+      const user = userEvent.setup()
+      renderPanel()
+      await openDetails(user)
+
+      expect(screen.getByRole("textbox", { name: "Address" })).toHaveValue("checkout")
     })
   })
 

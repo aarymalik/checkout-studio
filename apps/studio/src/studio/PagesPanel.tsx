@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { Copy, FileText, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import {
   Alert,
@@ -17,6 +17,8 @@ import {
   Input,
   cn,
 } from "@checkout-studio/ui"
+
+import { slugify } from "@checkout-studio/utils"
 
 import { post, send } from "@/lib/api-client"
 
@@ -53,7 +55,7 @@ export function PagesPanel({
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [renaming, setRenaming] = useState<PageSummary | null>(null)
+  const [editing, setEditing] = useState<PageSummary | null>(null)
   const [deleting, setDeleting] = useState<PageSummary | null>(null)
 
   function refresh(): void {
@@ -145,7 +147,7 @@ export function PagesPanel({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem icon={<Pencil />} onSelect={() => setRenaming(page)}>
+                  <DropdownMenuItem icon={<Pencil />} onSelect={() => setEditing(page)}>
                     Rename
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -178,27 +180,37 @@ export function PagesPanel({
         open={creating}
         onOpenChange={setCreating}
         title="New page"
-        description="You can rename it later. The URL is set from this name and does not change."
+        description="The address is taken from the name. Both can be changed later."
         confirmLabel="Create page"
         busy={busy}
         onConfirm={(title) => void create(title)}
       />
 
-      <TitleDialog
-        open={renaming !== null}
+      <DetailsDialog
+        open={editing !== null}
         onOpenChange={(next) => {
-          if (!next) setRenaming(null)
+          if (!next) setEditing(null)
         }}
-        title="Rename page"
-        description="The URL keeps the name it was created with, so shared links keep working."
-        confirmLabel="Save"
-        initialTitle={renaming?.title ?? ""}
+        page={editing}
         busy={busy}
-        onConfirm={(title) => {
-          if (renaming === null) return
+        onConfirm={(changes) => {
+          if (editing === null) return
 
-          void run(async () => send(`/api/pages/${renaming.id}`, "PATCH", { title })).then((ok) => {
-            if (ok) setRenaming(null)
+          // Only what changed. Sending the slug every time would make every
+          // rename a move as far as the server is concerned, and a move is
+          // rate-limited, audited and consequential in a way a rename is not.
+          const body = {
+            ...(changes.title === editing.title ? {} : { title: changes.title }),
+            ...(changes.slug === editing.slug ? {} : { slug: changes.slug }),
+          }
+
+          if (Object.keys(body).length === 0) {
+            setEditing(null)
+            return
+          }
+
+          void run(async () => send(`/api/pages/${editing.id}`, "PATCH", body)).then((ok) => {
+            if (ok) setEditing(null)
           })
         }}
       />
@@ -239,14 +251,13 @@ export function PagesPanel({
   )
 }
 
-/** Naming a page. One dialog for creating and renaming; they differ in words. */
+/** Naming a new page. Editing an existing one is DetailsDialog, which has more to say. */
 function TitleDialog({
   open,
   onOpenChange,
   title,
   description,
   confirmLabel,
-  initialTitle = "",
   busy,
   onConfirm,
 }: {
@@ -255,7 +266,6 @@ function TitleDialog({
   title: string
   description: string
   confirmLabel: string
-  initialTitle?: string
   busy: boolean
   onConfirm: (title: string) => void
 }) {
@@ -272,7 +282,6 @@ function TitleDialog({
           <Input
             name="title"
             label="Name"
-            defaultValue={initialTitle}
             maxLength={120}
             required
             autoFocus
@@ -285,6 +294,110 @@ function TitleDialog({
             </Button>
             <Button type="submit" loading={busy}>
               {confirmLabel}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
+ * Editing a page's name and its address.
+ *
+ * Both in one dialog, because they are related and separating them hides the
+ * relationship: the address is derived from the name when a page is created,
+ * and seeing them together is what tells somebody that changing one does not
+ * change the other.
+ *
+ * The warning is conditional. A rename is harmless and a move is not, so a
+ * notice that showed on every edit would be noise everybody learns to ignore —
+ * it appears when a *live* page's address has actually been changed, which is
+ * the only case where links break.
+ */
+function DetailsDialog({
+  open,
+  onOpenChange,
+  page,
+  busy,
+  onConfirm,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  page: PageSummary | null
+  busy: boolean
+  onConfirm: (changes: { title: string; slug: string }) => void
+}) {
+  const [title, setTitle] = useState("")
+  const [slug, setSlug] = useState("")
+
+  // Reset when a different page is opened, rather than on every render: the
+  // fields are the user's to edit while the dialog is open.
+  useEffect(() => {
+    setTitle(page?.title ?? "")
+    setSlug(page?.slug ?? "")
+  }, [page])
+
+  const cleaned = slugify(slug)
+  const moving = page !== null && cleaned !== page.slug
+  const live = page?.status === "published"
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        title="Page details"
+        description="The name is a label. The address is where a published page lives."
+      >
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onConfirm({ title: title.trim(), slug: cleaned })
+          }}
+        >
+          <Input
+            name="title"
+            label="Name"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={120}
+            required
+            autoFocus
+            placeholder="Checkout"
+          />
+
+          <Input
+            name="slug"
+            label="Address"
+            value={slug}
+            onChange={(event) => setSlug(event.target.value)}
+            maxLength={60}
+            required
+            placeholder="checkout"
+            // What will actually be stored, shown as they type. Typing "Black
+            // Friday" is accepted and becomes black-friday, and saying so
+            // beforehand is better than changing it silently after Save.
+            description={cleaned === "" ? undefined : `/${cleaned}`}
+            error={
+              slug.trim() === "" || cleaned !== ""
+                ? undefined
+                : "An address needs a letter or a number."
+            }
+          />
+
+          {moving && live ? (
+            <Alert variant="warning" title="This page is live">
+              Its address changes from <code>/{page.slug}</code> to <code>/{cleaned}</code>. Links
+              anybody already has will stop working.
+            </Alert>
+          ) : null}
+
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={busy} disabled={cleaned === "" || title.trim() === ""}>
+              Save
             </Button>
           </DialogFooter>
         </form>

@@ -135,6 +135,48 @@ export const pageRepository = {
     return result.count === 1 ? this.findById(tenant, id) : null
   },
 
+  /**
+   * Move a page to a different address.
+   *
+   * Separate from `rename` because it is a different act with different
+   * consequences: a title is a label, and a slug is where a published page
+   * lives. Changing one breaks nothing and changing the other breaks every link
+   * anybody holds.
+   *
+   * The partial unique index is the backstop. The service checks first so it
+   * can say something useful, but two sessions racing would both pass that
+   * check and only one can win here.
+   */
+  async setSlug(tenant: TenantContext, id: string, slug: string) {
+    const result = await prisma.page.updateMany({
+      where: { id, ...ownedBy(tenant) },
+      data: { slug },
+    })
+
+    return result.count === 1 ? this.findById(tenant, id) : null
+  },
+
+  /**
+   * Whether another live page in the project already answers to this address.
+   *
+   * The project is a parameter rather than taken from the tenant: a caller
+   * holding a page id does not necessarily know which project it is in, and
+   * whoever asks this has just loaded the page and does.
+   */
+  async slugTaken(
+    tenant: TenantContext,
+    projectId: string,
+    slug: string,
+    exceptPageId: string,
+  ): Promise<boolean> {
+    const clash = await prisma.page.findFirst({
+      where: { projectId, slug, id: { not: exceptPageId }, ...ownedBy(tenant) },
+      select: { id: true },
+    })
+
+    return clash !== null
+  },
+
   async softDelete(tenant: TenantContext, id: string) {
     const result = await prisma.page.updateMany({
       where: { id, ...ownedBy(tenant) },
