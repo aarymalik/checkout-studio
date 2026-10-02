@@ -141,5 +141,11 @@ export function selectionFor(
 
   // A fresh click lands on the outermost thing under the pointer, so a user
   // moving a whole section does not have to escape out of a button first.
-  return [chain[0] ?? hit]
+  //
+  // An empty chain means the root was clicked. Nothing is selected, matching
+  // `nodeAt`: the page background clears the selection, and selecting the whole
+  // page is what the breadcrumb and ⌘A are for.
+  const outermost = chain[0]
+
+  return outermost === undefined ? [] : [outermost]
 }

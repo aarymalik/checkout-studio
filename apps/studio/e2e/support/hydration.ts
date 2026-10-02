@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
 /**
- * Waits until React has taken over the page.
+ * Waits until React has taken over the page, and until the page is the real one.
  *
  * A keystroke or a click that lands before hydration is simply lost: the markup
  * is there, the handlers are not. Without this, a test races the client bundle
@@ -9,11 +9,25 @@ import { expect, type Locator, type Page } from "@playwright/test"
  * flake, because it looks like the feature.
  *
  * React marks the container it hydrated, which is `document` for the App Router.
+ *
+ * That marker is necessary and not sufficient. A route with a `loading.tsx`
+ * streams the skeleton first and swaps the real content in when the server
+ * finishes; the marker appears at the start of that, not the end. A test that
+ * only waited for it would run against the skeleton — and would mostly pass
+ * anyway, because Playwright's assertions retry for five seconds and the swap
+ * takes a fraction of one. What fails is any single read that does not retry,
+ * such as `boundingBox()`, and it fails by reporting the skeleton's geometry as
+ * though it were the page's.
+ *
+ * So the second gate is the absence of anything still saying it is busy, which
+ * every loading fallback in the application declares.
  */
 export async function waitForHydration(page: Page): Promise<void> {
   await page.waitForFunction(() =>
     Object.keys(document).some((key) => key.startsWith("__reactContainer$")),
   )
+
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
 }
 
 /**

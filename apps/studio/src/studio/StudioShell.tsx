@@ -1,8 +1,15 @@
 "use client"
 
-import { useScope, type Platform, type ShellLayout, type UserKeymap } from "@checkout-studio/editor"
+import {
+  EditorProvider,
+  useScope,
+  type Platform,
+  type ShellLayout,
+  type UserKeymap,
+} from "@checkout-studio/editor"
+import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 
-import { CanvasArea } from "./CanvasArea"
+import { CanvasArea } from "./canvas/CanvasArea"
 import { ChordHint } from "./ChordHint"
 import { Inspector } from "./Inspector"
 import { PaletteHost } from "./PaletteHost"
@@ -16,17 +23,31 @@ import { Toolbar } from "./Toolbar"
  * The editor frame.
  *
  * Toolbar, three columns, status bar — fixed heights top and bottom, everything
- * else given to the canvas. Nothing here edits anything: Phase 4 is the frame,
- * and the parts that fill it each arrive with their own phase.
+ * else given to the canvas.
+ *
+ * The store is mounted here rather than inside the canvas, because the layers
+ * panel, the inspector and the status bar all read the same document — and one
+ * store per editor is what keeps a selection made on the canvas visible in the
+ * panel beside it.
  *
  * See docs/ui-guidelines.md § Studio Layout.
  */
+
+/** The page being edited, or null when the project has none. */
+export interface OpenPage {
+  document: CheckoutSchema
+  /** Resolved from the project's theme records, server-side. */
+  theme: CheckoutTheme
+  /** The draft version this session started from, which conflict detection needs. */
+  baseVersion: number
+}
 export function StudioShell({
   projectName,
   initialLayout,
   userKeymap,
   platform,
   panels = {},
+  page = null,
 }: {
   projectName: string
   initialLayout: ShellLayout
@@ -34,15 +55,35 @@ export function StudioShell({
   platform: Platform
   /** What each sidebar tab shows, for the tabs that have something to show. */
   panels?: SidebarPanels
+  page?: OpenPage | null
 }) {
-  return (
+  const frame = (
     <StudioProviders initialLayout={initialLayout} userKeymap={userKeymap} platform={platform}>
-      <Frame projectName={projectName} panels={panels} />
+      <Frame projectName={projectName} panels={panels} theme={page?.theme ?? null} />
     </StudioProviders>
+  )
+
+  // No page, no store. A store built around a document that does not exist
+  // would have to invent one, and every panel reading it would show somebody a
+  // page they never created.
+  if (page === null) return frame
+
+  return (
+    <EditorProvider document={page.document} baseVersion={page.baseVersion}>
+      {frame}
+    </EditorProvider>
   )
 }
 
-function Frame({ projectName, panels }: { projectName: string; panels: SidebarPanels }) {
+function Frame({
+  projectName,
+  panels,
+  theme,
+}: {
+  projectName: string
+  panels: SidebarPanels
+  theme: CheckoutTheme | null
+}) {
   // Everything inside the editor is in the studio scope, which is what keeps the
   // panel shortcuts off the dashboard.
   useScope("studio")
@@ -53,7 +94,7 @@ function Frame({ projectName, panels }: { projectName: string; panels: SidebarPa
 
       <div className="flex min-h-0 flex-1">
         <Sidebar panels={panels} />
-        <CanvasArea />
+        <CanvasArea theme={theme} />
         <Inspector />
       </div>
 

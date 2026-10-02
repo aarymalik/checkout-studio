@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
     "@checkout-studio/editor",
     "@checkout-studio/hooks",
     "@checkout-studio/observability",
+    "@checkout-studio/plugin-sdk",
     "@checkout-studio/renderer",
     "@checkout-studio/schema",
     "@checkout-studio/types",

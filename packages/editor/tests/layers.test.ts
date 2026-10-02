@@ -454,4 +454,10 @@ describe("what a click selects", () => {
   it("starts again from the outside when the click is elsewhere", () => {
     expect(selectionFor(tree(), "title", ["button"])).toEqual(["header"])
   })
+
+  it("selects nothing when the root itself was clicked", () => {
+    // Consistent with nodeAt, which never returns the root: the page background
+    // clears the selection, and selecting the whole page is the breadcrumb's job.
+    expect(selectionFor(tree(), "page", [])).toEqual([])
+  })
 })

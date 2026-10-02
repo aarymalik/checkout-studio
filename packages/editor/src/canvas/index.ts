@@ -57,3 +57,22 @@ export type { Guide, GuideAxis, SnapOptions, SnapResult } from "./snap"
 
 export { EDGE_ZONE, MAX_SPEED, autoScrollVelocity, isNearEdge, stepFor } from "./autoscroll"
 export type { AutoScrollOptions } from "./autoscroll"
+
+export {
+  classIndex,
+  elementFor,
+  measureContentHeight,
+  measureNode,
+  measureNodes,
+  nodeIdAt,
+} from "./measure"
+
+export {
+  useAutoScroll,
+  useContentHeight,
+  useNodeRects,
+  useNodeResolver,
+  usePanZoom,
+  useViewport,
+} from "./hooks"
+export type { AutoScrollControls, PanZoomOptions, ViewportControls } from "./hooks"

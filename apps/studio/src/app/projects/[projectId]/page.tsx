@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation"
-import { listPages } from "@checkout-studio/api"
+import { listPages, readDraft } from "@checkout-studio/api"
 import { preferenceRepository, projectRepository } from "@checkout-studio/database"
 import { normalizeKeymap, normalizeLayout } from "@checkout-studio/editor"
 
 import { PagesPanel } from "@/studio/PagesPanel"
 import { StudioShell } from "@/studio/StudioShell"
 import { requestPlatform } from "@/lib/platform"
+import { resolveTheme } from "@/lib/theme"
 import { requireSession } from "@/lib/session"
 
 /**
@@ -45,12 +46,29 @@ export default async function ProjectPage({
    * A requested page that is not in the list is ignored rather than refused: a
    * stale link — a page deleted in another tab, most often — should open the
    * project, not an error.
-   *
-   * Its document is deliberately not loaded yet. The store that would hold it
-   * has nothing to show it with until the canvas arrives in Phase 7, and
-   * machinery with no producer is machinery nobody has run.
    */
   const current = pages.find((item) => item.id === requestedPageId) ?? pages[0] ?? null
+
+  /*
+   * The document and its theme, both resolved here.
+   *
+   * On the server rather than after hydration, so the first paint is the page
+   * rather than an empty frame that fills in — which is the layout jump
+   * docs/ui-guidelines.md forbids.
+   *
+   * A draft that will not parse reads as no page at all. The canvas then shows
+   * its empty state, which is honest: we have a row we cannot open, and
+   * handing the store something it would corrupt further is worse.
+   */
+  const draft = current === null ? null : await readDraft(tenant, current.id)
+  const page =
+    draft === null
+      ? null
+      : {
+          document: draft.document,
+          theme: await resolveTheme(projectId, draft.document.theme),
+          baseVersion: draft.draftVersion,
+        }
 
   return (
     <StudioShell
@@ -58,6 +76,7 @@ export default async function ProjectPage({
       initialLayout={normalizeLayout(preferences["shell.layout"])}
       userKeymap={normalizeKeymap(preferences["keyboard.keymap"])}
       platform={platform}
+      page={page}
       panels={{
         pages: (
           <PagesPanel

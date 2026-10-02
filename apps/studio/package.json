@@ -23,6 +23,7 @@
     "@checkout-studio/editor": "workspace:*",
     "@checkout-studio/hooks": "workspace:*",
     "@checkout-studio/observability": "workspace:*",
+    "@checkout-studio/plugin-sdk": "workspace:*",
     "@checkout-studio/renderer": "workspace:*",
     "@checkout-studio/schema": "workspace:*",
     "@checkout-studio/types": "workspace:*",
