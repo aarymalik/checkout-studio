@@ -49,7 +49,12 @@ export function fromPrismaError(error: PrismaLikeError): AppError {
       const target = Array.isArray(error.meta?.target)
         ? error.meta.target.join(", ")
         : (error.meta?.target ?? "a unique field")
-      return Errors.resource.conflict(`${model} already exists with that ${target}`)
+
+      // A duplicate, not a write conflict. Both are 409 and they are resolved
+      // differently: one by reloading, the other by choosing another name — and
+      // telling somebody to reload when a name is taken sends them round a loop
+      // that cannot end.
+      return Errors.resource.alreadyExists(model, String(target))
     }
     case "P2025":
       return Errors.resource.notFound(model)

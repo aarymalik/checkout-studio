@@ -50,6 +50,26 @@ export const pageRepository = {
     return prisma.page.findFirst({ where: { id, ...ownedBy(tenant) } })
   },
 
+  /**
+   * Every slug the project's unique index already holds, deleted ones included.
+   *
+   * Deliberately not `list`, which shows the tenant what they can see. The
+   * constraint on (projectId, slug) does not know about soft deletion, so a new
+   * page choosing a slug has to avoid the deleted rows too — and keeping them
+   * reserved is also what lets a deleted page be restored without colliding
+   * with whatever took its place.
+   */
+  async slugsInUse(tenant: TenantContext): Promise<readonly string[]> {
+    const projectId = requireProject(tenant, "Page")
+
+    const rows = await prisma.page.findMany({
+      where: { projectId, project: { userId: tenant.userId } },
+      select: { slug: true },
+    })
+
+    return rows.map((row) => row.slug)
+  },
+
   async create(tenant: TenantContext, input: CreatePageInput) {
     const projectId = requireProject(tenant, "Page")
 

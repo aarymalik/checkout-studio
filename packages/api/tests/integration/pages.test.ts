@@ -77,6 +77,47 @@ describe("creating", () => {
     expect(second.slug).toBe("checkout-2")
   })
 
+  it("does not reuse a deleted page's slug", async () => {
+    // A delete is a soft delete, and the unique index covers deleted rows as
+    // well as live ones. A slug check that only looked at what the tenant can
+    // see would pick the same slug again and hit the constraint — which
+    // surfaces as "someone else changed this", a message that is both wrong and
+    // unactionable.
+    const first = await createPage(tenant, { title: "Checkout" })
+    await deletePage(tenant, first.id)
+
+    const second = await createPage(tenant, { title: "Checkout" })
+
+    expect(second.slug).not.toBe(first.slug)
+  })
+
+  it("keeps a deleted page's slug reserved, so restoring it cannot collide", async () => {
+    const first = await createPage(tenant, { title: "Checkout" })
+    await deletePage(tenant, first.id)
+    await createPage(tenant, { title: "Checkout" })
+
+    await prisma.page.update({ where: { id: first.id }, data: { deletedAt: null } })
+
+    expect((await listPages(tenant)).map((page) => page.slug).sort()).toEqual([
+      "checkout",
+      "checkout-2",
+    ])
+  })
+
+  it("does not reuse a deleted page's slug when duplicating either", async () => {
+    const first = await createPage(tenant, { title: "Checkout" })
+    const copy = await duplicatePage(tenant, first.id)
+
+    expect(copy.ok).toBe(true)
+    if (!copy.ok) return
+
+    await deletePage(tenant, copy.page.id)
+
+    const again = await duplicatePage(tenant, first.id)
+
+    expect(again.ok).toBe(true)
+  })
+
   it("falls back for a title that slugifies to nothing", async () => {
     expect((await createPage(tenant, { title: "！！！" })).slug).toBe("page")
   })
