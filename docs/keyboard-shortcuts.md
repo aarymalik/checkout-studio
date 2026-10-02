@@ -315,6 +315,11 @@ There is no separate "deselect all" shortcut. `⌘⇧A` is Chrome's tab search o
 | `⌫` / `Delete` | Delete            |
 | `F2`           | Rename in Layers  |
 
+The Layers panel binds the arrows for itself while it holds focus — navigation
+on their own, reordering with `⌥`. They are listed in
+[editor-behavior.md](./editor-behavior.md) § Layer Panel rather than here,
+because they are the panel's own and never reach the keymap.
+
 `⌘⌥V` pastes the copied node's style block onto the current selection without changing content. It is one of the highest-leverage shortcuts in the editor.
 
 ## Structure

@@ -36,7 +36,13 @@ import {
 
 const TABS: Record<
   SidebarTabId,
-  { label: string; icon: ComponentType<{ className?: string }>; waitingFor: string }
+  {
+    label: string
+    icon: ComponentType<{ className?: string }>
+    waitingFor: string
+    /** The panel scrolls itself, because it virtualizes. See Panel's `scroll`. */
+    ownScroll?: boolean
+  }
 > = {
   components: {
     label: "Components",
@@ -47,6 +53,7 @@ const TABS: Record<
     label: "Layers",
     icon: Layers,
     waitingFor: "The layer tree arrives with the editor state engine.",
+    ownScroll: true,
   },
   pages: {
     label: "Pages",
@@ -127,6 +134,9 @@ export function Sidebar({ panels }: { panels: SidebarPanels }) {
         // decision, and there is no token for "however wide they left it".
         style={{ width: layout.leftWidth }}
         className="min-w-0"
+        // A panel with no contents yet shows an empty state, which does not
+        // virtualize and should scroll like every other panel.
+        scroll={active.ownScroll !== true || panel === undefined}
       >
         {panel ?? <EmptyState title={active.label} description={active.waitingFor} />}
       </Panel>

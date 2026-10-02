@@ -12,6 +12,7 @@ import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 import { CanvasArea } from "./canvas/CanvasArea"
 import { ChordHint } from "./ChordHint"
 import { Inspector } from "./Inspector"
+import { LayersPanel } from "./layers/LayersPanel"
 import { PaletteHost } from "./PaletteHost"
 import { Sidebar, type SidebarPanels } from "./Sidebar"
 import { ShortcutReference } from "./ShortcutReference"
@@ -57,20 +58,28 @@ export function StudioShell({
   panels?: SidebarPanels
   page?: OpenPage | null
 }) {
-  const frame = (
-    <StudioProviders initialLayout={initialLayout} userKeymap={userKeymap} platform={platform}>
-      <Frame projectName={projectName} panels={panels} theme={page?.theme ?? null} />
-    </StudioProviders>
-  )
+  function frame(panelsForTabs: SidebarPanels) {
+    return (
+      <StudioProviders initialLayout={initialLayout} userKeymap={userKeymap} platform={platform}>
+        <Frame projectName={projectName} panels={panelsForTabs} theme={page?.theme ?? null} />
+      </StudioProviders>
+    )
+  }
 
   // No page, no store. A store built around a document that does not exist
   // would have to invent one, and every panel reading it would show somebody a
   // page they never created.
-  if (page === null) return frame
+  if (page === null) return frame(panels)
 
   return (
     <EditorProvider document={page.document} baseVersion={page.baseVersion}>
-      {frame}
+      {/*
+        The layers panel is supplied here rather than by the caller, because
+        this is what knows whether the store exists: it reads the document and
+        nothing else, and outside the provider it would throw rather than render
+        the empty state the caller intended.
+      */}
+      {frame({ layers: <LayersPanel />, ...panels })}
     </EditorProvider>
   )
 }

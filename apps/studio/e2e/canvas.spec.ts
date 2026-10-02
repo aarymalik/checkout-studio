@@ -1,9 +1,9 @@
 import { expect, test, type BrowserContext, type Cookie } from "@playwright/test"
 import { prisma } from "@checkout-studio/database"
-import { createDocument, serialize } from "@checkout-studio/schema"
 
 import { createAccount, removeAccount, PASSWORD, type Account } from "./support/account"
 import { waitForHydration } from "./support/hydration"
+import { createPage } from "./support/page"
 
 /**
  * The canvas, end to end.
@@ -26,53 +26,20 @@ let pageId: string
 test.beforeAll(async ({ playwright, baseURL }) => {
   account = await createAccount("canvas")
 
-  // Through the repository rather than the API service: the service's module
-  // graph reaches a CommonJS patch library whose named exports Node cannot see
-  // from here, and what this fixture needs is a row, not a code path.
-  const row = await prisma.page.create({
-    data: {
-      projectId: account.projectId,
-      title: "Checkout",
-      slug: "checkout",
-      draftSchema: {},
-    },
-    select: { id: true },
-  })
-
-  const blank = createDocument({
-    projectId: account.projectId,
-    pageId: row.id,
-    themeId: "theme_default",
-  })
-
   // A root and one child. The root is not selectable by clicking — the page
   // background clears the selection — so a page with nothing in it has nothing
   // to select.
-  const document = {
-    ...blank,
-    nodes: {
-      ...blank.nodes,
-      [blank.root]: { ...blank.nodes[blank.root]!, children: ["section_e2e"] },
-      section_e2e: {
+  pageId = await createPage(account.projectId, {
+    title: "Checkout",
+    slug: "checkout",
+    nodes: [
+      {
         id: "section_e2e",
         type: "core.section",
-        parentId: blank.root,
-        children: [],
-        props: {},
         styles: { desktop: { base: { minHeight: 200 } } },
-        visibility: { hidden: false },
-        animations: [],
-        metadata: { locked: false },
       },
-    },
-  }
-
-  await prisma.page.update({
-    where: { id: row.id },
-    data: { draftSchema: JSON.parse(serialize(document)) as object },
+    ],
   })
-
-  pageId = row.id
 
   const api = await playwright.request.newContext(baseURL === undefined ? {} : { baseURL })
   const response = await api.post("/api/auth/sign-in", {
