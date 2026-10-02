@@ -76,11 +76,13 @@ export {
   DEFERRED_CLASS,
   HIDE_CLASS,
   HIDE_CLASS_ACTIVE,
+  UNSUPPORTED_CLASS,
   classFor,
   declarationsToCss,
   emitNodeCss,
   hideClasses,
   propertyName,
+  unsupportedCss,
   visibilityCss,
 } from "./styles/css"
 export type { EmitOptions } from "./styles/css"

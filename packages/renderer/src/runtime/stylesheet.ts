@@ -1,5 +1,6 @@
+import { behaviourOf } from "../fallback/modes"
 import { compileTheme } from "../theme/compile"
-import { emitNodeCss, visibilityCss } from "../styles/css"
+import { emitNodeCss, unsupportedCss, visibilityCss } from "../styles/css"
 import { fontFaceCss, planFonts } from "../styles/fonts"
 import type { FontPlan } from "../styles/fonts"
 import type { RenderContext } from "./context"
@@ -59,9 +60,12 @@ export function buildStylesheet(
 
   const emitOptions = context.singleBreakpoint ? { activeBreakpoint: context.breakpoint } : {}
   const used = new Set<string>()
+  let unsupported = false
 
   for (const plan of planTree(context)) {
     for (const className of plan.hiding) used.add(className)
+
+    if (plan.definition === null) unsupported = true
 
     // Including the nodes with no component. Their placeholder keeps the box
     // the node would have occupied, which is what stops a live page reflowing
@@ -70,6 +74,10 @@ export function buildStylesheet(
   }
 
   css += visibilityCss(used)
+
+  // Only where a placeholder is actually drawn, and only in a mode that draws
+  // them. A rule nobody references is bytes every visitor downloads.
+  if (unsupported && behaviourOf(context.mode).visibleFallbacks) css += unsupportedCss()
 
   return { css, fonts, themeKey: theme.key }
 }
