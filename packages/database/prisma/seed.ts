@@ -83,16 +83,25 @@ async function main(): Promise<void> {
     })
   }
 
-  const page = await prisma.page.upsert({
-    where: { projectId_slug: { projectId: project.id, slug: "checkout" } },
-    update: {},
-    create: {
-      projectId: project.id,
-      title: "Checkout",
-      slug: "checkout",
-      draftSchema: emptySchema,
-    },
-  })
+  /*
+   * Find-then-create rather than an upsert.
+   *
+   * The (projectId, slug) pair is unique among *live* pages only — a partial
+   * index Prisma cannot declare, so it offers no compound key to upsert
+   * against. See the 20261002180000_live_slug_uniqueness migration.
+   */
+  const page =
+    (await prisma.page.findFirst({
+      where: { projectId: project.id, slug: "checkout", deletedAt: null },
+    })) ??
+    (await prisma.page.create({
+      data: {
+        projectId: project.id,
+        title: "Checkout",
+        slug: "checkout",
+        draftSchema: emptySchema,
+      },
+    }))
 
   const existing = await prisma.revision.findFirst({ where: { pageId: page.id } })
   if (!existing) {

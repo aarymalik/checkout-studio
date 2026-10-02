@@ -778,6 +778,29 @@ Fields:
 
 Orders are never deleted.
 
+## Uniqueness and soft deletion
+
+A unique index does not know about soft deletion, so a deleted row goes on
+holding whatever it was unique on. For a page that means its slug — its public
+address — and the effect is a URL that can never be used again: delete
+`black-friday` and the next one is `black-friday-2`, permanently, with nothing
+in the interface explaining why.
+
+So `Page` is unique on `(projectId, slug)` **among live rows only**, through a
+partial index created in `20261002180000_live_slug_uniqueness`. Deleting a page
+frees its URL. A deleted page serves nothing — the published route filters on
+`status` and `deletedAt` both — so holding its address buys nothing and costs
+the user a name they cannot reclaim.
+
+Two consequences worth knowing:
+
+- Prisma cannot declare a partial unique index, so the Prisma Client offers no
+  `projectId_slug` compound key. Code that wants one page by address queries
+  `findFirst` with `deletedAt: null`.
+- If page restore is ever built, restoring into a slug something else has taken
+  must rename rather than fail. That is what every product with a trash does,
+  and a better place for the problem than a URL nobody can reclaim.
+
 ---
 
 # Audit Trail

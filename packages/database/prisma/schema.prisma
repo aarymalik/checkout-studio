@@ -205,7 +205,12 @@ model Page {
   submissions       Submission[]
   checkoutSessions  CheckoutSession[]
 
-  @@unique([projectId, slug])
+  /// Slugs are unique among *live* pages, which Prisma cannot declare: the
+  /// partial unique index lives in the 20261002180000_live_slug_uniqueness
+  /// migration. Deleting a page frees its URL, because a deleted page serves
+  /// nothing and a URL nobody can reclaim is worse than a collision that
+  /// cannot happen.
+  @@index([projectId, slug])
   @@index([projectId])
   @@index([status])
   @@index([deletedAt])
