@@ -18,6 +18,27 @@ export const resourceErrors = {
       ...(id ? { context: { entity, id } } : { context: { entity } }),
     }),
 
+  /**
+   * Something with that name is already there.
+   *
+   * Not a write conflict, which is what `conflict` below is for. The two share
+   * a status and nothing else: a write conflict is resolved by reloading and
+   * trying again, and a duplicate is resolved by choosing a different name.
+   * Telling somebody to reload when the name is taken sends them round a loop
+   * that cannot end.
+   */
+  alreadyExists: (entity: string, field: string) =>
+    createError({
+      code: "ALREADY_EXISTS",
+      domain: "resource",
+      severity: "warning",
+      recoverability: "user-retryable",
+      message: `${entity} already exists with that ${field}`,
+      userMessage: `A ${entity.toLowerCase()} with that ${field.toLowerCase()} already exists.`,
+      status: 409,
+      context: { entity, field },
+    }),
+
   conflict: (detail: string) =>
     createError({
       code: "CONFLICT",

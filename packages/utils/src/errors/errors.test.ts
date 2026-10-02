@@ -149,7 +149,7 @@ describe("normalizeError", () => {
     expect(error.severity).toBe("critical")
   })
 
-  it("maps a unique constraint violation to a conflict", () => {
+  it("maps a unique constraint violation to a duplicate, not a write conflict", () => {
     const error = normalizeError({
       name: "PrismaClientKnownRequestError",
       code: "P2002",
@@ -157,7 +157,12 @@ describe("normalizeError", () => {
       meta: { modelName: "Page", target: ["projectId", "slug"] },
     })
 
-    expect(error.code).toBe("CONFLICT")
+    // The two share a status and nothing else. A write conflict is resolved by
+    // reloading; a duplicate is resolved by choosing another name, and telling
+    // somebody to reload sends them round a loop that cannot end.
+    expect(error.code).toBe("ALREADY_EXISTS")
+    expect(error.userMessage).toContain("already exists")
+    expect(error.userMessage).not.toContain("Reload")
     expect(error.status).toBe(409)
   })
 

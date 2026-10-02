@@ -338,6 +338,7 @@ Codes are stable API. Renaming one is a breaking change.
 | `PAGE_NOT_FOUND`     | 404    | That page no longer exists.                    |
 | `REVISION_NOT_FOUND` | 404    | That version no longer exists.                 |
 | `ASSET_NOT_FOUND`    | 404    | That file is missing.                          |
+| `ALREADY_EXISTS`     | 409    | A page with that slug already exists.          |
 | `CONFLICT`           | 409    | Someone else changed this. Reload to continue. |
 | `QUOTA_EXCEEDED`     | 403    | You've reached your plan limit.                |
 | `RATE_LIMITED`       | 429    | Too many requests. Try again in {seconds}s.    |
@@ -523,7 +524,14 @@ export const defaultRetryPolicy: RetryPolicy = {
   maxDelayMs: 5_000,
   jitter: true,
   retryOn: ["NETWORK_ERROR", "TIMEOUT", "SERVICE_UNAVAILABLE", "DATABASE_ERROR"],
-  neverRetry: ["VALIDATION_ERROR", "UNAUTHORIZED", "FORBIDDEN", "CONFLICT", "PAYMENT_DECLINED"],
+  neverRetry: [
+    "VALIDATION_ERROR",
+    "UNAUTHORIZED",
+    "FORBIDDEN",
+    "CONFLICT",
+    "ALREADY_EXISTS",
+    "PAYMENT_DECLINED",
+  ],
 }
 
 /** Autosave never gives up while the tab is open; its queue is durable. */

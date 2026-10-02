@@ -61,12 +61,10 @@ export async function createPage(
   tenant: TenantContext,
   input: { title: string; themeId?: string },
 ): Promise<PageSummary> {
-  const existing = await pageRepository.list(tenant)
-  const slug = uniqueSlug(
-    input.title,
-    existing.map((page) => page.slug),
-    "page",
-  )
+  // Every slug the index holds, not every page the tenant can see: a deleted
+  // page keeps its slug, because the constraint does not know about deletion
+  // and because restoring one must not collide with whatever took its place.
+  const slug = uniqueSlug(input.title, await pageRepository.slugsInUse(tenant), "page")
 
   // Created in two steps because the document names the page it belongs to, and
   // the id does not exist until the row does.
@@ -115,13 +113,8 @@ export async function duplicatePage(
   // named "Checkout copy" would look like success and lose everything.
   if (!parsed.ok) return { ok: false, reason: "unreadable" }
 
-  const existing = await pageRepository.list(tenant)
   const title = `${source.title} copy`
-  const slug = uniqueSlug(
-    title,
-    existing.map((page) => page.slug),
-    "page",
-  )
+  const slug = uniqueSlug(title, await pageRepository.slugsInUse(tenant), "page")
 
   const page = await pageRepository.create(tenant, { title, slug, draftSchema: {} })
 
