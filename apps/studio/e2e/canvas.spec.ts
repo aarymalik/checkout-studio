@@ -8,15 +8,15 @@ import { waitForHydration } from "./support/hydration"
 /**
  * The canvas, end to end.
  *
- * No components are registered until Phase 9, so every node renders as the
- * unsupported placeholder — which in editor-preview mode is a visible card
- * naming the missing type. That is the correct behaviour and exactly what
- * should be asserted here: the canvas renders a real document through the real
- * renderer, and says plainly what it cannot draw.
+ * Nothing is registered until Phase 9, so the editor shows its "no components"
+ * state and the canvas itself is not mounted. The tests that drive the canvas
+ * are skipped rather than deleted: they are correct, they passed while the
+ * canvas was being built, and they are what Phase 9 turns back on with one
+ * line when the first real component exists.
  *
- * What these tests are really for is the wiring: the document loaded on the
- * server, the theme resolved from its reference, the store mounted around the
- * shell, and the viewport responding to a gesture.
+ * What still runs is everything the empty state can prove: the page loads, the
+ * document is resolved on the server, and the editor says once what it cannot
+ * do rather than once per node.
  */
 
 let account: Account
@@ -93,7 +93,18 @@ async function signIn(context: BrowserContext): Promise<void> {
   await context.addCookies(session)
 }
 
-test("renders the open page through the renderer", async ({ context, page }) => {
+test("says once that no components are registered", async ({ context, page }) => {
+  await signIn(context)
+  await page.goto(`/projects/${account.projectId}?page=${pageId}`)
+  await waitForHydration(page)
+
+  // Until Phase 9 the registry is empty, and the editor says so once rather
+  // than letting the renderer repeat a per-node plugin error for every node.
+  await expect(page.getByText("No components yet")).toBeVisible()
+  await expect(page.locator("[data-ck-unsupported]")).toHaveCount(0)
+})
+
+test.skip("renders the open page through the renderer", async ({ context, page }) => {
   await signIn(context)
   await page.goto(`/projects/${account.projectId}?page=${pageId}`)
   await waitForHydration(page)
@@ -110,7 +121,7 @@ test("renders the open page through the renderer", async ({ context, page }) => 
   await expect(page.getByText("core.section")).toBeVisible()
 })
 
-test("shows the device frame it is editing", async ({ context, page }) => {
+test.skip("shows the device frame it is editing", async ({ context, page }) => {
   await signIn(context)
   await page.goto(`/projects/${account.projectId}?page=${pageId}`)
   await waitForHydration(page)
@@ -118,7 +129,7 @@ test("shows the device frame it is editing", async ({ context, page }) => {
   await expect(page.getByText("Desktop · 1440")).toBeVisible()
 })
 
-test("zooms towards the pointer", async ({ context, page }) => {
+test.skip("zooms towards the pointer", async ({ context, page }) => {
   await signIn(context)
   await page.goto(`/projects/${account.projectId}?page=${pageId}`)
   await waitForHydration(page)
@@ -144,7 +155,10 @@ test("zooms towards the pointer", async ({ context, page }) => {
   expect(after?.width ?? 0).toBeGreaterThan(before?.width ?? 0)
 })
 
-test("selects a node by clicking it, and clears on the background", async ({ context, page }) => {
+test.skip("selects a node by clicking it, and clears on the background", async ({
+  context,
+  page,
+}) => {
   await signIn(context)
   await page.goto(`/projects/${account.projectId}?page=${pageId}`)
   await waitForHydration(page)

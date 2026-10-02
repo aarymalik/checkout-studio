@@ -212,6 +212,42 @@ export function hideClasses(
 }
 
 /**
+ * The placeholder a node with no component gets, in the editor.
+ *
+ * Styled from the theme's own variables rather than from the design system,
+ * which the renderer may not import — and `thin` rather than a pixel, because a
+ * placeholder's outline is a hairline and there is no token for one.
+ *
+ * Only ever emitted in a mode that shows fallbacks. A live checkout draws an
+ * empty box at the node's reserved space and says nothing, because our
+ * internals are none of a customer's business.
+ */
+export const UNSUPPORTED_CLASS = "ck-unsupported"
+
+export function unsupportedCss(): string {
+  return (
+    rule(`.${ROOT_CLASS} .${UNSUPPORTED_CLASS}`, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "var(--ck-space-1)",
+      padding: "var(--ck-space-5)",
+      border: "thin dashed var(--ck-color-border-strong)",
+      borderRadius: "var(--ck-radius-md)",
+      background: "var(--ck-color-surface-raised)",
+      color: "var(--ck-color-foreground-muted)",
+      fontFamily: "var(--ck-font-body)",
+      fontSize: "var(--ck-text-small-size)",
+      lineHeight: "var(--ck-text-small-leading)",
+    }) +
+    rule(`.${ROOT_CLASS} .${UNSUPPORTED_CLASS} > [data-ck-type]`, {
+      fontFamily: "var(--ck-font-mono)",
+      fontSize: "var(--ck-text-caption-size)",
+      color: "var(--ck-color-foreground)",
+    })
+  )
+}
+
+/**
  * The static rules the hide classes need.
  *
  * Emitted once per page, and only when a node actually uses one — four rules

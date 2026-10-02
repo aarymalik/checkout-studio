@@ -141,6 +141,31 @@ describe("component resolution", () => {
     ])
   })
 
+  it("says the content is safe, not that it is gone", () => {
+    const document = documentOf("page", [{ id: "page", type: "checkout.coupon" }])
+
+    const { container } = render(
+      <RenderNode nodeId="page" context={contextFor(document, { mode: "editor-preview" })} />,
+    )
+
+    // "Not available" on somebody's page reads as "gone" until told otherwise.
+    expect(container.textContent).toContain("Its content is safe")
+    expect(container.querySelector("[data-ck-type]")?.textContent).toBe("checkout.coupon")
+  })
+
+  it("carries the placeholder's own class only where it is drawn", () => {
+    const document = documentOf("page", [{ id: "page", type: "checkout.coupon" }])
+
+    const editor = render(
+      <RenderNode nodeId="page" context={contextFor(document, { mode: "editor-preview" })} />,
+    )
+    expect(editor.container.querySelector(".ck-unsupported")).not.toBeNull()
+    editor.unmount()
+
+    const live = render(<RenderNode nodeId="page" context={contextFor(document)} />)
+    expect(live.container.querySelector(".ck-unsupported")).toBeNull()
+  })
+
   it("shows the user what is missing in the editor, and the customer nothing", () => {
     const document = documentOf("page", [{ id: "page", type: "checkout.coupon" }])
 

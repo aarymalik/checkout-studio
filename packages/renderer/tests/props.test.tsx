@@ -11,7 +11,7 @@ import { VariableProvider, useVariable, useVariables } from "../src/providers/Va
 import { buildStylesheet } from "../src/runtime/stylesheet"
 import { resolveProps } from "../src/runtime/props"
 import { clearThemeCache } from "../src/theme/compile"
-import { contextFor, definition, documentOf, theme } from "./support"
+import { contextFor, definition, documentOf, sampleDocument, theme } from "./support"
 
 beforeEach(() => {
   clearThemeCache()
@@ -365,6 +365,23 @@ describe("reporting through the stylesheet", () => {
     expect(css).toContain(".ck-hide-mobile")
     // Four rules nobody references is four rules every visitor downloads.
     expect(css).not.toContain(".ck-hide-desktop")
+  })
+
+  it("styles the placeholder only in a mode that draws one", () => {
+    const document = documentOf("page", [{ id: "page", type: "checkout.coupon" }])
+
+    const editor = buildStylesheet(contextFor(document, { mode: "editor-preview" })).css
+    const live = buildStylesheet(contextFor(document)).css
+
+    expect(editor).toContain(".ck-unsupported")
+    // A rule nobody references is bytes every visitor downloads.
+    expect(live).not.toContain(".ck-unsupported")
+  })
+
+  it("styles no placeholder when every node has a component", () => {
+    expect(
+      buildStylesheet(contextFor(sampleDocument(), { mode: "editor-preview" })).css,
+    ).not.toContain(".ck-unsupported")
   })
 
   it("names the component in the unsupported placeholder's data attribute", () => {
