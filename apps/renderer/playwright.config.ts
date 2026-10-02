@@ -13,29 +13,16 @@ if (existsSync(envFile)) {
 }
 
 /*
- * The port this application believes it is on — `PORT`, then `APP_URL`'s, then
- * the default. Same order as the studio's, and for the same reason: a suite
- * pointed at a port something else holds asserts against the wrong server.
+ * The renderer's own port, which is 3001 unless `PORT` says otherwise — the
+ * same default as its `dev` script.
  *
- * The renderer's own port is one past the studio's, since `APP_URL` names the
- * studio.
+ * Deliberately not derived from `APP_URL`: that names the *studio*, and
+ * guessing the renderer's port from it would be a second source of truth that
+ * drifts the first time either moves. The studio's config does read it, because
+ * there `APP_URL` is the application's own address.
  */
-const PORT = Number(process.env["PORT"] ?? next(process.env["APP_URL"]) ?? 3001)
+const PORT = Number(process.env["PORT"] ?? 3001)
 
-function next(url: string | undefined): number | null {
-  if (url === undefined || url === "") return null
-
-  try {
-    const { port } = new URL(url)
-
-    return port === "" ? null : Number(port) + 1
-  } catch {
-    return null
-  }
-}
-// localhost, not 127.0.0.1. Next binds localhost, and it withholds part of the
-// client runtime to a cross-origin request — so a suite that visits the loopback
-// address photographs a page that never hydrated. Learned in Phase 4.
 const baseURL = `http://localhost:${PORT}`
 
 export default defineConfig({
