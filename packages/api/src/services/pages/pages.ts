@@ -61,9 +61,6 @@ export async function createPage(
   tenant: TenantContext,
   input: { title: string; themeId?: string },
 ): Promise<PageSummary> {
-  // Every slug the index holds, not every page the tenant can see: a deleted
-  // page keeps its slug, because the constraint does not know about deletion
-  // and because restoring one must not collide with whatever took its place.
   const slug = uniqueSlug(input.title, await pageRepository.slugsInUse(tenant), "page")
 
   // Created in two steps because the document names the page it belongs to, and

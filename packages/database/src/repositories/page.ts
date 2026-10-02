@@ -51,19 +51,22 @@ export const pageRepository = {
   },
 
   /**
-   * Every slug the project's unique index already holds, deleted ones included.
+   * The slugs a new page must avoid: the live ones.
    *
-   * Deliberately not `list`, which shows the tenant what they can see. The
-   * constraint on (projectId, slug) does not know about soft deletion, so a new
-   * page choosing a slug has to avoid the deleted rows too — and keeping them
-   * reserved is also what lets a deleted page be restored without colliding
-   * with whatever took its place.
+   * Deleting a page frees its URL. The unique index is partial — live pages
+   * only, see the 20261002180000_live_slug_uniqueness migration — so a deleted
+   * page's slug is available again, which is what somebody who deleted a page
+   * and named the next one the same thing expects.
+   *
+   * Its own query rather than `list`, which returns whole rows: this needs one
+   * column, and saying so keeps a page listing from quietly becoming the thing
+   * slug allocation depends on.
    */
   async slugsInUse(tenant: TenantContext): Promise<readonly string[]> {
     const projectId = requireProject(tenant, "Page")
 
     const rows = await prisma.page.findMany({
-      where: { projectId, project: { userId: tenant.userId } },
+      where: { projectId, ...ownedBy(tenant) },
       select: { slug: true },
     })
 

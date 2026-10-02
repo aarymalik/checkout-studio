@@ -77,34 +77,46 @@ describe("creating", () => {
     expect(second.slug).toBe("checkout-2")
   })
 
-  it("does not reuse a deleted page's slug", async () => {
-    // A delete is a soft delete, and the unique index covers deleted rows as
-    // well as live ones. A slug check that only looked at what the tenant can
-    // see would pick the same slug again and hit the constraint — which
-    // surfaces as "someone else changed this", a message that is both wrong and
-    // unactionable.
+  it("gives a deleted page's slug back", async () => {
+    // Deleting a page frees its URL. A deleted page serves nothing — the
+    // published route filters on status and deletedAt both — so holding its
+    // address would leave a URL nobody can reclaim, for no benefit.
     const first = await createPage(tenant, { title: "Checkout" })
     await deletePage(tenant, first.id)
 
     const second = await createPage(tenant, { title: "Checkout" })
 
-    expect(second.slug).not.toBe(first.slug)
+    expect(second.slug).toBe(first.slug)
+    expect(second.id).not.toBe(first.id)
   })
 
-  it("keeps a deleted page's slug reserved, so restoring it cannot collide", async () => {
+  it("lets a deleted page and a live one share a slug", async () => {
     const first = await createPage(tenant, { title: "Checkout" })
     await deletePage(tenant, first.id)
-    await createPage(tenant, { title: "Checkout" })
+    const second = await createPage(tenant, { title: "Checkout" })
 
-    await prisma.page.update({ where: { id: first.id }, data: { deletedAt: null } })
+    const rows = await prisma.page.findMany({
+      where: { projectId: projectId(), slug: "checkout" },
+      select: { id: true },
+    })
 
-    expect((await listPages(tenant)).map((page) => page.slug).sort()).toEqual([
-      "checkout",
-      "checkout-2",
-    ])
+    // Both rows exist with the same slug. The index permits it because only
+    // one of them is live.
+    expect(rows.map((row) => row.id).sort()).toEqual([first.id, second.id].sort())
   })
 
-  it("does not reuse a deleted page's slug when duplicating either", async () => {
+  it("still refuses two live pages at the same address", async () => {
+    await createPage(tenant, { title: "Checkout" })
+    const second = await createPage(tenant, { title: "Checkout" })
+
+    // The constraint is about live pages, and it still binds them.
+    expect(second.slug).toBe("checkout-2")
+    await expect(
+      prisma.page.update({ where: { id: second.id }, data: { slug: "checkout" } }),
+    ).rejects.toThrow()
+  })
+
+  it("gives a deleted copy's slug back when duplicating again", async () => {
     const first = await createPage(tenant, { title: "Checkout" })
     const copy = await duplicatePage(tenant, first.id)
 
@@ -116,6 +128,8 @@ describe("creating", () => {
     const again = await duplicatePage(tenant, first.id)
 
     expect(again.ok).toBe(true)
+    if (!again.ok) return
+    expect(again.page.slug).toBe(copy.page.slug)
   })
 
   it("falls back for a title that slugifies to nothing", async () => {
