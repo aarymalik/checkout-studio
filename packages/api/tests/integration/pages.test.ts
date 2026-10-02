@@ -8,6 +8,7 @@ import {
   duplicatePage,
   listPages,
   renamePage,
+  setPageSlug,
 } from "../../src/services/pages/pages"
 import { readDraft, saveDraft } from "../../src/services/pages/draft"
 
@@ -140,6 +141,88 @@ describe("creating", () => {
     const page = await createPage(tenant, { title: "Checkout", themeId: "theme_brand" })
 
     expect((await readDraft(tenant, page.id))?.document.theme.themeId).toBe("theme_brand")
+  })
+})
+
+describe("moving a page to another address", () => {
+  it("changes the slug and leaves the title alone", async () => {
+    const page = await createPage(tenant, { title: "Checkout" })
+
+    const moved = await setPageSlug(tenant, page.id, "black-friday")
+
+    expect(moved.ok).toBe(true)
+    if (!moved.ok) return
+    expect(moved.page.slug).toBe("black-friday")
+    expect(moved.page.title).toBe("Checkout")
+  })
+
+  it("slugifies what it is given", async () => {
+    const page = await createPage(tenant, { title: "Checkout" })
+
+    // Somebody typing "Black Friday" into a URL field means black-friday, and
+    // refusing it to make a point would be pedantry.
+    const moved = await setPageSlug(tenant, page.id, "  Black Friday!  ")
+
+    expect(moved.ok).toBe(true)
+    if (!moved.ok) return
+    expect(moved.page.slug).toBe("black-friday")
+  })
+
+  it("refuses an address with nothing in it", async () => {
+    const page = await createPage(tenant, { title: "Checkout" })
+
+    expect(await setPageSlug(tenant, page.id, "！！！")).toEqual({ ok: false, reason: "empty" })
+  })
+
+  it("refuses an address another live page already answers to", async () => {
+    await createPage(tenant, { title: "Checkout" })
+    const second = await createPage(tenant, { title: "Thanks" })
+
+    expect(await setPageSlug(tenant, second.id, "checkout")).toEqual({
+      ok: false,
+      reason: "taken",
+    })
+  })
+
+  it("allows an address only a deleted page holds", async () => {
+    const first = await createPage(tenant, { title: "Checkout" })
+    const second = await createPage(tenant, { title: "Thanks" })
+    await deletePage(tenant, first.id)
+
+    const moved = await setPageSlug(tenant, second.id, "checkout")
+
+    expect(moved.ok).toBe(true)
+  })
+
+  it("is content for a page to keep the address it has", async () => {
+    const page = await createPage(tenant, { title: "Checkout" })
+
+    // Not a collision with itself, which a naive uniqueness check would call
+    // one — and the user would be told their own address was taken.
+    const moved = await setPageSlug(tenant, page.id, "checkout")
+
+    expect(moved.ok).toBe(true)
+    if (!moved.ok) return
+    expect(moved.page.slug).toBe("checkout")
+  })
+
+  it("moves the published URL with it", async () => {
+    const page = await createPage(tenant, { title: "Checkout" })
+    await setPageSlug(tenant, page.id, "black-friday")
+
+    // The slug is the address the published route resolves, so a move is a
+    // move. The interface warns before doing this to a live page.
+    const row = await prisma.page.findUniqueOrThrow({ where: { id: page.id } })
+    expect(row.slug).toBe("black-friday")
+  })
+
+  it("says nothing of a page in another tenant's project", async () => {
+    const page = await createPage(tenant, { title: "Checkout" })
+
+    expect(await setPageSlug({ userId: "someone-else" }, page.id, "mine")).toEqual({
+      ok: false,
+      reason: "not-found",
+    })
   })
 })
 

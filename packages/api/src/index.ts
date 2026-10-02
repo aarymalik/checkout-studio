@@ -97,8 +97,9 @@ export {
   duplicatePage,
   listPages,
   renamePage,
+  setPageSlug,
 } from "./services/pages/pages"
-export type { DuplicateOutcome, PageSummary } from "./services/pages/pages"
+export type { DuplicateOutcome, PageSummary, SlugOutcome } from "./services/pages/pages"
 
 export { readDraft, saveDraft } from "./services/pages/draft"
 export type { DraftWriteResult } from "./services/pages/draft"

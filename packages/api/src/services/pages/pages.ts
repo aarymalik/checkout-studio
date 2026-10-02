@@ -8,7 +8,7 @@ import {
   serialize,
   type CheckoutSchema,
 } from "@checkout-studio/schema"
-import { uniqueSlug } from "@checkout-studio/utils"
+import { slugify, uniqueSlug } from "@checkout-studio/utils"
 
 /**
  * Pages.
@@ -126,6 +126,54 @@ export async function duplicatePage(
     ok: true,
     page: summarize({ ...page, draftVersion: saved?.draftVersion ?? page.draftVersion }),
   }
+}
+
+export type SlugOutcome =
+  | { ok: true; page: PageSummary }
+  /** No such page, or not this tenant's. */
+  | { ok: false; reason: "not-found" }
+  /** Nothing usable was left after slugifying — "!!!" and "   " both land here. */
+  | { ok: false; reason: "empty" }
+  /** Another live page in the project already answers to that address. */
+  | { ok: false; reason: "taken" }
+
+/**
+ * Move a page to a different address.
+ *
+ * Separate from renaming, and deliberately so: a title is a label and a slug is
+ * a URL. Changing a published page's slug breaks every link anybody holds —
+ * which is the user's call to make, and the interface warns them, but it is not
+ * something to do as a side effect of editing a name.
+ *
+ * What arrives is slugified rather than rejected. Somebody typing "Black
+ * Friday" into a URL field means `black-friday`, and refusing it to make a
+ * point would be pedantry; the stored slug comes back so the caller can show
+ * what actually happened.
+ */
+export async function setPageSlug(
+  tenant: TenantContext,
+  pageId: string,
+  requested: string,
+): Promise<SlugOutcome> {
+  const slug = slugify(requested)
+
+  if (slug === "") return { ok: false, reason: "empty" }
+
+  const current = await pageRepository.findById(tenant, pageId)
+
+  if (current === null) return { ok: false, reason: "not-found" }
+  if (current.slug === slug) return { ok: true, page: summarize(current) }
+
+  // Checked here so the answer can name the problem. The partial unique index
+  // is still the thing that enforces it, because two sessions racing would both
+  // pass this check.
+  if (await pageRepository.slugTaken(tenant, current.projectId, slug, pageId)) {
+    return { ok: false, reason: "taken" }
+  }
+
+  const page = await pageRepository.setSlug(tenant, pageId, slug)
+
+  return page === null ? { ok: false, reason: "not-found" } : { ok: true, page: summarize(page) }
 }
 
 export async function renamePage(
