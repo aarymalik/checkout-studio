@@ -18,6 +18,7 @@ import {
   useNodeRects,
   useNodeResolver,
   usePanZoom,
+  useScope,
   useViewport,
 } from "@checkout-studio/editor"
 import type { Rect } from "@checkout-studio/editor"
@@ -73,6 +74,16 @@ export interface CanvasProps {
 
 export function Canvas({ theme }: CanvasProps): ReactElement {
   const store = useEditorStoreApi()
+
+  /*
+   * The canvas is a keyboard scope while it is mounted.
+   *
+   * It is what makes a bare Shift and a letter legitimate for the breakpoints:
+   * WCAG 2.1.4 allows a character key shortcut that is active only while
+   * something has focus, and the keymap holds itself to one unmodified
+   * character key outside this scope.
+   */
+  useScope("canvas")
   const surface = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLDivElement>(null)
 
