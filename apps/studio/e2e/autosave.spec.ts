@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Cookie, type Page } from "@playwright/test"
 import { prisma } from "@checkout-studio/database"
 
-import { createAccount, removeAccount, PASSWORD, type Account } from "./support/account"
+import { createAccount, removeAccount, signedInCookies, type Account } from "./support/account"
 import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
@@ -23,18 +23,10 @@ import { createPage } from "./support/page"
 let account: Account
 let session: Cookie[]
 
-test.beforeAll(async ({ playwright, baseURL }) => {
+test.beforeAll(async () => {
   account = await createAccount("autosave")
 
-  const api = await playwright.request.newContext(baseURL === undefined ? {} : { baseURL })
-  const response = await api.post("/api/auth/sign-in", {
-    data: { email: account.email, password: PASSWORD },
-  })
-
-  expect(response.ok(), await response.text()).toBe(true)
-
-  session = (await api.storageState()).cookies
-  await api.dispose()
+  session = await signedInCookies(account)
 })
 
 test.afterAll(async () => {

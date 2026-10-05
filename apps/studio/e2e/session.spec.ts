@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Cookie, type Page } from "@playwright/test"
 
-import { createAccount, removeAccount, PASSWORD, type Account } from "./support/account"
+import { createAccount, removeAccount, signedInCookies, type Account } from "./support/account"
 import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
@@ -20,18 +20,10 @@ import { createPage } from "./support/page"
 let account: Account
 let session: Cookie[]
 
-test.beforeAll(async ({ playwright, baseURL }) => {
+test.beforeAll(async () => {
   account = await createAccount("session")
 
-  const api = await playwright.request.newContext(baseURL === undefined ? {} : { baseURL })
-  const response = await api.post("/api/auth/sign-in", {
-    data: { email: account.email, password: PASSWORD },
-  })
-
-  expect(response.ok(), await response.text()).toBe(true)
-
-  session = (await api.storageState()).cookies
-  await api.dispose()
+  session = await signedInCookies(account)
 })
 
 test.afterAll(async () => {
@@ -65,6 +57,17 @@ async function secondWindow(browser: Browser, pageId: string): Promise<Page> {
   return page
 }
 
+/**
+ * Answer the arrival prompt by choosing to read.
+ *
+ * It is modal, so until it is answered the rest of the editor is behind it and
+ * out of the accessibility tree — which is what a modal is for, and is also the
+ * order a person meets these in.
+ */
+async function chooseReadOnly(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Open read-only" }).click({ timeout: 20_000 })
+}
+
 async function open(page: Page, pageId: string): Promise<void> {
   await page.goto(`/projects/${account.projectId}?page=${pageId}`)
   await waitForHydration(page)
@@ -86,9 +89,16 @@ test("the second session opens read-only, and is told where the page is open", a
 
   const second = await secondWindow(browser, pageId)
 
-  // Never silently blocked and never silently allowed: it says where the page
-  // is open, and offers the way out.
-  await expect(second.getByText(/Read only — editing in/)).toBeVisible({ timeout: 15_000 })
+  // Never silently blocked and never silently allowed: asked on arrival, with
+  // both choices.
+  await expect(second.getByRole("dialog")).toBeVisible({ timeout: 15_000 })
+  await expect(second.getByText(/Editing in /)).toBeVisible()
+  await expect(second.getByRole("button", { name: "Take over editing" })).toBeVisible()
+
+  await chooseReadOnly(second)
+
+  // And the badge carries the state from there, with the offer still on it.
+  await expect(second.getByText(/Read only — editing in/)).toBeVisible()
   await expect(second.getByRole("button", { name: "Take over" })).toBeVisible()
 
   await second.context().close()
@@ -107,7 +117,7 @@ test("the second session cannot change the page it is reading", async ({
 
   const second = await secondWindow(browser, pageId)
 
-  await expect(second.getByRole("button", { name: "Take over" })).toBeVisible({ timeout: 15_000 })
+  await chooseReadOnly(second)
   await second.getByRole("tab", { name: "Layers" }).click()
 
   // Full navigation, full tree — and none of the controls that would write.
@@ -128,7 +138,8 @@ test("taking over moves the right to write", async ({ context, browser, page }) 
 
   const second = await secondWindow(browser, pageId)
 
-  await second.getByRole("button", { name: "Take over" }).click()
+  // Straight from the prompt, which is where a person would do it.
+  await second.getByRole("button", { name: "Take over editing" }).click({ timeout: 20_000 })
 
   // It holds the page now, so it reports on saving.
   await expect(second.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 })
@@ -166,7 +177,7 @@ test("a page whose session ended is offered rather than taken", async ({
 
   const second = await secondWindow(browser, pageId)
 
-  await expect(second.getByRole("button", { name: "Take over" })).toBeVisible({ timeout: 15_000 })
+  await chooseReadOnly(second)
 
   // The holder goes away, which releases the lock on the way out.
   await page.close()

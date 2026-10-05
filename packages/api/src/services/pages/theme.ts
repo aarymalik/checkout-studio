@@ -14,8 +14,9 @@ import type { CheckoutTheme, ThemeReference } from "@checkout-studio/schema"
  * touching the database.
  *
  * Resolved live rather than snapshotted, which is what makes a theme edit show
- * instantly on every page. Publishing snapshots it; the editor does not. See
- * docs/theme-system.md § Position in the Schema.
+ * instantly on every page. Publishing snapshots it, and so does a recovery
+ * revision; the editor does not. See docs/theme-system.md § Position in the
+ * Schema.
  */
 export async function resolveTheme(
   projectId: string,

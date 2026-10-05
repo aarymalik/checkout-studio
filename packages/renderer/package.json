@@ -19,6 +19,7 @@
     "@checkout-studio/observability": "workspace:*",
     "@checkout-studio/plugin-sdk": "workspace:*",
     "@checkout-studio/schema": "workspace:*",
+    "@checkout-studio/types": "workspace:*",
     "@checkout-studio/utils": "workspace:*"
   },
   "devDependencies": {

@@ -16,8 +16,10 @@ import { ChordHint } from "./ChordHint"
 import { Inspector } from "./Inspector"
 import { LayersPanel } from "./layers/LayersPanel"
 import { PaletteHost } from "./PaletteHost"
+import { ConflictPrompt } from "./conflict/ConflictPrompt"
 import { EditSessionProvider } from "./session/EditSessionProvider"
 import { EditorStatus } from "./session/EditorStatus"
+import { TakeoverPrompt } from "./session/TakeoverPrompt"
 import { Sidebar, type SidebarPanels } from "./Sidebar"
 import { ShortcutReference } from "./ShortcutReference"
 import { StatusBar } from "./StatusBar"
@@ -98,6 +100,14 @@ export function StudioShell({
             than render the empty state the caller intended.
           */}
           {frame({ layers: <LayersPanel />, ...panels }, <EditorStatus />)}
+
+          {/*
+            Both are asked rather than assumed, and both sit here so they are
+            inside everything they read: the session for who holds the page, and
+            autosave for the document the server last agreed to.
+          */}
+          <TakeoverPrompt />
+          <ConflictPrompt />
         </EditSessionProvider>
       </Autosave>
     </EditorProvider>

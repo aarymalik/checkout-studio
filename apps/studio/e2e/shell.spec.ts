@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Cookie, type Page } from "@playwright/test"
 
-import { createAccount, removeAccount, PASSWORD, type Account } from "./support/account"
+import { createAccount, removeAccount, signedInCookies, type Account } from "./support/account"
 import { pressUntil, waitForHydration } from "./support/hydration"
 
 /**
@@ -16,9 +16,8 @@ import { pressUntil, waitForHydration } from "./support/hydration"
 /*
  * Serial, and deliberately.
  *
- * Each worker signs in once in beforeAll, so running these in parallel would
- * spend the sign-in rate limit on fixtures rather than on anything being tested.
- * They are fast, and they share a project, so ordering them costs nothing.
+ * They are fast, and they share a project, so ordering them costs nothing —
+ * and a shared project means they must not run against each other's layout.
  */
 test.describe.configure({ mode: "serial" })
 
@@ -26,29 +25,17 @@ let account: Account
 let session: Cookie[]
 
 /**
- * One account and one sign-in for the whole file.
+ * One account for the whole file.
  *
- * Signing in per test would spend the sign-in rate limit on the fixtures rather
- * than on anything being tested — and that limit exists for a reason, so raising
- * it to suit a test suite would be the wrong end to fix.
- *
- * The session is reused as a cookie rather than by driving the form, which is
- * the auth suite's business and not the shell's.
+ * The session is minted rather than signed in for — see `signedInCookies`.
+ * Driving the form is the auth suite's business and not the shell's.
  */
-test.beforeAll(async ({ playwright, baseURL }) => {
+test.beforeAll(async () => {
   account = await createAccount("shell")
 
   // baseURL is always configured; spread rather than pass, because the option
   // is not declared as accepting undefined.
-  const api = await playwright.request.newContext(baseURL === undefined ? {} : { baseURL })
-  const response = await api.post("/api/auth/sign-in", {
-    data: { email: account.email, password: PASSWORD },
-  })
-
-  expect(response.ok(), await response.text()).toBe(true)
-
-  session = (await api.storageState()).cookies
-  await api.dispose()
+  session = await signedInCookies(account)
 })
 
 test.afterAll(async () => {

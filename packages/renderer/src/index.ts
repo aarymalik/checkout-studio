@@ -17,6 +17,13 @@
 export { CheckoutRenderer } from "./runtime/CheckoutRenderer"
 export type { CheckoutRendererProps } from "./runtime/CheckoutRenderer"
 
+/*
+ * Defined in the types layer so that server code can read it without importing
+ * the rendering engine, and re-exported here because it is the renderer's own
+ * version — its consumers should not have to know where it lives.
+ */
+export { RENDERER_VERSION } from "@checkout-studio/types"
+
 export { prepare } from "./runtime/prepare"
 export type {
   PrepareFailure,
