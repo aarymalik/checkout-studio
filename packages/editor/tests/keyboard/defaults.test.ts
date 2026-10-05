@@ -43,22 +43,51 @@ describe("the shipped keymap", () => {
 
   /**
    * WCAG 2.1.4. A shortcut that is a single character with no modifier can be
-   * triggered by speech input, so it must be remappable or switchable off —
-   * which Settings → Keyboard provides. The list is kept deliberately short, and
-   * this test is what keeps it that way.
+   * triggered by speech input, so it must be switchable off, remappable, or
+   * active only while a component has focus.
+   *
+   * Settings → Keyboard provides the first two for everything. This test is
+   * about the third, and about restraint: outside the canvas the list is kept to
+   * one, and this is what keeps it that way.
    */
+  const isCharacterKey = (registration: (typeof defaultShortcuts)[number]): boolean =>
+    registration.binding.mod !== true &&
+    registration.binding.alt !== true &&
+    registration.binding.ctrl !== true &&
+    /^(Key[A-Z]|Digit[0-9]|Slash|Comma|Period)$/.test(registration.binding.key)
+
   it("uses at most one unmodified character key outside the canvas", () => {
-    const characterKeys = defaultShortcuts.filter(
-      (registration) =>
-        registration.binding.mod !== true &&
-        registration.binding.alt !== true &&
-        registration.binding.ctrl !== true &&
-        /^(Key[A-Z]|Digit[0-9]|Slash|Comma|Period)$/.test(registration.binding.key),
-    )
+    const characterKeys = defaultShortcuts
+      .filter((registration) => registration.scope !== "canvas")
+      .filter(isCharacterKey)
 
     expect(characterKeys.map((registration) => serializeBinding(registration.binding))).toEqual([
       "shift+Slash",
     ])
+  })
+
+  /**
+   * The canvas is the exemption, and only on those terms.
+   *
+   * A character key in the canvas scope is live only while the canvas is
+   * mounted and in scope, which is 2.1.4's "active only on focus". A character
+   * key that claimed the exemption while being registered somewhere broader
+   * would not have it.
+   */
+  it("keeps every character key in the canvas scope to the canvas", () => {
+    const exempt = defaultShortcuts.filter(
+      (registration) => isCharacterKey(registration) && registration.scope === "canvas",
+    )
+
+    expect(exempt.map((registration) => serializeBinding(registration.binding)).sort()).toEqual([
+      "shift+KeyD",
+      "shift+KeyM",
+      "shift+KeyT",
+    ])
+
+    for (const registration of exempt) {
+      expect(registration.scope).toBe("canvas")
+    }
   })
 
   it("only repeats bindings that are safe to repeat", () => {
