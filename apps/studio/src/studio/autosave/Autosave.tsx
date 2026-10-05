@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useRef } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import {
   createAutosave,
@@ -12,7 +12,7 @@ import { logger } from "@checkout-studio/observability"
 import { normalizeError } from "@checkout-studio/utils"
 import type { CheckoutSchema } from "@checkout-studio/schema"
 
-import { createDraftWriter } from "./draft-writer"
+import { createDraftWriter, type DraftWriter } from "./draft-writer"
 
 /**
  * Autosave, running.
@@ -35,6 +35,30 @@ import { createDraftWriter } from "./draft-writer"
 export interface AutosaveControl {
   /** Save now, if anything is unsaved. */
   flush: () => Promise<void>
+  /** The document the server last agreed to, which a conflict is described against. */
+  base: () => CheckoutSchema
+  /**
+   * The unresolved conflict, if there is one.
+   *
+   * A count rather than a boolean, so a second conflict reopens a prompt the
+   * person dismissed instead of being swallowed as "already conflicted".
+   */
+  conflict: { message: string; count: number } | null
+  /**
+   * Ask for the prompt again.
+   *
+   * The conflict stays set until it is resolved, so putting the prompt aside
+   * loses nothing — this is how the status bar brings it back.
+   */
+  reopenConflict: () => void
+  /**
+   * Adopt a resolved document.
+   *
+   * Called once the server has been made to agree with one side. The writer has
+   * to start again from that document or its next patch describes changes
+   * against a version that never existed.
+   */
+  adopt: (document: CheckoutSchema) => void
 }
 
 const AutosaveContext = createContext<AutosaveControl | null>(null)
@@ -58,6 +82,8 @@ export function Autosave({
 }): ReactNode {
   const store = useEditorStoreApi()
 
+  const [conflict, setConflict] = useState<{ message: string; count: number } | null>(null)
+
   /*
    * Built once, in a ref rather than a memo.
    *
@@ -65,16 +91,16 @@ export function Autosave({
    * discard its record of what the server already has — so the next save would
    * be a patch computed against a version the server never held.
    *
-   * The writer is built inside, so the engine closes over it directly: holding
-   * each in its own ref would mean a null check on every save for a state that
-   * cannot happen.
+   * The writer is kept beside the engine rather than in its own ref: they are
+   * built together, and the engine closes over the writer directly so a save
+   * never has to check whether one exists.
    */
-  const running = useRef<AutosaveEngine>(null)
+  const running = useRef<{ engine: AutosaveEngine; writer: DraftWriter }>(null)
 
   running.current ??= (() => {
     const writer = createDraftWriter(document)
 
-    return createAutosave({
+    const engine = createAutosave({
       store,
       pageId: document.pageId,
       save: (request) => writer.write(request),
@@ -85,18 +111,21 @@ export function Autosave({
         (error) => logger.warn("autosave.queue.degraded", {}, normalizeError(error)),
       ),
       onConflict: (message) => {
-        // The prompt that lets somebody choose which version survives is still
-        // to come. Until then the engine has stopped writing, the status bar
-        // reports it, and nothing of either side has been overwritten.
         logger.warn("autosave.conflict", { pageId: document.pageId, message })
+
+        // The engine has already stopped writing. This raises the prompt that
+        // lets somebody choose which document survives.
+        setConflict((current) => ({ message, count: (current?.count ?? 0) + 1 }))
       },
     })
+
+    return { engine, writer }
   })()
 
   useEffect(() => {
-    const autosave = running.current
+    const autosave = running.current?.engine
 
-    if (autosave === null) return
+    if (autosave === undefined) return
 
     const stop = autosave.start()
 
@@ -123,7 +152,7 @@ export function Autosave({
    */
   useEffect(() => {
     const flush = (): void => {
-      void running.current?.flush().catch((thrown: unknown) => {
+      void running.current?.engine.flush().catch((thrown: unknown) => {
         logger.warn("autosave.flush.failed", {}, normalizeError(thrown))
       })
     }
@@ -141,11 +170,29 @@ export function Autosave({
     }
   }, [])
 
+  const adopt = useCallback((resolved: CheckoutSchema) => {
+    running.current?.writer.reset(resolved)
+    setConflict(null)
+  }, [])
+
   const control = useMemo<AutosaveControl>(
     () => ({
+      conflict,
+      adopt,
+      reopenConflict: () =>
+        setConflict((current) =>
+          current === null ? null : { ...current, count: current.count + 1 },
+        ),
+      base: () => {
+        const draft = running.current
+
+        if (draft === null) throw new Error("Autosave has no writer.")
+
+        return draft.writer.base()
+      },
       flush: async () => {
         try {
-          await running.current?.flush()
+          await running.current?.engine.flush()
         } catch (thrown: unknown) {
           // Swallowed rather than thrown on: a caller flushing before it gives
           // up the lock has to carry on doing that either way, and the engine
@@ -154,7 +201,7 @@ export function Autosave({
         }
       },
     }),
-    [],
+    [conflict, adopt],
   )
 
   return <AutosaveContext.Provider value={control}>{children}</AutosaveContext.Provider>

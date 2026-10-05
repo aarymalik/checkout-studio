@@ -283,6 +283,66 @@ Creates no revision.
 
 ---
 
+## Resolve Draft Conflict
+
+POST
+
+```
+/pages/{id}/draft/resolve
+```
+
+Body
+
+```json
+{
+  "resolution": "mine",
+  "document": { "version": "1.0.0", "root": "page_h8", "nodes": {} }
+}
+```
+
+The one sanctioned way past the version check, and the reason there is no
+unconditional write path anywhere else: a conflict is the case where somebody
+has seen both sides and chosen, and that choice has to be able to land.
+
+The document arrives whole rather than as a patch, because there is no agreed
+base to patch against — that disagreement is what a conflict is.
+
+`document` is sent for either resolution. Keeping theirs still needs it: the
+losing side becomes a revision somebody may restore, and the server has never
+seen it.
+
+```
+resolution: "mine"
+      ↓
+the current draft is written as a `recovery` revision
+      ↓
+the posted document becomes the draft, at a new version
+
+resolution: "theirs"
+      ↓
+the posted document is written as a `recovery` revision
+      ↓
+the draft is left alone
+```
+
+**The snapshot happens first, always.** A snapshot that fails leaves the draft
+unchanged and an extra revision, which is harmless; a draft overwritten before
+its snapshot exists is somebody's afternoon.
+
+Returns the document the editor should now hold, its `draftVersion`, and the
+`recoveryRevisionId` of the side that was put aside.
+
+Rejects a `document` that is not a valid page, either way round: a recovery
+snapshot that cannot be opened is not a recovery.
+
+Returns `409 CONFLICT` when a third write lands between the read and the write.
+Nothing has been overwritten, and the prompt is asked again against the version
+that won.
+
+See **Conflict Resolution** in [history-versioning.md](./history-versioning.md).
+
+---
+
 # Edit Sessions
 
 Prevents two writers on one page before real-time collaboration exists. See **Concurrent Editing** in [history-versioning.md](./history-versioning.md).

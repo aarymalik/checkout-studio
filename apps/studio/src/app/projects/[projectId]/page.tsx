@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation"
-import { listPages, readDraft } from "@checkout-studio/api"
+import { listPages, readDraft, resolveTheme } from "@checkout-studio/api"
 import { preferenceRepository, projectRepository } from "@checkout-studio/database"
 import { normalizeKeymap, normalizeLayout } from "@checkout-studio/editor"
 
 import { PagesPanel } from "@/studio/PagesPanel"
 import { StudioShell } from "@/studio/StudioShell"
 import { requestPlatform } from "@/lib/platform"
-import { resolveTheme } from "@/lib/theme"
 import { requireSession } from "@/lib/session"
 
 /**

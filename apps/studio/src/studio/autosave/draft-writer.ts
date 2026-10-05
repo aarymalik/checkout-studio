@@ -46,6 +46,14 @@ export interface DraftWriter {
   write: (request: SaveRequest) => Promise<SaveOutcome>
   /** The document the server last agreed to, for describing a conflict against. */
   base: () => CheckoutSchema
+  /**
+   * Start again from a known document.
+   *
+   * What resolving a conflict needs: the server has been made to agree with one
+   * side or the other, and the next patch has to be computed against that
+   * rather than against the version the disagreement started from.
+   */
+  reset: (document: CheckoutSchema) => void
 }
 
 export function createDraftWriter(agreed: CheckoutSchema): DraftWriter {
@@ -53,6 +61,10 @@ export function createDraftWriter(agreed: CheckoutSchema): DraftWriter {
 
   return {
     base: () => base,
+
+    reset: (document) => {
+      base = document
+    },
 
     write: async (request) => {
       const { operations, tooLarge } = patchBetween(base, request.document)

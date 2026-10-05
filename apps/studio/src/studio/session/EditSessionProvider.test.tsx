@@ -11,6 +11,7 @@ import { Autosave } from "@/studio/autosave/Autosave"
 
 import { EditSessionProvider } from "./EditSessionProvider"
 import { EditorStatus } from "./EditorStatus"
+import { TakeoverPrompt } from "./TakeoverPrompt"
 
 /**
  * The edit session.
@@ -48,7 +49,12 @@ describe("EditSessionProvider", () => {
     function Capture(): ReactElement {
       store = useEditorStoreApi()
 
-      return <EditorStatus />
+      return (
+        <>
+          <EditorStatus />
+          <TakeoverPrompt />
+        </>
+      )
     }
 
     const tree = (
@@ -383,6 +389,103 @@ describe("EditSessionProvider", () => {
     })
   })
 
+  describe("the prompt on arrival", () => {
+    beforeEach(() => {
+      reply("POST /api/pages/pag_test/session", {
+        data: {
+          held: false,
+          holder: { clientLabel: "Chrome on macOS", lastHeartbeatAt: "2026-10-05T00:00:00.000Z" },
+          draftVersion: 1,
+        },
+      })
+    })
+
+    it("asks, rather than leaving a badge to be noticed", async () => {
+      setup()
+
+      // Never silently blocked and never silently allowed. A status bar badge
+      // alone is the silent version of both.
+      expect(await screen.findByText("This page is open in another session")).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Open read-only" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Take over editing" })).toBeInTheDocument()
+    })
+
+    it("names where the page is open, so somebody recognises their own tab", async () => {
+      setup()
+
+      expect(await screen.findByText(/Editing in Chrome on macOS/)).toBeInTheDocument()
+    })
+
+    it("takes the page when asked, from the prompt", async () => {
+      const user = userEvent.setup()
+
+      setup()
+      await screen.findByRole("button", { name: "Take over editing" })
+
+      await user.click(screen.getByRole("button", { name: "Take over editing" }))
+
+      await waitFor(() => {
+        expect(store.getState().persistence.canEdit).toBe(true)
+      })
+
+      expect(callsTo("POST /api/pages/pag_test/session/takeover")).toHaveLength(1)
+    })
+
+    it("leaves the page alone when read-only is chosen", async () => {
+      const user = userEvent.setup()
+
+      setup()
+      await screen.findByRole("button", { name: "Open read-only" })
+
+      await user.click(screen.getByRole("button", { name: "Open read-only" }))
+
+      await waitFor(() => {
+        expect(screen.queryByText("This page is open in another session")).toBeNull()
+      })
+
+      expect(callsTo("POST /api/pages/pag_test/session/takeover")).toEqual([])
+      expect(store.getState().persistence.canEdit).toBe(false)
+      // The badge is what carries the state from here, with the offer still on it.
+      expect(screen.getByRole("button", { name: "Take over" })).toBeInTheDocument()
+    })
+
+    it("does not ask again once it has been answered", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+
+      setup()
+      await screen.findByRole("button", { name: "Open read-only" })
+      await user.click(screen.getByRole("button", { name: "Open read-only" }))
+
+      reply("GET /api/pages/pag_test/session", {
+        data: {
+          session: { clientLabel: "Chrome on macOS", lastHeartbeatAt: "2026-10-05T00:00:00.000Z" },
+        },
+      })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
+      })
+
+      // Read-only is a state the person chose. A prompt that returned every
+      // time the other session heartbeated would be unusable.
+      expect(screen.queryByText("This page is open in another session")).toBeNull()
+    })
+
+    it("does not ask at all when the page is free", async () => {
+      reply("POST /api/pages/pag_test/session", { data: { held: true, draftVersion: 1 } })
+
+      setup()
+
+      await waitFor(() => {
+        expect(store.getState().persistence.canEdit).toBe(true)
+      })
+
+      expect(screen.queryByText("This page is open in another session")).toBeNull()
+    })
+  })
+
   describe("taking over", () => {
     beforeEach(() => {
       reply("POST /api/pages/pag_test/session", {
@@ -399,8 +502,12 @@ describe("EditSessionProvider", () => {
 
       setup()
 
-      await screen.findByRole("button", { name: "Take over" })
-      await user.click(screen.getByRole("button", { name: "Take over" }))
+      // The prompt is answered first. Until it is, the rest of the editor is
+      // behind it and out of the accessibility tree — which is the point of a
+      // modal, and is also the real order of events.
+      await user.click(await screen.findByRole("button", { name: "Open read-only" }))
+
+      await user.click(await screen.findByRole("button", { name: "Take over" }))
 
       await waitFor(() => {
         expect(callsTo("POST /api/pages/pag_test/session/takeover")).toHaveLength(1)
@@ -413,8 +520,11 @@ describe("EditSessionProvider", () => {
     it("offers to start editing once the other session ends, rather than taking it", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true })
 
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+
       setup()
 
+      await user.click(await screen.findByRole("button", { name: "Open read-only" }))
       await screen.findByRole("button", { name: "Take over" })
 
       reply("GET /api/pages/pag_test/session", { data: { session: null } })

@@ -706,6 +706,18 @@ Compare
 Side-by-side diff, then one of the two choices above
 ```
 
+Compare shows the elements both sides touched. A side-by-side rendering of
+the two documents is the form it wants, and that needs the renderer to be
+drawing components — Phase 9. Until then it says what the diff can say
+truthfully, and says that the visual form is still to come rather than
+implying this is it.
+
+The prompt is dismissable. The three choices are the whole prompt and there is
+no fourth, but trapping somebody in a modal while they work out which side
+they want is worse than letting them look at the page. Dismissing resolves
+nothing: autosave stays stopped, and the status bar reports the conflict with
+a button that brings the prompt back.
+
 **No resolution path discards work.** Whichever side is not kept becomes a `recovery` revision before anything is overwritten.
 
 **Recovery revisions are retained indefinitely** and are exempt from the snapshot-history limit of every plan, like published revisions. [pricing-billing.md](./pricing-billing.md) refers to this rule.

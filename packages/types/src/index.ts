@@ -9,3 +9,5 @@ export type {
 } from "./api"
 
 export { SESSION_HEARTBEAT_SECONDS, SESSION_TTL_SECONDS } from "./session"
+
+export { RENDERER_VERSION } from "./versions"

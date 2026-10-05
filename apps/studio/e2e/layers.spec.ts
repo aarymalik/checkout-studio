@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Cookie, type Page } from "@playwright/test"
 
-import { createAccount, removeAccount, PASSWORD, type Account } from "./support/account"
+import { createAccount, removeAccount, signedInCookies, type Account } from "./support/account"
 import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
@@ -26,36 +26,11 @@ test.describe.configure({ mode: "serial" })
 
 let account: Account
 let session: Cookie[]
-let pageId: string
 
-test.beforeAll(async ({ playwright, baseURL }) => {
+test.beforeAll(async () => {
   account = await createAccount("layers")
 
-  /*
-   * page
-   * ├── Header
-   * │   └── Title
-   * └── Body
-   */
-  pageId = await createPage(account.projectId, {
-    title: "Checkout",
-    slug: "checkout",
-    nodes: [
-      { id: "header_e2e", type: "core.section", name: "Header", children: ["title_e2e"] },
-      { id: "title_e2e", type: "core.heading", name: "Title" },
-      { id: "body_e2e", type: "core.section", name: "Body" },
-    ],
-  })
-
-  const api = await playwright.request.newContext(baseURL === undefined ? {} : { baseURL })
-  const response = await api.post("/api/auth/sign-in", {
-    data: { email: account.email, password: PASSWORD },
-  })
-
-  expect(response.ok(), await response.text()).toBe(true)
-
-  session = (await api.storageState()).cookies
-  await api.dispose()
+  session = await signedInCookies(account)
 })
 
 test.afterAll(async () => {
@@ -66,43 +41,50 @@ async function signIn(context: BrowserContext): Promise<void> {
   await context.addCookies(session)
 }
 
-/** The shared page, which the tests that only read it all use. */
-async function openLayers(page: Page, id: string = pageId): Promise<void> {
-  await page.goto(`/projects/${account.projectId}?page=${id}`)
-  await waitForHydration(page)
-  await page.getByRole("tab", { name: "Layers" }).click()
-}
-
-let mutated = 0
+let pages = 0
 
 /**
- * A page of this test's own.
+ * A page of this test's own, opened on the Layers panel.
  *
- * For the tests that change the document. Autosave means a change sticks, so
- * sharing the read-only page would leave the next test reading whatever the
- * last one did to it.
+ * Every test, not only the ones that write. The editor takes an edit lock when
+ * it opens and gives it back on the way out, and that release is best-effort —
+ * so two tests sharing a page can find the previous one still holding it and be
+ * offered a takeover prompt instead of a panel.
+ *
+ * ```
+ * page
+ * ├── Header
+ * │   └── Title
+ * └── Body
+ * ```
  */
 async function openOwnLayers(page: Page): Promise<string> {
-  mutated += 1
+  pages += 1
 
   const id = await createPage(account.projectId, {
-    title: `Layers ${mutated}`,
-    slug: `layers-${mutated}`,
+    title: `Layers ${pages}`,
+    slug: `layers-${pages}`,
     nodes: [
       {
-        id: `header_${mutated}`,
+        id: `header_${pages}`,
         type: "core.section",
         name: "Header",
-        children: [`title_${mutated}`],
+        children: [`title_${pages}`],
       },
-      { id: `title_${mutated}`, type: "core.heading", name: "Title" },
-      { id: `body_${mutated}`, type: "core.section", name: "Body" },
+      { id: `title_${pages}`, type: "core.heading", name: "Title" },
+      { id: `body_${pages}`, type: "core.section", name: "Body" },
     ],
   })
 
   await openLayers(page, id)
 
   return id
+}
+
+async function openLayers(page: Page, id: string): Promise<void> {
+  await page.goto(`/projects/${account.projectId}?page=${id}`)
+  await waitForHydration(page)
+  await page.getByRole("tab", { name: "Layers" }).click()
 }
 
 /*
@@ -115,7 +97,7 @@ function settled(page: Page) {
 
 test("lists the page's elements as a tree", async ({ context, page }) => {
   await signIn(context)
-  await openLayers(page)
+  await openOwnLayers(page)
 
   const tree = page.getByRole("tree", { name: "Layers" })
 
@@ -138,7 +120,7 @@ test("lists the page's elements as a tree", async ({ context, page }) => {
 
 test("selects a node, and the store is what says so", async ({ context, page }) => {
   await signIn(context)
-  await openLayers(page)
+  await openOwnLayers(page)
 
   await page.getByRole("button", { name: "Title", exact: true }).click()
 
@@ -221,7 +203,7 @@ test("reorders with the keyboard, and the order survives a reload", async ({ con
 
 test("searches, keeping the ancestors of a match", async ({ context, page }) => {
   await signIn(context)
-  await openLayers(page)
+  await openOwnLayers(page)
 
   await page.getByRole("searchbox", { name: "Search layers" }).fill("title")
 

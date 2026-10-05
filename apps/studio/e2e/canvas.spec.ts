@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Cookie } from "@playwright/test"
 import { prisma } from "@checkout-studio/database"
 
-import { createAccount, removeAccount, PASSWORD, type Account } from "./support/account"
+import { createAccount, removeAccount, signedInCookies, type Account } from "./support/account"
 import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
@@ -23,7 +23,7 @@ let account: Account
 let session: Cookie[]
 let pageId: string
 
-test.beforeAll(async ({ playwright, baseURL }) => {
+test.beforeAll(async () => {
   account = await createAccount("canvas")
 
   // A root and one child. The root is not selectable by clicking — the page
@@ -41,15 +41,7 @@ test.beforeAll(async ({ playwright, baseURL }) => {
     ],
   })
 
-  const api = await playwright.request.newContext(baseURL === undefined ? {} : { baseURL })
-  const response = await api.post("/api/auth/sign-in", {
-    data: { email: account.email, password: PASSWORD },
-  })
-
-  expect(response.ok(), await response.text()).toBe(true)
-
-  session = (await api.storageState()).cookies
-  await api.dispose()
+  session = await signedInCookies(account)
 })
 
 test.afterAll(async () => {

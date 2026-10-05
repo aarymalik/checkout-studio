@@ -619,6 +619,9 @@ importers:
       '@checkout-studio/schema':
         specifier: workspace:*
         version: link:../schema
+      '@checkout-studio/types':
+        specifier: workspace:*
+        version: link:../types
       '@checkout-studio/utils':
         specifier: workspace:*
         version: link:../utils
