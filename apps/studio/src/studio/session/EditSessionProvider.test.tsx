@@ -97,6 +97,33 @@ describe("EditSessionProvider", () => {
     await user.click(button)
   }
 
+  /**
+   * Advance the clock a heartbeat at a time, until the condition holds.
+   *
+   * The poll interval is created in an effect that waits for the claim to
+   * resolve, so a single advance can land before the interval exists and be
+   * missed altogether — and `waitFor` cannot move a fake clock, it only waits
+   * on real time. Stepping and checking between steps is what makes this
+   * deterministic rather than a race the fast machine happens to win.
+   */
+  async function afterHeartbeats(check: () => void, beats = 5): Promise<void> {
+    for (let beat = 0; beat < beats; beat += 1) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
+      })
+
+      try {
+        check()
+
+        return
+      } catch {
+        // Another beat. The last one rethrows.
+      }
+    }
+
+    check()
+  }
+
   /** Keys the stub by "METHOD /path", so each route can answer differently. */
   function reply(key: string, value: Reply): void {
     replies.set(key, value)
@@ -287,11 +314,7 @@ describe("EditSessionProvider", () => {
         expect(store.getState().persistence.canEdit).toBe(true)
       })
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
-      })
-
-      await waitFor(() => {
+      await afterHeartbeats(() => {
         expect(callsTo("PUT /api/pages/pag_test/session")).toHaveLength(1)
       })
     })
@@ -312,11 +335,7 @@ describe("EditSessionProvider", () => {
         },
       })
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
-      })
-
-      await waitFor(() => {
+      await afterHeartbeats(() => {
         expect(store.getState().persistence.canEdit).toBe(false)
       })
 
@@ -338,17 +357,13 @@ describe("EditSessionProvider", () => {
 
       reply("PUT /api/pages/pag_test/session", { data: { held: false } })
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
-      })
-
       /*
        * The flush is the last chance to persist while the write is still
        * allowed. There is no channel that could have told this session sooner,
        * so learning on the heartbeat and flushing then is the ordering that is
        * actually available — see docs/history-versioning.md § Takeover.
        */
-      await waitFor(() => {
+      await afterHeartbeats(() => {
         expect(callsTo("PATCH /api/pages/pag_test/draft")).toHaveLength(1)
       })
 
@@ -366,12 +381,13 @@ describe("EditSessionProvider", () => {
 
       reply("PUT /api/pages/pag_test/session", { ok: false, code: "TIMEOUT" })
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
+      // Several beats, all of them failing. A failed request is not evidence
+      // of having lost the page, and treating it as such makes a flaky network
+      // read-only.
+      await afterHeartbeats(() => {
+        expect(callsTo("PUT /api/pages/pag_test/session").length).toBeGreaterThan(0)
       })
 
-      // A failed request is not evidence of having lost the page, and treating
-      // it as such makes a flaky network read-only.
       expect(store.getState().persistence.canEdit).toBe(true)
     })
 
@@ -497,15 +513,12 @@ describe("EditSessionProvider", () => {
         },
       })
 
-      // Three intervals, so a poll that is slow to resolve still gets its turn.
-      for (let beat = 0; beat < 3; beat += 1) {
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
-        })
-      }
-
       // Read-only is a state the person chose. A prompt that returned every
       // time the other session heartbeated would be unusable.
+      await afterHeartbeats(() => {
+        expect(callsTo("GET /api/pages/pag_test/session").length).toBeGreaterThan(0)
+      })
+
       expect(screen.queryByRole("dialog")).toBeNull()
       expect(screen.getByRole("button", { name: "Take over" })).toBeInTheDocument()
     })
@@ -566,21 +579,9 @@ describe("EditSessionProvider", () => {
 
       reply("GET /api/pages/pag_test/session", { data: { session: null } })
 
-      /*
-       * Three intervals, so a poll whose answer takes a few microtasks still
-       * gets its turn. Advancing once and reading immediately is the version
-       * that passed locally and failed on CI.
-       *
-       * Not wrapped in waitFor: waitFor needs timers of its own, and nesting
-       * fake-timer advancement inside it deadlocks.
-       */
-      for (let beat = 0; beat < 3; beat += 1) {
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
-        })
-      }
-
-      expect(await screen.findByRole("button", { name: "Start editing" })).toBeInTheDocument()
+      await afterHeartbeats(() => {
+        expect(screen.getByRole("button", { name: "Start editing" })).toBeInTheDocument()
+      })
 
       // Offered, not taken: somebody reading a page should not start holding
       // its lock because the other tab closed.
