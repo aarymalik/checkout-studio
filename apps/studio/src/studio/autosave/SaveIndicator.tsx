@@ -13,6 +13,10 @@ import { cn } from "@checkout-studio/ui"
  * to say so, because the alternative is somebody closing a tab believing their
  * work is on the server. "Saved" is the quiet one and is drawn quietly.
  *
+ * Read-only is not one of them. Nothing is unsaved on a page this session may
+ * not write, so that case belongs to the session's own notice — see
+ * session/EditorStatus.tsx.
+ *
  * `role="status"` with a polite live region — an announcement on every save
  * would interrupt somebody mid-sentence, and one nobody can reach is no better
  * than none.
@@ -39,21 +43,8 @@ const ICONS: Record<SaveStatus, typeof Check> = {
 export function SaveIndicator(): ReactElement {
   const status = useEditorStore((state) => state.persistence.status)
   const error = useEditorStore((state) => state.persistence.error)
-  const canEdit = useEditorStore((state) => state.persistence.canEdit)
 
   const Icon = ICONS[status]
-
-  // Read-only outranks the save state. Nothing is unsaved on a page this
-  // session is not allowed to write, and saying "Unsaved changes" there would
-  // describe a problem the person cannot act on.
-  if (!canEdit) {
-    return (
-      <p role="status" className="flex items-center gap-1 text-caption text-foreground-muted">
-        <CloudOff aria-hidden="true" className="size-3" />
-        Read only
-      </p>
-    )
-  }
 
   return (
     <p

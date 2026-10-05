@@ -1070,7 +1070,7 @@ Replay is ordered and idempotent
 ```
 Lock acquired on open
 Second session receives the takeover-required state (the prompt UI is Phase 7)
-Takeover flushes the losing session before transfer
+Takeover transfers the lock; the losing session flushes when it learns
 Stale write rejected with 409 and a diff summary
 Every conflict path preserves both versions
 ```

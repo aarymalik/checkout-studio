@@ -555,6 +555,28 @@ Claim the session lock  (SET NX, TTL 90s)
 
 A session that stops heartbeating — closed tab, crashed browser, lost connection — expires within 90 seconds and the page becomes claimable again. No manual unlock is ever required.
 
+The client releases the lock on its way out as well, which is an optimisation
+rather than the mechanism: the expiry is what makes the sentence above true,
+and a release that never arrives costs 90 seconds, not correctness.
+
+Stored under `cs:page-session:{pageId}`, deliberately not `cs:session:`, which
+holds sign-in sessions. The two never collide on a value — a page id is not
+a token hash — but they shared a prefix, and anything that globbed
+`cs:session:*` to count, audit or clear sessions would have treated edit locks
+as logins.
+
+## Every failure fails open
+
+A claim that cannot be made means editing proceeds.
+
+The lock is an ergonomic guard, not a correctness guarantee, and this request
+is not the thing that keeps two writers apart. Being locked out of your own
+page because Redis blinked is a worse outcome than two sessions racing — and
+the race is already handled, by the version on every write.
+
+For the same reason, a failed heartbeat is not evidence of having lost the
+page. Only an answer that says so is.
+
 ---
 
 ## Takeover
@@ -581,17 +603,43 @@ Automatically offers to take over when the other session ends
 
 Take over
       ↓
-The other session is notified immediately
-      ↓
-That session flushes any pending autosave FIRST
-      ↓
 Lock transfers
       ↓
-The previous session becomes read-only, keeping its
-local state in memory so nothing is lost
+The losing session learns on its next heartbeat
+      ↓
+It flushes any pending autosave
+      ↓
+It becomes read-only, keeping its local state in
+memory so nothing is lost
 ```
 
-The flush-before-transfer ordering is what makes takeover safe. The losing session persists its work before it loses write access, so a takeover can never discard unsaved edits.
+**This ordering is not the one originally specified here.** The first version
+of this section had the losing session notified _before_ the transfer,
+flushing first, and the lock moving after — and called that ordering the
+thing that makes takeover safe. It is not implementable as written: nothing on
+the server can make another browser flush, and there is no channel that
+reaches it. Pushing one means a websocket, which arrives with real-time
+collaboration in Phase 24.
+
+What actually makes takeover safe is the same thing that makes everything
+else safe: **the version on every write**.
+
+```
+The losing session has at most one debounce of unsaved work (5s)
+      ↓
+Whichever session writes second carries a stale baseVersion
+      ↓
+It is refused, not applied
+      ↓
+It keeps its document in memory, to resolve as a conflict
+```
+
+So a takeover cannot _discard_ unsaved edits: the losing session's work is
+either written before it learns, or refused and kept. What it can do is leave
+that work unsaved for up to one heartbeat, which the conflict path then
+handles. The flush on learning is the last chance to persist while the write
+is still allowed, and it is why the losing session flushes before going
+read-only rather than after.
 
 ---
 

@@ -80,7 +80,8 @@ export { loggingSender, recordingSender, resendSender, senderFor } from "./servi
 export type { EmailSender, Message } from "./services/auth/email"
 
 export {
-  HEARTBEAT_SECONDS,
+  SESSION_HEARTBEAT_SECONDS,
+  sessionKey,
   SESSION_TTL_SECONDS,
   claim,
   current as currentEditSession,

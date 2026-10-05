@@ -11,12 +11,13 @@ import type { ReactNode } from "react"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 
 import { Autosave } from "./autosave/Autosave"
-import { SaveIndicator } from "./autosave/SaveIndicator"
 import { CanvasArea } from "./canvas/CanvasArea"
 import { ChordHint } from "./ChordHint"
 import { Inspector } from "./Inspector"
 import { LayersPanel } from "./layers/LayersPanel"
 import { PaletteHost } from "./PaletteHost"
+import { EditSessionProvider } from "./session/EditSessionProvider"
+import { EditorStatus } from "./session/EditorStatus"
 import { Sidebar, type SidebarPanels } from "./Sidebar"
 import { ShortcutReference } from "./ShortcutReference"
 import { StatusBar } from "./StatusBar"
@@ -79,21 +80,26 @@ export function StudioShell({
   // page they never created.
   if (page === null) return frame(panels)
 
+  /*
+   * Three layers, and the order is the dependency order.
+   *
+   * The store first, because everything else reads it. Autosave next, because
+   * losing the edit lock has to flush before it goes read-only. The session
+   * last, so it can reach that flush.
+   */
   return (
     <EditorProvider document={page.document} baseVersion={page.baseVersion}>
-      {/*
-        Inside the provider, because it reads the store — and only here, because
-        without a page there is nothing to save.
-      */}
-      <Autosave document={page.document} />
-
-      {/*
-        The layers panel is supplied here rather than by the caller, because
-        this is what knows whether the store exists: it reads the document and
-        nothing else, and outside the provider it would throw rather than render
-        the empty state the caller intended.
-      */}
-      {frame({ layers: <LayersPanel />, ...panels }, <SaveIndicator />)}
+      <Autosave document={page.document}>
+        <EditSessionProvider pageId={page.document.pageId}>
+          {/*
+            The layers panel is supplied here rather than by the caller, because
+            this is what knows whether the store exists: it reads the document
+            and nothing else, and outside the provider it would throw rather
+            than render the empty state the caller intended.
+          */}
+          {frame({ layers: <LayersPanel />, ...panels }, <EditorStatus />)}
+        </EditSessionProvider>
+      </Autosave>
     </EditorProvider>
   )
 }
