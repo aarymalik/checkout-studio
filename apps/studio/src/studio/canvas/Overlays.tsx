@@ -40,6 +40,14 @@ export interface OverlaysProps {
   guides: readonly Guide[]
   marquee: { x: number; y: number; width: number; height: number } | null
   onResizeStart?: ((handle: HandleId, event: React.PointerEvent) => void) | undefined
+  /**
+   * Whether the selection may be resized.
+   *
+   * False for a locked node, which stays selectable and outlined but offers no
+   * grips — docs/editor-behavior.md § Locked Components. Grips that refused the
+   * drag would be a worse way to say the same thing.
+   */
+  resizable?: boolean
 }
 
 export function Overlays({
@@ -50,75 +58,108 @@ export function Overlays({
   labelFor,
   guides,
   marquee,
+  resizable = true,
   onResizeStart,
 }: OverlaysProps): ReactElement {
   const primary = selected[0]
   const primaryRect = primary === undefined ? undefined : rects.get(primary)
 
   return (
-    // Not interactive except where it says so: the page underneath has to
-    // receive every click, hover and scroll that is not a resize grip.
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      {guides.map((guide, index) => (
-        <Line
-          key={`${guide.axis}-${guide.position}-${index}`}
-          guide={guide}
-          transform={transform}
-        />
-      ))}
-
-      {hovered !== undefined && hovered !== null && !selected.includes(hovered)
-        ? (() => {
-            const rect = rects.get(hovered)
-
-            if (rect === undefined) return null
-
-            const screen = rectToScreen(rect, transform)
-
-            return (
-              <>
-                <div
-                  className="absolute border border-primary/40"
-                  style={{
-                    left: screen.x,
-                    top: screen.y,
-                    width: screen.width,
-                    height: screen.height,
-                  }}
-                />
-                <Label
-                  text={`${labelFor(hovered)} · ${Math.round(rect.width)}×${Math.round(rect.height)}`}
-                  x={screen.x}
-                  y={screen.y}
-                />
-              </>
-            )
-          })()
-        : null}
-
-      {selected.map((id) => {
-        const rect = rects.get(id)
-
-        if (rect === undefined) return null
-
-        const screen = rectToScreen(rect, transform)
-
-        return (
-          <div
-            key={id}
-            className="absolute border-2 border-primary"
-            style={{ left: screen.x, top: screen.y, width: screen.width, height: screen.height }}
+    <>
+      {/*
+        Decoration, and hidden as decoration should be.
+        
+        Outlines, guides, labels and the marquee all describe the selection
+        rather than being it — a screen reader that announced each of them would
+        read a running commentary on a box it cannot see. `pointer-events-none`
+        for the same reason in the other direction: the page underneath has to
+        receive every click, hover and scroll that is not a grip.
+      */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        {guides.map((guide, index) => (
+          <Line
+            key={`${guide.axis}-${guide.position}-${index}`}
+            guide={guide}
+            transform={transform}
           />
-        )
-      })}
+        ))}
+
+        {hovered !== undefined && hovered !== null && !selected.includes(hovered)
+          ? (() => {
+              const rect = rects.get(hovered)
+
+              if (rect === undefined) return null
+
+              const screen = rectToScreen(rect, transform)
+
+              return (
+                <>
+                  <div
+                    className="absolute border border-primary/40"
+                    style={{
+                      left: screen.x,
+                      top: screen.y,
+                      width: screen.width,
+                      height: screen.height,
+                    }}
+                  />
+                  <Label
+                    text={`${labelFor(hovered)} · ${Math.round(rect.width)}×${Math.round(rect.height)}`}
+                    x={screen.x}
+                    y={screen.y}
+                  />
+                </>
+              )
+            })()
+          : null}
+
+        {selected.map((id) => {
+          const rect = rects.get(id)
+
+          if (rect === undefined) return null
+
+          const screen = rectToScreen(rect, transform)
+
+          return (
+            <div
+              key={id}
+              className="absolute border-2 border-primary"
+              style={{ left: screen.x, top: screen.y, width: screen.width, height: screen.height }}
+            />
+          )
+        })}
+
+        {marquee === null ? null : (
+          <div
+            className="absolute border border-primary bg-primary/10"
+            style={{
+              left: marquee.x,
+              top: marquee.y,
+              width: marquee.width,
+              height: marquee.height,
+            }}
+          />
+        )}
+      </div>
 
       {/*
+        The grips, which are controls rather than decoration.
+        
+        Deliberately outside the layer above: `aria-hidden` on something
+        interactive is an ARIA violation, and it was hiding eight labelled
+        buttons from every assistive technology. They are not in the tab order —
+        `tabIndex={-1}` — because the canvas is operated through its own
+        keyboard model, and eight tab stops per selection would be noise. A
+        keyboard resize is not specified yet, and these are pointer-only until
+        it is.
+
         Handles on the primary selection only. Eight grips around each of five
         selected nodes is forty targets in the same place, and none of them is
         the one the user wanted.
       */}
-      {primary !== undefined && primaryRect !== undefined
-        ? HANDLES.map((handle) => {
+      {primary !== undefined && primaryRect !== undefined && resizable ? (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          {HANDLES.map((handle) => {
             const screen = rectToScreen(primaryRect, transform)
 
             return (
@@ -128,7 +169,7 @@ export function Overlays({
                 aria-label={`Resize ${handle.id}`}
                 tabIndex={-1}
                 onPointerDown={(event) => onResizeStart?.(handle.id, event)}
-                className="pointer-events-auto absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-primary bg-surface"
+                className="pointer-events-auto absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-tight border border-primary bg-surface"
                 style={{
                   left: screen.x + screen.width * handle.x,
                   top: screen.y + screen.height * handle.y,
@@ -136,21 +177,10 @@ export function Overlays({
                 }}
               />
             )
-          })
-        : null}
-
-      {marquee === null ? null : (
-        <div
-          className="absolute border border-primary bg-primary/10"
-          style={{
-            left: marquee.x,
-            top: marquee.y,
-            width: marquee.width,
-            height: marquee.height,
-          }}
-        />
-      )}
-    </div>
+          })}
+        </div>
+      ) : null}
+    </>
   )
 }
 

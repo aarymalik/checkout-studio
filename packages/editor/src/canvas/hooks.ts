@@ -7,6 +7,8 @@ import { useEditorStore, useEditorStoreApi } from "../state/context"
 import { autoScrollVelocity, stepFor } from "./autoscroll"
 import type { AutoScrollOptions } from "./autoscroll"
 import { frameRect } from "./frames"
+import { resizeRect, resizeStyles, type ResizeHandle } from "./resize"
+import { snapResize, type Guide } from "./snap"
 import { classIndex, measureContentHeight, measureNodes, nodeIdAt } from "./measure"
 import type { NodeRects } from "./hit"
 import type { Point, Rect, Size, Transform } from "./transform"
@@ -335,4 +337,138 @@ export function useAutoScroll(
     }),
     [run, stop],
   )
+}
+
+export interface ResizeControls {
+  /** Begin, from a grip's pointerdown. */
+  begin: (handle: ResizeHandle, event: { clientX: number; clientY: number }) => void
+  /** The lines to draw while a resize is in flight. Empty otherwise. */
+  guides: readonly Guide[]
+  resizing: boolean
+}
+
+export interface UseResizeOptions {
+  /** The measured rect of each node the canvas knows about, in canvas space. */
+  rects: NodeRects
+  /** What the dragged edge may line up with: the node's siblings. */
+  siblingsOf: (id: string) => readonly string[]
+}
+
+/**
+ * Resizing the selection by its handles.
+ *
+ * Live, per docs/editor-behavior.md § Resize: the document is written on every
+ * move rather than on release, because the canvas renders from the document and
+ * anything else would mean a second source of truth for how big the thing is
+ * while it is being dragged.
+ *
+ * One undo for the whole gesture, and `setStyles` is what provides it: it groups
+ * by node, breakpoint and state, and the window is measured against the last
+ * entry rather than the first — so a continuous drag collapses into one entry
+ * however long it lasts, and a pause of more than the window starts a new one.
+ * Which is the right seam: two deliberate drags are two undos.
+ *
+ * Only the primary selection resizes, which is what the overlay draws grips on.
+ * A locked node has none — docs/editor-behavior.md § Locked Components.
+ */
+export function useResize({ rects, siblingsOf }: UseResizeOptions): ResizeControls {
+  const store = useEditorStoreApi()
+  const [guides, setGuides] = useState<readonly Guide[]>([])
+  const [resizing, setResizing] = useState(false)
+
+  /** The gesture, held in a ref so a move does not re-subscribe every frame. */
+  const gesture = useRef<{
+    id: string
+    handle: ResizeHandle
+    from: Point
+    start: Rect
+    targets: readonly Rect[]
+  } | null>(null)
+
+  const begin = useCallback<ResizeControls["begin"]>(
+    (handle, event) => {
+      const state = store.getState()
+      const id = state.selection.ids[0]
+
+      if (id === undefined || !state.persistence.canEdit) return
+
+      const node = state.document.nodes[id]
+      const start = rects.get(id)
+
+      // Nothing measured means nothing to resize from, and a locked node is
+      // selectable but not editable.
+      if (node === undefined || start === undefined || node.metadata.locked) return
+
+      gesture.current = {
+        id,
+        handle,
+        from: { x: event.clientX, y: event.clientY },
+        start,
+        targets: siblingsOf(id)
+          .map((sibling) => rects.get(sibling))
+          .filter((rect): rect is Rect => rect !== undefined),
+      }
+
+      setResizing(true)
+    },
+    [store, rects, siblingsOf],
+  )
+
+  useEffect(() => {
+    if (!resizing) return
+
+    const move = (event: PointerEvent): void => {
+      const current = gesture.current
+
+      if (current === null) return
+
+      const state = store.getState()
+      // Screen pixels into canvas units: ten pixels at 200% is five units.
+      const delta = {
+        x: (event.clientX - current.from.x) / state.viewport.zoom,
+        y: (event.clientY - current.from.y) / state.viewport.zoom,
+      }
+
+      const resized = resizeRect(current.start, current.handle, delta, {
+        aspect: event.shiftKey,
+      })
+      const snapped = snapResize(resized, current.handle, current.targets, {
+        enabled: state.viewport.snapping,
+        grid: state.viewport.showGrid,
+      })
+
+      setGuides(snapped.guides)
+      store.getState().setStyles(
+        [current.id],
+        resizeStyles(snapped.rect, current.handle, {
+          aspect: event.shiftKey,
+        }),
+        {
+          // The breakpoint being edited, never all of them: a width set at
+          // mobile must not become the desktop width.
+          breakpoint: state.viewport.breakpoint,
+        },
+      )
+    }
+
+    const end = (): void => {
+      gesture.current = null
+      setResizing(false)
+      // Guides belong to the gesture. Leaving them up would draw lines against
+      // nothing — docs/editor-behavior.md asks for them cleared on release.
+      setGuides([])
+    }
+
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", end)
+    window.addEventListener("pointercancel", end)
+
+    return () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", end)
+      window.removeEventListener("pointercancel", end)
+    }
+  }, [resizing, store])
+
+  return { begin, guides, resizing }
 }

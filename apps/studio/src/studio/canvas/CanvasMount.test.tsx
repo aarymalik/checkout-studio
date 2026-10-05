@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {
   CommandRegistry,
@@ -185,5 +185,217 @@ describe("the canvas keyboard scope", () => {
     // The text guard: typing a capital M types a capital M.
     expect(screen.getByRole("textbox", { name: "Somewhere to type" })).toHaveValue("M")
     expect(harness.store().getState().viewport.breakpoint).toBe("desktop")
+  })
+})
+
+describe("resizing by a handle", () => {
+  /**
+   * jsdom lays nothing out, so every measured rect is zero.
+   *
+   * The gesture still runs, which is what is being tested: the pointer maths,
+   * the write, the breakpoint it lands on, and the grips appearing at all. What
+   * a real browser would add is whether the box visibly follows the pointer,
+   * and that belongs in the benchmark harness where there is layout.
+   */
+  function stubLayout(width: number, height: number): void {
+    Element.prototype.getBoundingClientRect = function rect(): DOMRect {
+      return {
+        x: 0,
+        y: 0,
+        width,
+        height,
+        top: 0,
+        left: 0,
+        right: width,
+        bottom: height,
+        toJSON: () => ({}),
+      } as DOMRect
+    }
+  }
+
+  it("offers eight grips on the selection", async () => {
+    const user = userEvent.setup()
+    const harness = mount()
+
+    render(harness.element)
+
+    act(() => {
+      harness.store().getState().select(["section"])
+    })
+
+    const grips = await screen.findAllByRole("button", { name: /^Resize / })
+
+    expect(grips).toHaveLength(8)
+    await user.click(grips[0] as HTMLElement)
+  })
+
+  it("keeps the grips out of the decoration, which is hidden", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    act(() => {
+      harness.store().getState().select(["section"])
+    })
+
+    const grip = await screen.findByRole("button", { name: "Resize nw" })
+
+    /*
+     * The bug this guards.
+     *
+     * Every grip is a labelled button, and all eight sat inside the overlay's
+     * `aria-hidden` layer — so no assistive technology could perceive them at
+     * all, and `aria-hidden` on something interactive is an ARIA violation
+     * besides. Finding them by role is what caught it: they rendered, and
+     * `getByRole` could not see them.
+     */
+    expect(grip.closest("[aria-hidden='true']")).toBeNull()
+  })
+
+  it("offers none on a locked node, which stays selected", () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    act(() => {
+      harness.store().getState().setLocked(["section"], true)
+      harness.store().getState().select(["section"])
+    })
+
+    // Selectable and outlined, with nothing to drag — grips that refused the
+    // drag would be a worse way to say the same thing.
+    expect(screen.queryAllByRole("button", { name: /^Resize / })).toHaveLength(0)
+    expect(harness.store().getState().selection.ids).toEqual(["section"])
+  })
+
+  it("writes a width to the breakpoint being edited", async () => {
+    const original = Element.prototype.getBoundingClientRect
+
+    stubLayout(200, 100)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      act(() => {
+        harness.store().getState().setBreakpoint("mobile")
+        harness.store().getState().select(["section"])
+      })
+
+      const grip = await screen.findByRole("button", { name: "Resize e" })
+
+      fireEvent.pointerDown(grip, { clientX: 200, clientY: 50 })
+      fireEvent.pointerMove(window, { clientX: 260, clientY: 50 })
+      fireEvent.pointerUp(window)
+
+      const styles = harness.store().getState().document.nodes["section"]?.styles
+
+      // Mobile, not desktop: a width set at one breakpoint must not become the
+      // width at another.
+      expect(styles?.mobile?.base?.["width"]).toBe(260)
+      expect(styles?.desktop).toBeUndefined()
+    } finally {
+      Element.prototype.getBoundingClientRect = original
+    }
+  })
+
+  it("writes only the axis the grip owns", async () => {
+    const original = Element.prototype.getBoundingClientRect
+
+    stubLayout(200, 100)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      act(() => {
+        harness.store().getState().select(["section"])
+      })
+
+      const grip = await screen.findByRole("button", { name: "Resize e" })
+
+      fireEvent.pointerDown(grip, { clientX: 200, clientY: 50 })
+      fireEvent.pointerMove(window, { clientX: 240, clientY: 400 })
+      fireEvent.pointerUp(window)
+
+      const base = harness.store().getState().document.nodes["section"]?.styles.desktop?.base
+
+      // A wobbly horizontal drag must not freeze the height of a box that was
+      // sizing itself to its content.
+      expect(base?.["width"]).toBe(240)
+      expect(base?.["height"]).toBeUndefined()
+    } finally {
+      Element.prototype.getBoundingClientRect = original
+    }
+  })
+
+  it("is one undo, not one per pointer move", async () => {
+    const original = Element.prototype.getBoundingClientRect
+
+    stubLayout(200, 100)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      act(() => {
+        harness.store().getState().select(["section"])
+      })
+
+      const before = harness.store().getState().history.past.length
+      const grip = await screen.findByRole("button", { name: "Resize e" })
+
+      fireEvent.pointerDown(grip, { clientX: 200, clientY: 50 })
+
+      for (let at = 210; at <= 260; at += 10) {
+        fireEvent.pointerMove(window, { clientX: at, clientY: 50 })
+      }
+
+      fireEvent.pointerUp(window)
+
+      // Six writes, one entry: setStyles groups by node and breakpoint, and the
+      // window is measured against the last entry, so a continuous drag
+      // collapses however long it lasts.
+      expect(harness.store().getState().history.past.length).toBe(before + 1)
+    } finally {
+      Element.prototype.getBoundingClientRect = original
+    }
+  })
+
+  it("stops writing once the pointer is released", async () => {
+    const original = Element.prototype.getBoundingClientRect
+
+    stubLayout(200, 100)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      act(() => {
+        harness.store().getState().select(["section"])
+      })
+
+      const grip = await screen.findByRole("button", { name: "Resize e" })
+
+      fireEvent.pointerDown(grip, { clientX: 200, clientY: 50 })
+      fireEvent.pointerMove(window, { clientX: 240, clientY: 50 })
+      fireEvent.pointerUp(window)
+
+      const settled = harness.store().getState().document.nodes["section"]?.styles.desktop?.base
+
+      // A listener that outlived the gesture would resize whatever the pointer
+      // passed over next.
+      fireEvent.pointerMove(window, { clientX: 900, clientY: 50 })
+
+      expect(harness.store().getState().document.nodes["section"]?.styles.desktop?.base).toEqual(
+        settled,
+      )
+    } finally {
+      Element.prototype.getBoundingClientRect = original
+    }
   })
 })
