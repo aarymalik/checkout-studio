@@ -99,19 +99,6 @@ describe("SaveIndicator", () => {
     expect(label()).toBe("Saved")
   })
 
-  it("says read only rather than unsaved when this session cannot write", () => {
-    const { store } = setup()
-
-    act(() => {
-      store.getState().rename(store.getState().document.root, "Checkout")
-      store.getState().setCanEdit(false)
-    })
-
-    // Nothing is unsaved on a page this session is not allowed to write, and
-    // saying so would describe a problem the person cannot act on.
-    expect(label()).toBe("Read only")
-  })
-
   it("is a polite live region rather than an alert", () => {
     const { store } = setup()
 

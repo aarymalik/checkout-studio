@@ -130,13 +130,28 @@ test.describe("the editor", () => {
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
     await page.mouse.down()
     await page.mouse.move(box!.x + 60, box!.y + box!.height / 2, { steps: 10 })
+
+    /*
+     * The write is debounced past the end of the drag, so the reload has to
+     * come after it lands.
+     *
+     * Waited for rather than slept through. A fixed delay was long enough until
+     * the suite grew a test that opens two browsers, and then it was not: a
+     * reload that overtakes the write reads the old width back and the test
+     * fails for a reason that has nothing to do with dragging.
+     */
+    const saved = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/preferences/shell.layout") &&
+        response.request().method() === "PUT",
+    )
+
     await page.mouse.up()
 
     const after = await widthOf(page, "Components")
     expect(after).toBeGreaterThan(before)
 
-    // The write is debounced past the end of the drag.
-    await page.waitForTimeout(1_200)
+    await saved
     await page.reload()
 
     expect(await widthOf(page, "Components")).toBe(after)

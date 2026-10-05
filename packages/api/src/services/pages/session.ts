@@ -1,6 +1,7 @@
 import "server-only"
 
 import { redis } from "@checkout-studio/cache"
+import { SESSION_HEARTBEAT_SECONDS, SESSION_TTL_SECONDS } from "@checkout-studio/types"
 
 /**
  * Edit sessions.
@@ -14,11 +15,14 @@ import { redis } from "@checkout-studio/cache"
  * window. See docs/history-versioning.md § Session Ownership.
  */
 
-/** A session that stops heartbeating expires within this, and no unlock is needed. */
-export const SESSION_TTL_SECONDS = 90
-
-/** Refreshed at this interval by the client. Three chances before expiry. */
-export const HEARTBEAT_SECONDS = 30
+/*
+ * Re-exported rather than defined here.
+ *
+ * The client has to speak before the lock expires, so these are a contract
+ * between the two halves and live in a layer both can reach — this module is
+ * `server-only`.
+ */
+export { SESSION_HEARTBEAT_SECONDS, SESSION_TTL_SECONDS }
 
 export interface EditSession {
   pageId: string
@@ -37,8 +41,16 @@ export type ClaimResult =
   /** Somebody else has it. The prompt shows who and how recently. */
   | { held: false; holder: EditSession }
 
-function key(pageId: string): string {
-  return `cs:session:${pageId}`
+/*
+ * Namespaced away from `cs:session:`, which holds sign-in sessions.
+ *
+ * The two never collide on a value — a page id is not a token hash — but they
+ * shared a prefix, and anything that globs `cs:session:*` to count, audit or
+ * clear sessions would have treated edit locks as logins. Clearing the wrong
+ * class of those signs everybody out.
+ */
+export function sessionKey(pageId: string): string {
+  return `cs:page-session:${pageId}`
 }
 
 /**
@@ -51,7 +63,7 @@ function key(pageId: string): string {
 type Held = { state: "held"; session: EditSession } | { state: "free" } | { state: "unreadable" }
 
 async function read(pageId: string): Promise<Held> {
-  const raw = await redis.get(key(pageId))
+  const raw = await redis.get(sessionKey(pageId))
 
   if (raw === null) return { state: "free" }
 
@@ -65,7 +77,7 @@ async function read(pageId: string): Promise<Held> {
 }
 
 async function write(session: EditSession): Promise<void> {
-  await redis.set(key(session.pageId), JSON.stringify(session), "EX", SESSION_TTL_SECONDS)
+  await redis.set(sessionKey(session.pageId), JSON.stringify(session), "EX", SESSION_TTL_SECONDS)
 }
 
 /**
@@ -95,7 +107,7 @@ export async function claim(input: {
   }
 
   const acquired = await redis.set(
-    key(input.pageId),
+    sessionKey(input.pageId),
     JSON.stringify(session),
     "EX",
     SESSION_TTL_SECONDS,
@@ -188,7 +200,7 @@ export async function release(pageId: string, sessionId: string): Promise<boolea
   // unlocks the page somebody else just took over.
   if (held.state !== "held" || held.session.sessionId !== sessionId) return false
 
-  await redis.del(key(pageId))
+  await redis.del(sessionKey(pageId))
 
   return true
 }

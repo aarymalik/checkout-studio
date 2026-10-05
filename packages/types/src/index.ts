@@ -7,3 +7,5 @@ export type {
   Pagination,
   SortDirection,
 } from "./api"
+
+export { SESSION_HEARTBEAT_SECONDS, SESSION_TTL_SECONDS } from "./session"

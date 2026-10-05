@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef } from "react"
+import type { ReactNode } from "react"
 import {
   createAutosave,
   createDurableQueue,
@@ -24,9 +25,37 @@ import { createDraftWriter } from "./draft-writer"
  * Mounted inside the editor's provider, so it only exists when there is a page
  * and a store. Without a page there is nothing to save.
  *
+ * It renders its children and offers them `flush`, because losing the edit lock
+ * has to persist the work before going read-only — and the only thing that can
+ * do that is the engine this owns.
+ *
  * See docs/history-versioning.md § Autosave Rules.
  */
-export function Autosave({ document }: { document: CheckoutSchema }): null {
+
+export interface AutosaveControl {
+  /** Save now, if anything is unsaved. */
+  flush: () => Promise<void>
+}
+
+const AutosaveContext = createContext<AutosaveControl | null>(null)
+
+/**
+ * The running autosave.
+ *
+ * Null outside the provider rather than throwing: a surface that would like to
+ * flush but can live without it should not have to know whether a page is open.
+ */
+export function useAutosave(): AutosaveControl | null {
+  return useContext(AutosaveContext)
+}
+
+export function Autosave({
+  document,
+  children,
+}: {
+  document: CheckoutSchema
+  children?: ReactNode
+}): ReactNode {
   const store = useEditorStoreApi()
 
   /*
@@ -112,5 +141,21 @@ export function Autosave({ document }: { document: CheckoutSchema }): null {
     }
   }, [])
 
-  return null
+  const control = useMemo<AutosaveControl>(
+    () => ({
+      flush: async () => {
+        try {
+          await running.current?.flush()
+        } catch (thrown: unknown) {
+          // Swallowed rather than thrown on: a caller flushing before it gives
+          // up the lock has to carry on doing that either way, and the engine
+          // has already recorded the failure for the status bar.
+          logger.warn("autosave.flush.failed", {}, normalizeError(thrown))
+        }
+      },
+    }),
+    [],
+  )
+
+  return <AutosaveContext.Provider value={control}>{children}</AutosaveContext.Provider>
 }

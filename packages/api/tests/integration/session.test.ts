@@ -6,6 +6,7 @@ import {
   current,
   heartbeat,
   release,
+  sessionKey,
   takeover,
   SESSION_TTL_SECONDS,
 } from "../../src/services/pages/session"
@@ -66,7 +67,7 @@ describe("claiming", () => {
   it("gives the lock an expiry, so a closed tab needs no manual unlock", async () => {
     await claim(session("sess_a"))
 
-    const ttl = await redis.ttl(`cs:session:${PAGE}`)
+    const ttl = await redis.ttl(sessionKey(PAGE))
 
     expect(ttl).toBeGreaterThan(0)
     expect(ttl).toBeLessThanOrEqual(SESSION_TTL_SECONDS)
@@ -74,7 +75,7 @@ describe("claiming", () => {
 
   it("lets the next session in once the lock has gone", async () => {
     await claim(session("sess_a"))
-    await redis.del(`cs:session:${PAGE}`)
+    await redis.del(sessionKey(PAGE))
 
     expect((await claim(session("sess_b"))).held).toBe(true)
   })
@@ -93,7 +94,7 @@ describe("claiming", () => {
   // A value we cannot read is a value we cannot honour; treating it as absent
   // lets the next person edit rather than locking the page forever.
   it("takes over a lock whose contents are unreadable", async () => {
-    await redis.set(`cs:session:${PAGE}`, "not json", "EX", SESSION_TTL_SECONDS)
+    await redis.set(sessionKey(PAGE), "not json", "EX", SESSION_TTL_SECONDS)
 
     expect((await claim(session("sess_b"))).held).toBe(true)
   })
@@ -122,10 +123,10 @@ describe("heartbeat", () => {
 
   it("pushes the expiry out", async () => {
     await claim(session("sess_a"))
-    await redis.expire(`cs:session:${PAGE}`, 5)
+    await redis.expire(sessionKey(PAGE), 5)
     await heartbeat({ pageId: PAGE, sessionId: "sess_a" })
 
-    expect(await redis.ttl(`cs:session:${PAGE}`)).toBeGreaterThan(5)
+    expect(await redis.ttl(sessionKey(PAGE))).toBeGreaterThan(5)
   })
 
   // How a client learns it has lost the page without being told by anything
