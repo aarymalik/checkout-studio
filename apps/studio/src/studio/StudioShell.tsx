@@ -7,8 +7,11 @@ import {
   type ShellLayout,
   type UserKeymap,
 } from "@checkout-studio/editor"
+import type { ReactNode } from "react"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 
+import { Autosave } from "./autosave/Autosave"
+import { SaveIndicator } from "./autosave/SaveIndicator"
 import { CanvasArea } from "./canvas/CanvasArea"
 import { ChordHint } from "./ChordHint"
 import { Inspector } from "./Inspector"
@@ -58,10 +61,15 @@ export function StudioShell({
   panels?: SidebarPanels
   page?: OpenPage | null
 }) {
-  function frame(panelsForTabs: SidebarPanels) {
+  function frame(panelsForTabs: SidebarPanels, saveStatus?: ReactNode) {
     return (
       <StudioProviders initialLayout={initialLayout} userKeymap={userKeymap} platform={platform}>
-        <Frame projectName={projectName} panels={panelsForTabs} theme={page?.theme ?? null} />
+        <Frame
+          projectName={projectName}
+          panels={panelsForTabs}
+          theme={page?.theme ?? null}
+          saveStatus={saveStatus}
+        />
       </StudioProviders>
     )
   }
@@ -74,12 +82,18 @@ export function StudioShell({
   return (
     <EditorProvider document={page.document} baseVersion={page.baseVersion}>
       {/*
+        Inside the provider, because it reads the store — and only here, because
+        without a page there is nothing to save.
+      */}
+      <Autosave document={page.document} />
+
+      {/*
         The layers panel is supplied here rather than by the caller, because
         this is what knows whether the store exists: it reads the document and
         nothing else, and outside the provider it would throw rather than render
         the empty state the caller intended.
       */}
-      {frame({ layers: <LayersPanel />, ...panels })}
+      {frame({ layers: <LayersPanel />, ...panels }, <SaveIndicator />)}
     </EditorProvider>
   )
 }
@@ -88,10 +102,13 @@ function Frame({
   projectName,
   panels,
   theme,
+  saveStatus,
 }: {
   projectName: string
   panels: SidebarPanels
   theme: CheckoutTheme | null
+  /** Passed rather than read: the store only exists when a page is open. */
+  saveStatus?: ReactNode
 }) {
   // Everything inside the editor is in the studio scope, which is what keeps the
   // panel shortcuts off the dashboard.
@@ -107,7 +124,7 @@ function Frame({
         <Inspector />
       </div>
 
-      <StatusBar />
+      <StatusBar status={saveStatus} />
       <ChordHint />
 
       <PaletteHost />

@@ -293,7 +293,7 @@ describe("autosave", () => {
   describe("failure", () => {
     it("queues what it could not send", async () => {
       const test = harness()
-      test.respond({ ok: false, conflict: false, message: "Offline." })
+      test.respond({ ok: false, reason: "transient" as const, message: "Offline." })
       test.store.getState().setProps("heading", { text: "Hello" })
 
       await vi.advanceTimersByTimeAsync(DEBOUNCE_MS)
@@ -310,7 +310,7 @@ describe("autosave", () => {
 
     it("retries with a growing delay", async () => {
       const test = harness()
-      test.respond({ ok: false, conflict: false, message: "Offline." })
+      test.respond({ ok: false, reason: "transient" as const, message: "Offline." })
       test.store.getState().setProps("heading", { text: "Hello" })
 
       await vi.advanceTimersByTimeAsync(DEBOUNCE_MS)
@@ -336,7 +336,7 @@ describe("autosave", () => {
 
     it("recovers when the server comes back", async () => {
       const test = harness()
-      test.respond({ ok: false, conflict: false, message: "Offline." })
+      test.respond({ ok: false, reason: "transient" as const, message: "Offline." })
       test.store.getState().setProps("heading", { text: "Hello" })
 
       await vi.advanceTimersByTimeAsync(DEBOUNCE_MS)
@@ -357,7 +357,7 @@ describe("autosave", () => {
     it("does not retry a conflict", async () => {
       const test = harness()
 
-      test.respond({ ok: false, conflict: true, message: "Changed elsewhere." })
+      test.respond({ ok: false, reason: "conflict" as const, message: "Changed elsewhere." })
       test.store.getState().setProps("heading", { text: "Hello" })
 
       await vi.advanceTimersByTimeAsync(DEBOUNCE_MS)
@@ -380,7 +380,11 @@ describe("autosave", () => {
         pageId: "pag_test",
         queue: createMemoryQueue(),
         onConflict,
-        save: async () => ({ ok: false, conflict: true, message: "Changed elsewhere." }),
+        save: async () => ({
+          ok: false,
+          reason: "conflict" as const,
+          message: "Changed elsewhere.",
+        }),
       })
       const stop = autosave.start()
 
@@ -391,6 +395,49 @@ describe("autosave", () => {
       expect(onConflict).toHaveBeenCalledWith("Changed elsewhere.")
 
       stop()
+    })
+
+    /*
+     * A refusal of the write itself means a bug on our side: a malformed patch,
+     * or one that would produce something that is not a page. Retrying sends
+     * the same refusal, so a sixty-second loop against it is worse than
+     * stopping and saying so.
+     */
+    it("does not retry, or queue, a write the server refused", async () => {
+      const test = harness()
+
+      test.respond({ ok: false, reason: "rejected" as const, message: "That is not a page." })
+      test.store.getState().setProps("heading", { text: "Hello" })
+
+      await vi.advanceTimersByTimeAsync(DEBOUNCE_MS)
+      await settle()
+      await vi.advanceTimersByTimeAsync(60_000 * 5)
+      await settle()
+
+      expect(test.requests).toHaveLength(1)
+      expect(test.store.getState().persistence.status).toBe("error")
+      expect(test.store.getState().persistence.error).toBe("That is not a page.")
+
+      // Queueing it would retry it on the next reload, forever.
+      expect(await test.queue.all("pag_test")).toEqual([])
+
+      test.stop()
+    })
+
+    it("does not retry a conflict differently from a rejection", async () => {
+      // Both stop. The distinction is what the editor does next — a conflict
+      // asks the person to choose, a rejection is ours to fix.
+      const test = harness()
+
+      test.respond({ ok: false, reason: "rejected" as const, message: "Unpatchable." })
+      test.store.getState().setProps("heading", { text: "Hello" })
+
+      await vi.advanceTimersByTimeAsync(DEBOUNCE_MS)
+      await settle()
+
+      expect(test.store.getState().persistence.status).toBe("error")
+
+      test.stop()
     })
   })
 
@@ -438,9 +485,34 @@ describe("autosave", () => {
       })
 
       const test = harness({ queue })
-      test.respond({ ok: false, conflict: true, message: "Already applied." })
+      test.respond({ ok: false, reason: "conflict" as const, message: "Already applied." })
       await test.autosave.replay()
 
+      expect(await queue.all("pag_test")).toEqual([])
+
+      test.stop()
+    })
+
+    it("drops an entry the server will never accept, and keeps going", async () => {
+      const queue = createMemoryQueue()
+      const { store } = makeStore()
+
+      for (const version of [1, 2]) {
+        await queue.add({
+          pageId: "pag_test",
+          document: serialize(store.getState().document),
+          baseVersion: version,
+          queuedAt: version,
+        })
+      }
+
+      const test = harness({ queue })
+      test.respond({ ok: false, reason: "rejected" as const, message: "Unpatchable." })
+      await test.autosave.replay()
+
+      // Both are attempted and both are dropped. Keeping a poison entry would
+      // block every entry behind it on every reload, forever.
+      expect(test.requests).toHaveLength(2)
       expect(await queue.all("pag_test")).toEqual([])
 
       test.stop()
@@ -460,7 +532,7 @@ describe("autosave", () => {
       }
 
       const test = harness({ queue })
-      test.respond({ ok: false, conflict: false, message: "Still offline." })
+      test.respond({ ok: false, reason: "transient" as const, message: "Still offline." })
       await test.autosave.replay()
 
       expect(test.requests).toHaveLength(1)

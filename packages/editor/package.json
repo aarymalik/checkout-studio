@@ -23,6 +23,7 @@
     "@checkout-studio/types": "workspace:*",
     "@checkout-studio/ui": "workspace:*",
     "@checkout-studio/utils": "workspace:*",
+    "fast-json-patch": "3.1.1",
     "immer": "11.1.18",
     "zustand": "5.0.15"
   },

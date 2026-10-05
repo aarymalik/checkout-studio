@@ -1,18 +1,21 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useKeyboard, useShellLayout } from "@checkout-studio/editor"
 
 /**
  * The bottom status bar.
  *
- * Zoom, selection, warnings and autosave live here once there is a canvas to
- * report on. What it can say truthfully today is which panel arrangement is
- * showing and how to reach everything else — so that is all it says.
+ * Zoom, selection and warnings arrive with the canvas they report on. The save
+ * state is here now, passed in rather than read: this renders with or without
+ * an open page, and the store only exists when there is one.
  *
- * `role="status"` with a polite live region: a saved indicator that interrupts
- * is worse than one nobody notices.
+ * Each region here is a polite live region, announcing its own change and
+ * nothing else: a collapse is worth confirming to somebody who cannot see the
+ * panel go, and a save that interrupts mid-sentence is worse than one nobody
+ * notices.
  */
-export function StatusBar() {
+export function StatusBar({ status }: { status?: ReactNode }) {
   const layout = useShellLayout()
   const { keymap, platform } = useKeyboard()
 
@@ -31,6 +34,8 @@ export function StatusBar() {
       aria-label="Status bar"
       className="flex h-status-bar shrink-0 items-center gap-4 border-t border-border bg-surface px-4"
     >
+      {status}
+
       <p role="status" className="text-caption text-foreground-muted">
         {panels.length === 0 ? "Focus mode" : `${panels.join(" · ")} open`}
       </p>

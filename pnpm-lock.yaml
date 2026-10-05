@@ -456,6 +456,9 @@ importers:
       '@checkout-studio/utils':
         specifier: workspace:*
         version: link:../utils
+      fast-json-patch:
+        specifier: 3.1.1
+        version: 3.1.1
       immer:
         specifier: 11.1.18
         version: 11.1.18

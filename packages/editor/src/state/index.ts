@@ -37,8 +37,11 @@ export {
 } from "./autosave"
 export type { Autosave, AutosaveOptions, SaveOutcome, SaveRequest } from "./autosave"
 
-export { createIndexedDbQueue, createMemoryQueue } from "./queue"
+export { createDurableQueue, createIndexedDbQueue, createMemoryQueue } from "./queue"
 export type { QueuedSave, SaveQueue } from "./queue"
+
+export { MAXIMUM_PATCH_OPERATIONS, patchBetween } from "./wire"
+export type { Operation, WirePatch } from "./wire"
 
 export { describeConflict } from "./conflict"
 export type { ConflictSummary } from "./conflict"

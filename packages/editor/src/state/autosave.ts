@@ -33,9 +33,19 @@ export interface SaveRequest {
 export type SaveOutcome =
   | { ok: true; version: number }
   /** The version moved on. The document must not be written again unprompted. */
-  | { ok: false; conflict: true; message: string }
-  /** Anything else: offline, a 500, a timeout. Worth retrying. */
-  | { ok: false; conflict: false; message: string }
+  | { ok: false; reason: "conflict"; message: string }
+  /** Offline, a 500, a timeout. Queue it and try again. */
+  | { ok: false; reason: "transient"; message: string }
+  /**
+   * The server refused the write itself: a malformed patch, or one that would
+   * produce something that is not a page.
+   *
+   * Separate from transient because retrying sends the same refusal, and a
+   * sixty-second loop against a server that will never accept the write is
+   * worse than stopping and saying so. It means a bug on our side rather than
+   * a condition that passes.
+   */
+  | { ok: false; reason: "rejected"; message: string }
 
 export interface AutosaveOptions {
   store: EditorStoreApi
@@ -124,11 +134,17 @@ export function createAutosave(options: AutosaveOptions): Autosave {
           return
         }
 
-        if (outcome.conflict) {
+        if (outcome.reason === "conflict") {
           // A stale write must not be retried: it would fail identically until
           // somebody chooses which version survives.
           store.getState().markSaveFailed(outcome.message)
           onConflict?.(outcome.message)
+
+          return
+        }
+
+        if (outcome.reason === "rejected") {
+          store.getState().markSaveFailed(outcome.message)
 
           return
         }
@@ -217,10 +233,19 @@ export function createAutosave(options: AutosaveOptions): Autosave {
           baseVersion: entry.baseVersion,
         })
 
-        if (!outcome.ok && !outcome.conflict) return
+        // Stop, and keep the entry: the next attempt is the same attempt, and
+        // sending a later entry first would put an older document on top of a
+        // newer one.
+        if (!outcome.ok && outcome.reason === "transient") return
 
-        // A conflict means the server has moved past this entry, which is the
-        // same as it having been applied: either way there is nothing to send.
+        /*
+         * Drop it, and carry on with the rest.
+         *
+         * A conflict means the server has moved past this entry, which is the
+         * same as it having been applied. A rejection means the server will
+         * never accept it. Either way there is nothing left to send, and
+         * keeping it would block every entry behind it forever.
+         */
         await queue.remove(entry.id)
 
         if (outcome.ok) {

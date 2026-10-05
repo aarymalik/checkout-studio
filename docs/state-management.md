@@ -338,6 +338,83 @@ Only save when changes exist.
 
 Never interrupt editing.
 
+## The two halves
+
+The engine decides **when** to save and what to do about a failure. It is pure
+apart from its timers: it takes a `save` callback and a queue, so it is tested
+without a server.
+
+The writer decides **what goes on the wire** and what the answer means. It is
+tested without timers.
+
+Keeping them apart is deliberate, and it has one cost worth knowing: both halves
+can pass their own tests while nothing connects them. That is exactly what
+happened — `createAutosave` was complete and tested for two phases while no part
+of the application called it, so every edit in the editor was lost on reload. The
+integration is therefore tested too, in the application and end to end against
+the database.
+
+## What goes on the wire
+
+The API takes an RFC 6902 patch against the version it last answered for, and has
+no unconditional write path — [api-spec.md](./api-spec.md) § Save Draft. So a
+save is never "here is the document". It is "here is what changed since the
+version you gave me".
+
+The writer holds the document the server agreed to and compares it with the
+current one. That copy advances **only** when a write succeeds, which is what
+makes a retry send the same patch rather than one computed against a version the
+server never held.
+
+Computed by comparing rather than by collecting. The history already holds Immer
+patches, but they are grouped, capped at fifty and inverted by undo, so
+reconstructing "everything since the last save" from them is a different and far
+easier problem to get wrong. Two documents and a compare have no state to drift.
+
+An empty patch is not sent. The engine compares bytes before calling, so this is
+the narrow case where the document differs from what the engine last wrote but
+not from what the server holds.
+
+## What an answer means
+
+```
+Accepted        the base advances, and so does the version the next write uses
+Conflict        stop. Somebody has to choose which document survives
+Transient       queue it and retry with backoff: offline, a 500, a timeout,
+                or being told to slow down
+Rejected        stop. The server refused the write itself, and asking again
+                sends the same refusal
+```
+
+The fourth is the one worth spelling out. A malformed patch, or one that would
+produce something that is not a page, means a bug on our side — and retrying it
+every sixty seconds forever is worse than stopping and saying so. In the replay
+queue it is also dropped, because an entry the server will never accept would
+otherwise block every entry behind it on every reload.
+
+## Durability
+
+A failed save goes to a queue in IndexedDB, so it survives closing the tab.
+
+IndexedDB is unavailable in a private window with storage blocked, and it can
+accept the open and then refuse every request. Either way the queue falls back to
+memory and says so once: losing the queue when the tab closes is much worse than
+durable, and much better than refusing to edit. The fallback is permanent,
+because two queues replaying from two places replay in an order neither of them
+knows.
+
+Replay runs before anything new is written, oldest first, each against the version
+it was written for.
+
+## Closing the page
+
+`pagehide`, and `visibilitychange` once hidden — not `beforeunload`, which does
+not fire on mobile and disqualifies the page from the back-forward cache.
+
+This is best-effort by nature; the request may not finish. It is not the
+durability guarantee. It is what keeps the ordinary case of closing a tab from
+waiting out the five-second debounce first.
+
 ---
 
 # Dirty State
