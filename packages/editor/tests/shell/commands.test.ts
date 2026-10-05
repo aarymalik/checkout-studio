@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { createShellCommands } from "../../src/shell/commands"
+import { createViewportCommands } from "../../src/canvas/commands"
 import { SIDEBAR_TABS } from "../../src/shell/layout"
 import type { ShellActions } from "../../src/shell/store"
 import { CommandRegistry } from "../../src/commands/registry"
@@ -75,8 +76,18 @@ describe("createShellCommands", () => {
    * command that exists. The two halves were written apart, and this is what
    * stops them drifting.
    */
+  /*
+   * Every studio binding points at a command that exists.
+   *
+   * Two factories contribute them now — the frame's own, and the viewport's —
+   * so the set is the union. What the test is protecting is unchanged: a
+   * binding to a command nobody defines is a key that does nothing.
+   */
   it("defines a command for every shell and sidebar binding", () => {
-    const defined = new Set(createShellCommands(recorder()).map((command) => command.id))
+    const defined = new Set([
+      ...createShellCommands(recorder()).map((command) => command.id),
+      ...createViewportCommands({ store: () => null }).map((command) => command.id),
+    ])
     const bound = defaultShortcuts
       .filter((registration) => registration.scope === "studio")
       .map((registration) => registration.commandId)

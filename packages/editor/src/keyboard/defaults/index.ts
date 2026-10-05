@@ -1,9 +1,11 @@
 import type { ShortcutRegistration } from "../types"
 import { globalShortcuts } from "./global"
 import { shellShortcuts } from "./shell"
+import { viewportShortcuts } from "./viewport"
 
 export { globalShortcuts } from "./global"
 export { shellShortcuts } from "./shell"
+export { viewportShortcuts } from "./viewport"
 export { paletteKeys } from "./overlay"
 export type { ContextualKey } from "./overlay"
 
@@ -18,4 +20,5 @@ export type { ContextualKey } from "./overlay"
 export const defaultShortcuts: readonly ShortcutRegistration[] = [
   ...globalShortcuts,
   ...shellShortcuts,
+  ...viewportShortcuts,
 ]

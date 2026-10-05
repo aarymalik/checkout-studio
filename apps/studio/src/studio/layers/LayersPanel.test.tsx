@@ -177,43 +177,20 @@ describe("two thousand nodes", () => {
     unmount()
     mount(wide(2_000))
 
-    // The same window, ten times the document. This is the property the 100ms
-    // target in docs/phases.md rests on: the panel's work is a function of the
-    // viewport, not of the page.
-    expect(screen.getAllByRole("treeitem")).toHaveLength(small)
-  })
-
-  it("costs no more per row at 2,000 than at 200", () => {
-    function cost(count: number): number {
-      const started = performance.now()
-      const { unmount } = mount(wide(count))
-      const elapsed = performance.now() - started
-
-      unmount()
-
-      return elapsed
-    }
-
-    // Warm, so the first run does not pay for module initialisation.
-    cost(200)
-
-    const small = cost(200)
-    const large = cost(2_000)
-
     /*
-     * A ratio rather than a millisecond budget.
+     * The same window, ten times the document.
      *
-     * A wall-clock assertion measures the machine: the renderer's own
-     * performance test read 16ms locally and 1166ms on a contended CI runner,
-     * and tightening the number would only have moved which machine failed.
-     * What virtualization actually promises is that this ratio stays flat, and
-     * a ratio is contention-independent in a way a duration is not.
+     * This is the property the 100ms target in docs/phases.md rests on: the
+     * panel's work is a function of the viewport, not of the page.
      *
-     * Generous at 4×: flattening and the search pass are O(n) over the
-     * document even though rendering is not, so some growth is expected. An
-     * un-windowed list would be 10×.
+     * Asserted structurally rather than by timing it. A ratio of two wall-clock
+     * measurements was here and it measured the machine — the 200-row run is
+     * sub-millisecond, so under load the noise is larger than the signal and
+     * the ratio fails for reasons that have nothing to do with the panel. The
+     * millisecond figure belongs in the browser benchmark, where a frame budget
+     * means something.
      */
-    expect(large).toBeLessThan(Math.max(small * 4, 50))
+    expect(screen.getAllByRole("treeitem")).toHaveLength(small)
   })
 })
 
