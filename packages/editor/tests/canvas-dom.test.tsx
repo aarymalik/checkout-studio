@@ -14,9 +14,12 @@ import {
   useNodeRects,
   useNodeResolver,
   usePanZoom,
+  useResize,
   useViewport,
 } from "../src/canvas"
+import type { Rect } from "../src/canvas"
 import { EditorProvider, useEditorStoreApi } from "../src/state/context"
+import type { EditorStoreApi } from "../src/state/store"
 import { documentOf } from "./documents"
 
 /**
@@ -591,5 +594,223 @@ describe("auto-scroll through a hook", () => {
     })
 
     expect(true).toBe(true)
+  })
+})
+
+describe("useResize", () => {
+  /**
+   * The gesture, driven by events rather than by a mouse.
+   *
+   * jsdom has no layout, so the rects are given rather than measured — which is
+   * the right split: what a box actually comes out as is the browser suite's
+   * question, and what the gesture does with a box is answerable here.
+   */
+  function harness(options: { rects?: Map<string, Rect>; locked?: boolean } = {}) {
+    const document =
+      options.locked === true
+        ? documentOf("page", [
+            { id: "page", type: "core.page", children: ["header", "body"] },
+            { id: "header", type: "core.section", locked: true },
+            { id: "body", type: "core.section" },
+          ])
+        : tree()
+
+    const rects =
+      options.rects ??
+      new Map<string, Rect>([
+        ["header", { x: 0, y: 0, width: 200, height: 100 }],
+        ["body", { x: 0, y: 140, width: 200, height: 100 }],
+      ])
+
+    const captured: {
+      store?: EditorStoreApi
+      controls?: ReturnType<typeof useResize>
+    } = {}
+
+    function Harness(): ReactNode {
+      captured.store = useEditorStoreApi()
+      captured.controls = useResize({ rects, siblingsOf: () => ["body"] })
+
+      return null
+    }
+
+    render(
+      <EditorProvider document={document} baseVersion={1}>
+        <Harness />
+      </EditorProvider>,
+    )
+
+    const store = captured.store
+
+    if (store === undefined) throw new Error("The harness did not render.")
+
+    return {
+      store,
+      // Read fresh each time: the hook returns new values on every render, and
+      // a captured one would report the state before the gesture.
+      controls: (): ReturnType<typeof useResize> => {
+        if (captured.controls === undefined) throw new Error("The harness did not render.")
+
+        return captured.controls
+      },
+    }
+  }
+
+  it("writes the dragged axis to the breakpoint being edited", () => {
+    const { store, controls } = harness()
+
+    act(() => {
+      store.getState().select(["header"])
+      store.getState().setBreakpoint("tablet")
+    })
+
+    act(() => {
+      controls().begin("e", { clientX: 200, clientY: 50 })
+    })
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 260, clientY: 50 }))
+    })
+
+    expect(store.getState().document.nodes["header"]?.styles.tablet?.base?.["width"]).toBe(260)
+    expect(store.getState().document.nodes["header"]?.styles.desktop).toBeUndefined()
+  })
+
+  it("divides the pointer movement by the zoom", () => {
+    const { store, controls } = harness()
+
+    act(() => {
+      store.getState().select(["header"])
+      store.getState().setZoom(2)
+    })
+
+    act(() => {
+      controls().begin("e", { clientX: 200, clientY: 50 })
+    })
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 50 }))
+    })
+
+    // A hundred screen pixels at 200% is fifty units of document.
+    expect(store.getState().document.nodes["header"]?.styles.desktop?.base?.["width"]).toBe(250)
+  })
+
+  it("refuses to start on a locked node", () => {
+    const { store, controls } = harness({ locked: true })
+
+    act(() => {
+      store.getState().select(["header"])
+    })
+
+    act(() => {
+      controls().begin("e", { clientX: 200, clientY: 50 })
+    })
+
+    // Locked stays selectable and is not editable.
+    expect(controls().resizing).toBe(false)
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 260, clientY: 50 }))
+    })
+
+    expect(store.getState().document.nodes["header"]?.styles.desktop).toBeUndefined()
+  })
+
+  it("refuses to start with nothing selected, or nothing measured", () => {
+    const { controls } = harness({ rects: new Map() })
+
+    act(() => {
+      controls().begin("e", { clientX: 0, clientY: 0 })
+    })
+
+    expect(controls().resizing).toBe(false)
+  })
+
+  it("refuses to start when this session may not write", () => {
+    const { store, controls } = harness()
+
+    act(() => {
+      store.getState().select(["header"])
+      store.getState().setCanEdit(false)
+    })
+
+    act(() => {
+      controls().begin("e", { clientX: 200, clientY: 50 })
+    })
+
+    expect(controls().resizing).toBe(false)
+  })
+
+  it("produces guides while dragging and clears them on release", () => {
+    const { store, controls } = harness()
+
+    act(() => {
+      store.getState().select(["header"])
+    })
+
+    act(() => {
+      controls().begin("s", { clientX: 100, clientY: 100 })
+    })
+    act(() => {
+      // Dragged to 138, two short of the sibling's top edge at 140.
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 100, clientY: 138 }))
+    })
+
+    expect(controls().guides).toHaveLength(1)
+    expect(controls().guides[0]?.position).toBe(140)
+    expect(store.getState().document.nodes["header"]?.styles.desktop?.base?.["height"]).toBe(140)
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup"))
+    })
+
+    // Guides belong to the gesture; leaving them up draws lines against nothing.
+    expect(controls().guides).toEqual([])
+    expect(controls().resizing).toBe(false)
+  })
+
+  it("stops on a cancelled pointer, which a browser can send at any time", () => {
+    const { store, controls } = harness()
+
+    act(() => {
+      store.getState().select(["header"])
+    })
+
+    act(() => {
+      controls().begin("e", { clientX: 200, clientY: 50 })
+    })
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointercancel"))
+    })
+
+    expect(controls().resizing).toBe(false)
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 900, clientY: 50 }))
+    })
+
+    expect(store.getState().document.nodes["header"]?.styles.desktop).toBeUndefined()
+  })
+
+  it("holds the proportions while shift is down", () => {
+    const { store, controls } = harness()
+
+    act(() => {
+      store.getState().select(["header"])
+    })
+
+    act(() => {
+      controls().begin("e", { clientX: 200, clientY: 50 })
+    })
+    act(() => {
+      window.dispatchEvent(
+        new PointerEvent("pointermove", { clientX: 300, clientY: 50, shiftKey: true }),
+      )
+    })
+
+    const base = store.getState().document.nodes["header"]?.styles.desktop?.base
+
+    // 2:1 to begin with, and still 2:1 after.
+    expect(base?.["width"]).toBe(300)
+    expect(base?.["height"]).toBe(150)
   })
 })

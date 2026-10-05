@@ -18,6 +18,7 @@ import {
   useNodeRects,
   useNodeResolver,
   usePanZoom,
+  useResize,
   useScope,
   useViewport,
 } from "@checkout-studio/editor"
@@ -123,6 +124,22 @@ export function Canvas({ theme }: CanvasProps): ReactElement {
 
   const rects = useNodeRects(frame, measured)
   const frameBox = frameRect(breakpoint, contentHeight)
+
+  /*
+   * Resizing, and the guides it produces.
+   *
+   * The siblings are what the dragged edge lines up against, which is also why
+   * they are measured above: alignment guides had no producer until now, so
+   * `guides` was an empty array the overlay drew nothing from.
+   */
+  const resize = useResize({
+    rects,
+    siblingsOf: useCallback((id: string) => siblings(document, id), [document]),
+  })
+
+  const primary = selected[0]
+  const resizable =
+    primary !== undefined && document.nodes[primary]?.metadata.locked !== true && canEdit
 
   /** The pointer's position inside the surface, which every gesture works in. */
   const localPoint = useCallback((event: { clientX: number; clientY: number }): Rect => {
@@ -280,8 +297,15 @@ export function Canvas({ theme }: CanvasProps): ReactElement {
           selected={selected}
           hovered={hovered}
           labelFor={nameOf}
-          guides={[]}
+          guides={resize.guides}
           marquee={marquee}
+          resizable={resizable}
+          onResizeStart={(handle, event) => {
+            // The grip owns the gesture from here, so the surface beneath it
+            // must not also start a marquee.
+            event.stopPropagation()
+            resize.begin(handle, event)
+          }}
         />
       </div>
 

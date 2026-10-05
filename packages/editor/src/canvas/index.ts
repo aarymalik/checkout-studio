@@ -52,7 +52,7 @@ export { FRAME_LABEL, FRAME_WIDTH, adjacentFrame, frameRect } from "./frames"
 export { nodeAt, nodesIn, selectionFor } from "./hit"
 export type { NodeRects } from "./hit"
 
-export { GRID_SIZE, SNAP_THRESHOLD, snap, snapToGrid } from "./snap"
+export { GRID_SIZE, SNAP_THRESHOLD, snap, snapResize, snapToGrid } from "./snap"
 export type { Guide, GuideAxis, SnapOptions, SnapResult } from "./snap"
 
 export { EDGE_ZONE, MAX_SPEED, autoScrollVelocity, isNearEdge, stepFor } from "./autoscroll"
@@ -79,3 +79,9 @@ export type { AutoScrollControls, PanZoomOptions, ViewportControls } from "./hoo
 
 export { createViewportCommands, viewportCommandDescriptors } from "./commands"
 export type { ViewportCommandOptions } from "./commands"
+
+export { MINIMUM_SIZE, RESIZE_HANDLES, edgesOf, resizeRect, resizeStyles } from "./resize"
+export type { MovingEdges, ResizeHandle, ResizeOptions } from "./resize"
+
+export { useResize } from "./hooks"
+export type { ResizeControls, UseResizeOptions } from "./hooks"

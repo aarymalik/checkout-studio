@@ -1,3 +1,4 @@
+import { edgesOf, type ResizeHandle } from "./resize"
 import type { Rect } from "./transform"
 
 /**
@@ -250,4 +251,103 @@ export function snap(
 /** The nearest grid multiple. What a nudge with the grid on lands on. */
 export function snapToGrid(value: number, size: number = GRID_SIZE): number {
   return Math.round(value / size) * size
+}
+
+/**
+ * Snapping a resize.
+ *
+ * Different from snapping a move, and not a special case of it: a move slides a
+ * rect of fixed size, so both of its edges are candidates and the whole thing
+ * shifts. A resize holds the opposite edge still and moves one — so only the
+ * dragged edge may snap, and what changes is the size rather than the position.
+ *
+ * Feeding a resized rect to `snap` would line its *left* edge up against a
+ * sibling while the user was dragging its right, and move the box instead of
+ * sizing it.
+ *
+ * See docs/editor-behavior.md § Alignment Guides.
+ */
+export function snapResize(
+  rect: Rect,
+  handle: ResizeHandle,
+  targets: readonly Rect[],
+  options: SnapOptions = {},
+): SnapResult {
+  const settings = {
+    enabled: options.enabled ?? true,
+    grid: options.grid ?? false,
+    threshold: options.threshold ?? SNAP_THRESHOLD,
+  }
+
+  if (!settings.enabled) return { rect, guides: [] }
+
+  const edges = edgesOf(handle)
+  const horizontal = snapEdge(rect, targets, "x", edges.horizontal, settings)
+  const vertical = snapEdge(rect, targets, "y", edges.vertical, settings)
+
+  return {
+    rect: {
+      x: horizontal.start,
+      y: vertical.start,
+      width: horizontal.length,
+      height: vertical.length,
+    },
+    guides: [...horizontal.guides, ...vertical.guides],
+  }
+}
+
+/**
+ * One axis of a resize snap.
+ *
+ * The anchored edge is the one the handle is not dragging, and it does not move
+ * — so the snapped length is the distance from it to wherever the dragged edge
+ * landed.
+ */
+function snapEdge(
+  rect: Rect,
+  targets: readonly Rect[],
+  axis: GuideAxis,
+  edge: "start" | "end" | null,
+  settings: { grid: boolean; threshold: number },
+): { start: number; length: number; guides: readonly Guide[] } {
+  const start = axis === "x" ? rect.x : rect.y
+  const length = axis === "x" ? rect.width : rect.height
+
+  if (edge === null) return { start, length, guides: [] }
+
+  const moving = edge === "start" ? start : start + length
+  const anchored = edge === "start" ? start + length : start
+
+  let best: { at: number; guide: Guide } | null = null
+
+  for (const target of targets) {
+    for (const theirs of linesOf(target, axis)) {
+      const distance = Math.abs(theirs.at - moving)
+
+      if (distance > settings.threshold) continue
+      if (best !== null && distance >= Math.abs(best.at - moving)) continue
+
+      best = {
+        at: theirs.at,
+        guide: {
+          axis,
+          position: theirs.at,
+          kind: theirs.kind,
+          span: spanOf(rect, target, axis),
+        },
+      }
+    }
+  }
+
+  // The grid is the fallback, not a competitor: a sibling edge is a more useful
+  // thing to line up with than an arbitrary multiple of eight.
+  const landed = best?.at ?? (settings.grid ? snapToGrid(moving, GRID_SIZE) : moving)
+
+  const next = Math.abs(anchored - landed)
+
+  return {
+    start: Math.min(anchored, landed),
+    length: next,
+    guides: best === null ? [] : [best.guide],
+  }
 }
