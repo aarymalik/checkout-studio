@@ -154,3 +154,46 @@ export function createIndexedDbQueue(factory: IDBFactory): SaveQueue {
       }),
   }
 }
+
+/**
+ * The best queue this browser can give us, degrading rather than failing.
+ *
+ * IndexedDB is unavailable in a private window with storage blocked, and it can
+ * also accept the open and then refuse every request — the disk is full, the
+ * origin's storage was reclaimed. Either way the answer is the same: a save
+ * that cannot be queued durably is queued in memory, because losing the queue
+ * when the tab closes is much better than refusing to edit.
+ *
+ * The fallback is permanent once taken. A queue that flips back and forth would
+ * replay entries from two places in an order neither of them knows.
+ */
+export function createDurableQueue(
+  factory: IDBFactory | undefined,
+  onDegrade?: (error: unknown) => void,
+): SaveQueue {
+  const memory = createMemoryQueue()
+
+  if (factory === undefined) return memory
+
+  let durable: SaveQueue | null = createIndexedDbQueue(factory)
+
+  async function attempt<T>(run: (queue: SaveQueue) => Promise<T>): Promise<T> {
+    if (durable === null) return run(memory)
+
+    try {
+      return await run(durable)
+    } catch (error) {
+      durable = null
+      onDegrade?.(error)
+
+      return run(memory)
+    }
+  }
+
+  return {
+    add: async (entry) => attempt((queue) => queue.add(entry)),
+    all: async (pageId) => attempt((queue) => queue.all(pageId)),
+    remove: async (id) => attempt((queue) => queue.remove(id)),
+    clear: async (pageId) => attempt((queue) => queue.clear(pageId)),
+  }
+}

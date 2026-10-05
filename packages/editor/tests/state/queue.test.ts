@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 
 import {
   awaitRequest,
+  createDurableQueue,
   createIndexedDbQueue,
   createMemoryQueue,
   type SaveQueue,
@@ -101,6 +102,8 @@ function contract(name: string, create: () => SaveQueue): void {
 
 contract("a queue in memory", createMemoryQueue)
 contract("a queue in IndexedDB", () => createIndexedDbQueue(new IDBFactory()))
+contract("the best queue available", () => createDurableQueue(new IDBFactory()))
+contract("the best queue available with no IndexedDB", () => createDurableQueue(undefined))
 
 describe("when the browser refuses", () => {
   /*
@@ -233,5 +236,76 @@ describe("durability", () => {
     await queue.add(entry({ document }))
 
     expect((await createIndexedDbQueue(factory).all("pag_test"))[0]?.document).toBe(document)
+  })
+})
+
+describe("choosing a queue", () => {
+  /** A factory whose database cannot be opened, as in a private window. */
+  async function blocked(): Promise<IDBFactory> {
+    const factory = new IDBFactory()
+
+    // Take the database past the version the queue asks for. A downgrade is
+    // refused by every implementation.
+    await new Promise<void>((resolve) => {
+      const request = factory.open("checkout-studio", 2)
+      request.onupgradeneeded = () => request.result.createObjectStore("other")
+      request.onsuccess = () => {
+        request.result.close()
+        resolve()
+      }
+    })
+
+    return factory
+  }
+
+  it("keeps the save in memory when IndexedDB is missing entirely", async () => {
+    const queue = createDurableQueue(undefined)
+
+    await queue.add(entry())
+
+    // Worse than durable, much better than refusing to edit.
+    expect(await queue.all("pag_test")).toHaveLength(1)
+  })
+
+  it("falls back rather than rejecting when storage is blocked", async () => {
+    const queue = createDurableQueue(await blocked())
+
+    await expect(queue.add(entry())).resolves.toMatchObject({ baseVersion: 1 })
+    expect(await queue.all("pag_test")).toHaveLength(1)
+  })
+
+  it("says why it degraded, once", async () => {
+    const degraded: unknown[] = []
+    const queue = createDurableQueue(await blocked(), (error) => degraded.push(error))
+
+    await queue.add(entry())
+    await queue.all("pag_test")
+    await queue.remove(1)
+    await queue.clear("pag_test")
+
+    // One report, not one per call: after the first failure it stops asking.
+    expect(degraded).toHaveLength(1)
+    expect(degraded[0]).toBeInstanceOf(Error)
+  })
+
+  it("does not flip back to the durable queue once it has fallen back", async () => {
+    const queue = createDurableQueue(await blocked())
+
+    await queue.add(entry({ baseVersion: 1 }))
+    await queue.add(entry({ baseVersion: 2 }))
+
+    // Two queues replaying from two places would replay in an order neither of
+    // them knows, so the fallback is permanent.
+    expect((await queue.all("pag_test")).map((item) => item.baseVersion)).toEqual([1, 2])
+  })
+
+  it("uses IndexedDB when it works, and survives a reload", async () => {
+    const factory = new IDBFactory()
+
+    await createDurableQueue(factory).add(entry({ baseVersion: 7 }))
+
+    // A new queue over the same storage is what a reload produces. In memory
+    // this would be empty.
+    expect((await createDurableQueue(factory).all("pag_test"))[0]?.baseVersion).toBe(7)
   })
 })

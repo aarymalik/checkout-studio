@@ -16,11 +16,10 @@ import { createPage } from "./support/page"
  * reflects the selection, since the breadcrumb lives inside the canvas and the
  * inspector waits for its own phase.
  *
- * Nothing here asserts that an edit survives a reload, because it does not:
- * `createAutosave` exists in packages/editor and is tested there, and no part of
- * this application calls it yet. That is Phase 5's task 13, left unfinished —
- * see docs/phases.md — and it is invisible until a panel can mutate the
- * document, which this is the first one to do.
+ * Edits here are expected to survive a reload. Autosave is what makes that
+ * true, and it is tested on its own in autosave.spec.ts; these two assert it
+ * through the panel, because a panel that mutates the document and a document
+ * that persists are only useful together.
  */
 
 test.describe.configure({ mode: "serial" })
@@ -67,10 +66,51 @@ async function signIn(context: BrowserContext): Promise<void> {
   await context.addCookies(session)
 }
 
-async function openLayers(page: Page): Promise<void> {
-  await page.goto(`/projects/${account.projectId}?page=${pageId}`)
+/** The shared page, which the tests that only read it all use. */
+async function openLayers(page: Page, id: string = pageId): Promise<void> {
+  await page.goto(`/projects/${account.projectId}?page=${id}`)
   await waitForHydration(page)
   await page.getByRole("tab", { name: "Layers" }).click()
+}
+
+let mutated = 0
+
+/**
+ * A page of this test's own.
+ *
+ * For the tests that change the document. Autosave means a change sticks, so
+ * sharing the read-only page would leave the next test reading whatever the
+ * last one did to it.
+ */
+async function openOwnLayers(page: Page): Promise<string> {
+  mutated += 1
+
+  const id = await createPage(account.projectId, {
+    title: `Layers ${mutated}`,
+    slug: `layers-${mutated}`,
+    nodes: [
+      {
+        id: `header_${mutated}`,
+        type: "core.section",
+        name: "Header",
+        children: [`title_${mutated}`],
+      },
+      { id: `title_${mutated}`, type: "core.heading", name: "Title" },
+      { id: `body_${mutated}`, type: "core.section", name: "Body" },
+    ],
+  })
+
+  await openLayers(page, id)
+
+  return id
+}
+
+/*
+ * `exact` matters here. Playwright matches a plain string as a case-insensitive
+ * substring, so `getByText("Saved")` also matches "Unsaved changes".
+ */
+function settled(page: Page) {
+  return page.getByText("Saved", { exact: true })
 }
 
 test("lists the page's elements as a tree", async ({ context, page }) => {
@@ -118,9 +158,10 @@ test("selects a node, and the store is what says so", async ({ context, page }) 
   )
 })
 
-test("renames a node in place", async ({ context, page }) => {
+test("renames a node, and the name survives a reload", async ({ context, page }) => {
   await signIn(context)
-  await openLayers(page)
+
+  const id = await openOwnLayers(page)
 
   await page.getByRole("button", { name: "Body", exact: true }).click()
   await page.keyboard.press("F2")
@@ -140,11 +181,20 @@ test("renames a node in place", async ({ context, page }) => {
 
   // Focus goes back to the tree, or the next keystroke goes nowhere.
   await expect(page.getByRole("tree", { name: "Layers" })).toBeFocused()
+
+  // And it is on the server. A rename that only lives in the store is a rename
+  // the user loses.
+  await expect(settled(page)).toBeVisible({ timeout: 20_000 })
+
+  await openLayers(page, id)
+
+  await expect(page.getByRole("button", { name: "Order summary", exact: true })).toBeVisible()
 })
 
-test("reorders with the keyboard", async ({ context, page }) => {
+test("reorders with the keyboard, and the order survives a reload", async ({ context, page }) => {
   await signIn(context)
-  await openLayers(page)
+
+  const id = await openOwnLayers(page)
 
   // The top-level rows, in the order the panel shows them. The list is flat in
   // the DOM, so a row's text is its own label and not its subtree's.
@@ -161,6 +211,12 @@ test("reorders with the keyboard", async ({ context, page }) => {
   // Past Body, which is the only way to reorder without a pointer until drag
   // arrives in Phase 8.
   await expect.poll(order).toEqual(["Body", "Header"])
+
+  await expect(settled(page)).toBeVisible({ timeout: 20_000 })
+
+  await openLayers(page, id)
+
+  expect(await order()).toEqual(["Body", "Header"])
 })
 
 test("searches, keeping the ancestors of a match", async ({ context, page }) => {

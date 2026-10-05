@@ -187,6 +187,32 @@ Open panels
 
 Temporary UI state
 
+The store is watched for one thing: whether the document itself is a different
+object than it was. Everything in the list above changes the store without
+changing the page, and a saver that watched the whole store would write on every
+click.
+
+What the editor shows about it, in the status bar:
+
+```
+Saved              the draft on screen is the draft on the server
+Unsaved changes    the five seconds before the debounce fires
+Saving…            a write is in flight
+Not saved · why    it failed, and which of the reasons it was
+Read only          another session holds the page
+```
+
+"Saved" is also the state a freshly loaded page is in, with no claim about when:
+inventing a time for a session that has not edited anything would be a lie, and a
+relative one would need a ticking clock to stay true.
+
+The failure state carries the reason. "Not saved" alone tells somebody to worry
+without telling them what about, and the reasons — the page changed elsewhere,
+the network went away, the write was refused — call for different responses.
+
+See [state-management.md](./state-management.md) § Autosave for how a save is
+made and what each answer means.
+
 ---
 
 # Drafts
