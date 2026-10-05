@@ -70,6 +70,33 @@ describe("EditSessionProvider", () => {
     return render(strict ? <StrictMode>{tree}</StrictMode> : tree)
   }
 
+  /**
+   * Click a button in the arrival prompt, once the prompt can actually be
+   * clicked.
+   *
+   * Radix locks pointer events on the body while a dialog settles and gives the
+   * dialog's own content `pointer-events: auto` in an effect. userEvent refuses
+   * to click through the lock, correctly — so between the button appearing and
+   * the content becoming interactive there is a window, and under load it is
+   * wide enough to land in. That was this suite's CI failure: "Unable to
+   * perform pointer interaction as the element has `pointer-events: none`".
+   *
+   * Waited for rather than switched off, because "can the user click this?" is
+   * worth keeping as a real check.
+   */
+  async function clickInPrompt(
+    user: ReturnType<typeof userEvent.setup>,
+    name: string,
+  ): Promise<void> {
+    const button = await screen.findByRole("button", { name })
+
+    await waitFor(() => {
+      expect(window.getComputedStyle(screen.getByRole("dialog")).pointerEvents).toBe("auto")
+    })
+
+    await user.click(button)
+  }
+
   /** Keys the stub by "METHOD /path", so each route can answer differently. */
   function reply(key: string, value: Reply): void {
     replies.set(key, value)
@@ -420,9 +447,7 @@ describe("EditSessionProvider", () => {
       const user = userEvent.setup()
 
       setup()
-      await screen.findByRole("button", { name: "Take over editing" })
-
-      await user.click(screen.getByRole("button", { name: "Take over editing" }))
+      await clickInPrompt(user, "Take over editing")
 
       await waitFor(() => {
         expect(store.getState().persistence.canEdit).toBe(true)
@@ -435,9 +460,7 @@ describe("EditSessionProvider", () => {
       const user = userEvent.setup()
 
       setup()
-      await screen.findByRole("button", { name: "Open read-only" })
-
-      await user.click(screen.getByRole("button", { name: "Open read-only" }))
+      await clickInPrompt(user, "Open read-only")
 
       await waitFor(() => {
         expect(screen.queryByText("This page is open in another session")).toBeNull()
@@ -455,8 +478,18 @@ describe("EditSessionProvider", () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
 
       setup()
-      await screen.findByRole("button", { name: "Open read-only" })
-      await user.click(screen.getByRole("button", { name: "Open read-only" }))
+      await clickInPrompt(user, "Open read-only")
+
+      /*
+       * Waited for, not asserted.
+       *
+       * The dialog animates out, so it is still in the document for a frame or
+       * two after the click. Reading it immediately passed on a fast machine
+       * and failed on CI, which is the whole class of test this was.
+       */
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).toBeNull()
+      })
 
       reply("GET /api/pages/pag_test/session", {
         data: {
@@ -464,13 +497,17 @@ describe("EditSessionProvider", () => {
         },
       })
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
-      })
+      // Three intervals, so a poll that is slow to resolve still gets its turn.
+      for (let beat = 0; beat < 3; beat += 1) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
+        })
+      }
 
       // Read-only is a state the person chose. A prompt that returned every
       // time the other session heartbeated would be unusable.
-      expect(screen.queryByText("This page is open in another session")).toBeNull()
+      expect(screen.queryByRole("dialog")).toBeNull()
+      expect(screen.getByRole("button", { name: "Take over" })).toBeInTheDocument()
     })
 
     it("does not ask at all when the page is free", async () => {
@@ -505,7 +542,7 @@ describe("EditSessionProvider", () => {
       // The prompt is answered first. Until it is, the rest of the editor is
       // behind it and out of the accessibility tree — which is the point of a
       // modal, and is also the real order of events.
-      await user.click(await screen.findByRole("button", { name: "Open read-only" }))
+      await clickInPrompt(user, "Open read-only")
 
       await user.click(await screen.findByRole("button", { name: "Take over" }))
 
@@ -524,18 +561,29 @@ describe("EditSessionProvider", () => {
 
       setup()
 
-      await user.click(await screen.findByRole("button", { name: "Open read-only" }))
+      await clickInPrompt(user, "Open read-only")
       await screen.findByRole("button", { name: "Take over" })
 
       reply("GET /api/pages/pag_test/session", { data: { session: null } })
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
-      })
+      /*
+       * Three intervals, so a poll whose answer takes a few microtasks still
+       * gets its turn. Advancing once and reading immediately is the version
+       * that passed locally and failed on CI.
+       *
+       * Not wrapped in waitFor: waitFor needs timers of its own, and nesting
+       * fake-timer advancement inside it deadlocks.
+       */
+      for (let beat = 0; beat < 3; beat += 1) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(SESSION_HEARTBEAT_SECONDS * 1_000)
+        })
+      }
+
+      expect(await screen.findByRole("button", { name: "Start editing" })).toBeInTheDocument()
 
       // Offered, not taken: somebody reading a page should not start holding
       // its lock because the other tab closed.
-      expect(await screen.findByRole("button", { name: "Start editing" })).toBeInTheDocument()
       expect(store.getState().persistence.canEdit).toBe(false)
     })
   })
