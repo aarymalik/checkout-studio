@@ -1,4 +1,10 @@
-export { EditorProvider, useEditorActions, useEditorStore, useEditorStoreApi } from "./context"
+export {
+  EditorProvider,
+  useEditorActions,
+  useEditorStore,
+  useEditorStoreApi,
+  useOptionalEditorStoreApi,
+} from "./context"
 export type { EditorProviderProps } from "./context"
 
 export { createEditorStore } from "./store"

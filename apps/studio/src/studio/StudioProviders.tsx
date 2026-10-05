@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react"
 import {
   CommandRegistry,
+  createViewportCommands,
   KeyboardProvider,
   KeymapRegistry,
   PaletteRegistry,
@@ -12,7 +13,9 @@ import {
   defaultShortcuts,
   describeConflicts,
   resolveShortcuts,
+  useOptionalEditorStoreApi,
   useShellActions,
+  type EditorStoreApi,
   type Platform,
   type ShellActions,
   type ShortcutConflict,
@@ -107,6 +110,17 @@ function Registries({
   const shell = useShellActions()
   const overlays = useOverlays()
 
+  /*
+   * The store, if there is one.
+   *
+   * This provider renders with and without an open page, so it cannot demand
+   * one — and the registries must not be rebuilt when a page arrives, or a
+   * chord in progress is dropped. Read through a ref, like the overlays.
+   */
+  const editorStore = useOptionalEditorStoreApi()
+  const editorStoreRef = useRef(editorStore)
+  editorStoreRef.current = editorStore
+
   // Overlay state changes on every open and close; a command must reach the
   // current one without the registries being rebuilt around it.
   const overlaysRef = useRef(overlays)
@@ -118,6 +132,7 @@ function Registries({
         shell,
         platform,
         userKeymap,
+        viewportStore: () => editorStoreRef.current,
         app: {
           openPalette: () => overlaysRef.current.toggle("palette"),
           openShortcuts: () => overlaysRef.current.toggle("shortcuts"),
@@ -146,11 +161,14 @@ function build({
   app,
   platform,
   userKeymap,
+  viewportStore,
 }: {
   shell: ShellActions
   app: AppCommandActions
   platform: Platform
   userKeymap: UserKeymap
+  /** Null until a page is open. Read on every run, never captured. */
+  viewportStore: () => EditorStoreApi | null
 }): {
   commands: CommandRegistry
   keymap: KeymapRegistry
@@ -161,7 +179,11 @@ function build({
   const keymap = new KeymapRegistry(commands)
   const palette = new PaletteRegistry()
 
-  commands.registerAll([...createShellCommands(shell), ...createAppCommands(app)])
+  commands.registerAll([
+    ...createShellCommands(shell),
+    ...createAppCommands(app),
+    ...createViewportCommands({ store: viewportStore }),
+  ])
 
   // Their changes applied to what the product ships: remapped keys replaced,
   // switched-off ones absent, bare character keys gone if they asked.

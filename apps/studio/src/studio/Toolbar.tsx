@@ -1,20 +1,29 @@
 "use client"
 
 import { PanelLeft, PanelRight, Redo2, Undo2 } from "lucide-react"
-import { Button, Tooltip } from "@checkout-studio/ui"
-import { useKeyboard, useShellLayout, useShellActions } from "@checkout-studio/editor"
+import { Button, Tooltip, cn } from "@checkout-studio/ui"
+import {
+  useKeyboard,
+  useOptionalEditorStoreApi,
+  useShellLayout,
+  useShellActions,
+} from "@checkout-studio/editor"
 
 import { useOverlays } from "./overlays"
+import { ViewportControls } from "./ViewportControls"
 import { Logo } from "@/components/brand/Logo"
 
 /**
  * The top toolbar.
  *
  * Every control here runs a registered command, and a control appears only when
- * its command is registered and available. That is why there is no device
- * switcher, no zoom and no publish button yet: those commands arrive with the
- * canvas and the publishing pipeline, and a button that does nothing is worse
- * than a button that is not there.
+ * its command is registered and available. That is why there is no publish
+ * button yet: it arrives with the publishing pipeline, and a button that does
+ * nothing is worse than a button that is not there.
+ *
+ * The device and zoom controls follow the same rule one step further — they
+ * need a document as well as a command, so they are absent with no page open
+ * rather than being a row of controls over nothing.
  *
  * See docs/ui-guidelines.md § Top Toolbar and docs/phases.md, Phase 4 step 12.
  */
@@ -31,6 +40,9 @@ export function Toolbar({ projectName }: { projectName: string }) {
   }
 
   const canUndo = commands.has("edit.undo")
+  // Null with no page open. The viewport controls read the document's zoom and
+  // breakpoint, so without one there is nothing for them to show.
+  const hasDocument = useOptionalEditorStoreApi() !== null
 
   return (
     <header
@@ -43,7 +55,13 @@ export function Toolbar({ projectName }: { projectName: string }) {
 
       <h1 className="min-w-0 truncate text-body font-medium text-foreground">{projectName}</h1>
 
-      <div className="ml-auto flex items-center gap-1">
+      {hasDocument ? (
+        <div className="ml-auto flex items-center gap-3">
+          <ViewportControls />
+        </div>
+      ) : null}
+
+      <div className={cn("flex items-center gap-1", hasDocument ? "" : "ml-auto")}>
         <Tooltip content={label("view.toggle-left-panel", "Toggle left sidebar")}>
           <Button
             variant="ghost"

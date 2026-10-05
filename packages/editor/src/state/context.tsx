@@ -49,6 +49,18 @@ export function useEditorStoreApi(): EditorStoreApi {
 }
 
 /**
+ * The store if there is one.
+ *
+ * For the surfaces that outlive a document. Commands and the shell are built
+ * once for the application and have to exist with no page open — the throwing
+ * version is right for a panel that is meaningless without one, and wrong for a
+ * registry that has to be able to say "not available yet".
+ */
+export function useOptionalEditorStoreApi(): EditorStoreApi | null {
+  return useContext(StoreContext)
+}
+
+/**
  * Subscribe to part of the store.
  *
  * The selector is what keeps a re-render local. Subscribing to the whole store

@@ -376,6 +376,27 @@ Nudge applies to the active breakpoint only, consistent with responsive editing 
 
 Zoom range is 10%–400%, per [editor-behavior.md](./editor-behavior.md).
 
+Zoom steps through a fixed scale — 10, 25, 50, 75, 100, 125, 150, 200, 300, 400 —
+rather than multiplying, so repeated presses land on the values the toolbar shows
+instead of on 110%, 121%, 133%.
+
+`⇧D`, `⇧T` and `⇧M` are **not bound yet.** Shift and a letter is a character key
+shortcut under WCAG 2.1.4: speech input can trigger it, so it has to be
+switchable off, remappable, or active only while something has focus. This
+product offers remapping, which satisfies the rule — but the keymap also holds
+itself to one unmodified character key in total, and that limit is a deliberate
+brake. The clean answer is the third exemption: bind them in the `canvas` scope,
+live only while the canvas has focus. Nothing enters that scope until the canvas
+is mounted, which needs a registered component.
+
+So the three commands exist and are reachable from the toolbar and the palette,
+and their bindings arrive with the scope that makes them legitimate. A binding
+that cannot fire is worse than one that is not there yet.
+
+`⇧1` (zoom to fit) and `⇧2` (zoom to selection) are unbound for a different
+reason: both need the size of the canvas surface, and only a mounted canvas
+knows it.
+
 `⌘R` shadows browser reload and is therefore canvas-scoped, opt-in via settings, and disabled by default. Users who want it must enable it knowingly.
 
 ## Panels

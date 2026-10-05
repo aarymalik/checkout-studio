@@ -76,3 +76,6 @@ export {
   useViewport,
 } from "./hooks"
 export type { AutoScrollControls, PanZoomOptions, ViewportControls } from "./hooks"
+
+export { createViewportCommands, viewportCommandDescriptors } from "./commands"
+export type { ViewportCommandOptions } from "./commands"

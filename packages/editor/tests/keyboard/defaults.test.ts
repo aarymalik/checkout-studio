@@ -5,6 +5,7 @@ import {
   globalShortcuts,
   paletteKeys,
   shellShortcuts,
+  viewportShortcuts,
 } from "../../src/keyboard/defaults"
 import { detectConflicts } from "../../src/keyboard/conflicts"
 import { serializeBinding } from "../../src/keyboard/normalize"
@@ -15,7 +16,9 @@ const PHYSICAL_KEY =
 
 describe("the shipped keymap", () => {
   it("is the sum of its parts", () => {
-    expect(defaultShortcuts).toHaveLength(globalShortcuts.length + shellShortcuts.length)
+    expect(defaultShortcuts).toHaveLength(
+      globalShortcuts.length + shellShortcuts.length + viewportShortcuts.length,
+    )
   })
 
   // Exit criterion: a conflicting shortcut registration fails at startup. That
