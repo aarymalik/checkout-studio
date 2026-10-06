@@ -354,6 +354,47 @@ describe("autosave", () => {
 
     // Retrying a stale write fails identically until somebody chooses which
     // version survives.
+    /*
+     * Found by undo existing.
+     *
+     * Edit something and undo it before the debounce fires, and the document
+     * matches the server again while the store still says "modified". There is
+     * nothing to send — and left at that, the status bar reads "Unsaved
+     * changes" forever on a page that is saved, with nothing to ever clear it.
+     */
+    it("says a reverted document is saved, without writing anything", async () => {
+      const test = harness()
+
+      test.store.getState().setProps("heading", { text: "Hello" })
+      expect(test.store.getState().persistence.status).toBe("modified")
+
+      // Back to where it started, which is where the server already is. Undone
+      // rather than re-set, because that is the case that found this and the
+      // only one that guarantees the bytes match again.
+      expect(test.store.getState().undo()).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(DEBOUNCE_MS)
+      await settle()
+
+      expect(test.requests).toEqual([])
+      expect(test.store.getState().persistence.status).toBe("saved")
+
+      test.stop()
+    })
+
+    it("still writes nothing at all on a page nobody is editing", async () => {
+      const test = harness()
+
+      await vi.advanceTimersByTimeAsync(MAXIMUM_WAIT_MS * 2)
+      await settle()
+
+      // The ordinary case: no request, and no churn through the status either.
+      expect(test.requests).toEqual([])
+      expect(test.store.getState().persistence.status).toBe("saved")
+
+      test.stop()
+    })
+
     it("does not retry a conflict", async () => {
       const test = harness()
 

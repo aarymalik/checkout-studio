@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createShellCommands } from "../../src/shell/commands"
 import { createViewportCommands } from "../../src/canvas/commands"
+import { createEditCommands } from "../../src/state/commands"
 import { SIDEBAR_TABS } from "../../src/shell/layout"
 import type { ShellActions } from "../../src/shell/store"
 import { CommandRegistry } from "../../src/commands/registry"
@@ -79,7 +80,8 @@ describe("createShellCommands", () => {
   /*
    * Every studio binding points at a command that exists.
    *
-   * Two factories contribute them now — the frame's own, and the viewport's —
+   * Three factories contribute them now — the frame's own, the viewport's and
+   * the editing ones —
    * so the set is the union. What the test is protecting is unchanged: a
    * binding to a command nobody defines is a key that does nothing.
    */
@@ -87,6 +89,7 @@ describe("createShellCommands", () => {
     const defined = new Set([
       ...createShellCommands(recorder()).map((command) => command.id),
       ...createViewportCommands({ store: () => null }).map((command) => command.id),
+      ...createEditCommands({ store: () => null }).map((command) => command.id),
     ])
     const bound = defaultShortcuts
       .filter((registration) => registration.scope === "studio")

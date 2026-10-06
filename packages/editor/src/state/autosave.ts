@@ -116,9 +116,27 @@ export function createAutosave(options: AutosaveOptions): Autosave {
     const document = state.document
     const bytes = serialize(document)
 
-    // Nothing changed. This is the ordinary case on a page somebody is reading
-    // rather than editing, and it must not produce a request.
-    if (bytes === savedBytes) return Promise.resolve()
+    /*
+     * Nothing to write, which is not the same as nothing to say.
+     *
+     * The ordinary case is a page somebody is reading rather than editing, and
+     * it must not produce a request. But a document can arrive back here after
+     * changing — edit something and undo it before the debounce fires — and
+     * then it matches the server while the store still says "modified". Left
+     * alone, the status bar reads "Unsaved changes" forever on a page that is
+     * saved, and nothing ever clears it because there is nothing to send.
+     *
+     * So: no request, and the truth about where the document stands.
+     */
+    if (bytes === savedBytes) {
+      clearTimers()
+
+      if (state.persistence.status !== "saved") {
+        store.getState().markSaved(state.persistence.baseVersion)
+      }
+
+      return Promise.resolve()
+    }
 
     clearTimers()
     store.getState().markSaving()
