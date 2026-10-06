@@ -132,6 +132,16 @@ describe("locking", () => {
 })
 
 describe("hiding", () => {
+  it("needs a selection, like locking does", () => {
+    const api = store()
+
+    api.getState().clearSelection()
+
+    // Inserting selects what it inserted, so the empty case has to be asked
+    // for rather than assumed.
+    expect(commandsFor(api).get("arrange.hide")?.isAvailable(makeContext())).toBe(false)
+  })
+
   it("toggles visibility and reports it", () => {
     const api = store()
     const commands = commandsFor(api)
@@ -269,6 +279,47 @@ describe("moving", () => {
 })
 
 describe("every one of them", () => {
+  it("reports an active state only where there is one to report", () => {
+    const api = store()
+    const commands = commandsFor(api)
+
+    api.getState().select([childrenOf(api)[0] as string])
+
+    // The two toggles have a state. The four reordering steps are actions, not
+    // states — the same distinction the viewport makes between a device, which
+    // is on or off, and a zoom step, which happens.
+    for (const id of ["arrange.lock", "arrange.hide"]) {
+      expect(commands.get(id)?.isActive?.(makeContext())).toBe(false)
+    }
+
+    commands.get("arrange.lock")?.run(makeContext())
+    expect(commands.get("arrange.lock")?.isActive?.(makeContext())).toBe(true)
+
+    for (const id of [
+      "arrange.move-up",
+      "arrange.move-down",
+      "arrange.move-into",
+      "arrange.move-out",
+    ]) {
+      expect(commands.get(id)?.isActive?.(makeContext())).toBe(false)
+    }
+  })
+
+  it("does nothing when run while it cannot act", () => {
+    const api = store()
+    const commands = commandsFor(api)
+    const before = api.getState().document
+
+    api.getState().select([childrenOf(api)[0] as string])
+
+    // Running without asking first is legitimate — a keystroke decides
+    // availability before it fires, and the selection can move in between — so
+    // every command plans again and declines rather than throwing.
+    expect(commands.get("arrange.move-up")?.isAvailable(makeContext())).toBe(false)
+    expect(() => commands.get("arrange.move-up")?.run(makeContext())).not.toThrow()
+    expect(api.getState().document).toBe(before)
+  })
+
   it("declares that it changes the document", () => {
     for (const command of commandsFor(store()).values()) {
       expect(command.mutates).toBe(true)

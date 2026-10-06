@@ -22,13 +22,26 @@ import type { EditorStoreApi } from "./store"
  * See docs/editor-behavior.md § Lock and § Hide.
  */
 
+/**
+ * One command, as a plan rather than a pair of answers.
+ *
+ * `plan` returns the thing to do, or null when there is nothing to do — so
+ * "can this act?" and "what would it do?" are one question asked once.
+ *
+ * Written this way after the first version separated them. `available` asked
+ * whether a move existed and `run` worked it out again, which meant `run` had
+ * to handle a null it could never see: the caller had already refused. That is
+ * the shape commands.ts warns about in its own table — "the lookups that
+ * guarded against it were branches no test could reach because the thing they
+ * guarded against could not happen". A branch like that is not covered by
+ * writing a cleverer test; it is removed by not needing it.
+ */
 interface ArrangeCommandSpec {
   title: string
   keywords: readonly string[]
-  available: (api: EditorStoreApi) => boolean
+  plan: (api: EditorStoreApi) => (() => void) | null
   /** Toggle state, for a pressed toolbar button or a menu checkmark. */
   active?: (api: EditorStoreApi) => boolean
-  run: (api: EditorStoreApi) => void
 }
 
 const selection = (api: EditorStoreApi): readonly string[] => api.getState().selection.ids
@@ -84,13 +97,14 @@ function step(
   return {
     title,
     keywords,
-    available: (api) => stepFor(api, of) !== null,
-    run: (api) => {
+    plan: (api) => {
       const move = stepFor(api, of)
 
-      if (move === null) return
+      if (move === null) return null
 
-      api.getState().move(move.id, move.parentId, move.index)
+      return () => {
+        api.getState().move(move.id, move.parentId, move.index)
+      }
     },
   }
 }
@@ -99,9 +113,6 @@ const ARRANGE_COMMANDS: Readonly<Record<string, ArrangeCommandSpec>> = {
   "arrange.lock": {
     title: "Lock / unlock",
     keywords: ["lock", "unlock", "freeze", "protect"],
-    // Available whenever something is selected, including when it is already
-    // locked: unlocking is the other half of this command.
-    available: (api) => selection(api).length > 0,
     /*
      * The node's own flag, not `isLocked`.
      *
@@ -115,32 +126,43 @@ const ARRANGE_COMMANDS: Readonly<Record<string, ArrangeCommandSpec>> = {
 
       return selection(api).every((id) => document.nodes[id]?.metadata.locked === true)
     },
-    run: (api) => {
-      const { document } = api.getState()
+    // Planned whenever something is selected, including when it is already
+    // locked: unlocking is the other half of this command.
+    plan: (api) => {
       const ids = selection(api)
+
+      if (ids.length === 0) return null
+
+      const { document } = api.getState()
       // Any unlocked node means "lock everything"; only then does a second
       // press release them. Mixed selections need a defined direction.
       const locking = ids.some((id) => document.nodes[id]?.metadata.locked !== true)
 
-      api.getState().setLocked(ids, locking)
+      return () => {
+        api.getState().setLocked(ids, locking)
+      }
     },
   },
 
   "arrange.hide": {
     title: "Hide / show",
     keywords: ["hide", "show", "visible", "visibility", "eye"],
-    available: (api) => selection(api).length > 0,
     active: (api) => {
       const { document } = api.getState()
 
       return selection(api).every((id) => document.nodes[id]?.visibility.hidden === true)
     },
-    run: (api) => {
-      const { document } = api.getState()
+    plan: (api) => {
       const ids = selection(api)
+
+      if (ids.length === 0) return null
+
+      const { document } = api.getState()
       const hiding = ids.some((id) => document.nodes[id]?.visibility.hidden !== true)
 
-      api.getState().setHidden(ids, hiding)
+      return () => {
+        api.getState().setHidden(ids, hiding)
+      }
     },
   },
 
@@ -185,8 +207,12 @@ export function createArrangeCommands({ store }: ArrangeCommandOptions): readonl
     isAvailable: (context: EditorContext) => {
       const api = writable(store)
 
-      return api !== null && !context.isEditingText && spec.available(api)
+      return api !== null && !context.isEditingText && spec.plan(api) !== null
     },
+    /*
+     * Only the two toggles have one. The reordering steps are actions, not
+     * states, so they report no active state the way a zoom step does not.
+     */
     isActive: (_context: EditorContext) => {
       const api = store()
 
@@ -195,11 +221,11 @@ export function createArrangeCommands({ store }: ArrangeCommandOptions): readonl
     run: (context: EditorContext) => {
       const api = writable(store)
 
-      // Checked again rather than trusted: availability was decided before the
-      // keystroke, and a page can close between the two.
-      if (api === null || context.isEditingText || !spec.available(api)) return
+      if (api === null || context.isEditingText) return
 
-      spec.run(api)
+      // Planned again rather than trusted: availability was decided before the
+      // keystroke, and a page can close or the selection move between the two.
+      spec.plan(api)?.()
     },
     mutates: true,
   }))
