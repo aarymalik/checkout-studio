@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   defaultShortcuts,
   globalShortcuts,
+  editShortcuts,
   paletteKeys,
   shellShortcuts,
   viewportShortcuts,
@@ -17,7 +18,10 @@ const PHYSICAL_KEY =
 describe("the shipped keymap", () => {
   it("is the sum of its parts", () => {
     expect(defaultShortcuts).toHaveLength(
-      globalShortcuts.length + shellShortcuts.length + viewportShortcuts.length,
+      globalShortcuts.length +
+        shellShortcuts.length +
+        viewportShortcuts.length +
+        editShortcuts.length,
     )
   })
 

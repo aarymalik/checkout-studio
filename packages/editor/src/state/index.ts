@@ -7,6 +7,9 @@ export {
 } from "./context"
 export type { EditorProviderProps } from "./context"
 
+export { createEditCommands, editCommandDescriptors } from "./commands"
+export type { EditCommandOptions } from "./commands"
+
 export { createEditorStore } from "./store"
 export type {
   CreateStoreOptions,

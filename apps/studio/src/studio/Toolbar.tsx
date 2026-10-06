@@ -2,7 +2,9 @@
 
 import { PanelLeft, PanelRight, Redo2, Undo2 } from "lucide-react"
 import { Button, Tooltip, cn } from "@checkout-studio/ui"
+import type { ComponentType, ReactElement } from "react"
 import {
+  useEditorStore,
   useKeyboard,
   useOptionalEditorStoreApi,
   useShellLayout,
@@ -39,7 +41,13 @@ export function Toolbar({ projectName }: { projectName: string }) {
     return binding === null ? fallback : `${fallback} · ${keymap.format(binding, platform)}`
   }
 
-  const canUndo = commands.has("edit.undo")
+  /*
+   * Rendered from the registry, which is what the comment above promises.
+   *
+   * These were behind this check for three phases while nothing registered an
+   * `edit` command, so the buttons never appeared and `⌘Z` did nothing.
+   */
+  const hasHistory = commands.has("edit.undo")
   // Null with no page open. The viewport controls read the document's zoom and
   // breakpoint, so without one there is nothing for them to show.
   const hasDocument = useOptionalEditorStoreApi() !== null
@@ -87,17 +95,23 @@ export function Toolbar({ projectName }: { projectName: string }) {
         </Tooltip>
 
         {/*
-         * Undo and redo are rendered from the registry too, so they appear the
-         * moment Phase 5 registers them and stay absent until then.
-         */}
-        {canUndo ? (
+          A document as well as a command: the buttons read the history, and
+          there is none without a page open.
+        */}
+        {hasDocument && hasHistory ? (
           <>
-            <Button variant="ghost" size="sm" aria-label="Undo">
-              <Undo2 aria-hidden="true" className="size-4" />
-            </Button>
-            <Button variant="ghost" size="sm" aria-label="Redo">
-              <Redo2 aria-hidden="true" className="size-4" />
-            </Button>
+            <HistoryButton
+              commandId="edit.undo"
+              label={label("edit.undo", "Undo")}
+              name="Undo"
+              icon={Undo2}
+            />
+            <HistoryButton
+              commandId="edit.redo"
+              label={label("edit.redo", "Redo")}
+              name="Redo"
+              icon={Redo2}
+            />
           </>
         ) : null}
 
@@ -106,5 +120,55 @@ export function Toolbar({ projectName }: { projectName: string }) {
         </Button>
       </div>
     </header>
+  )
+}
+
+/**
+ * Undo or redo, from the registry.
+ *
+ * Disabled rather than hidden when there is nothing to undo: a control that
+ * came and went as the history filled would move the buttons beside it, and
+ * greying it says "nothing to undo" where absence says nothing at all.
+ */
+function HistoryButton({
+  commandId,
+  label,
+  name,
+  icon: Icon,
+}: {
+  commandId: string
+  label: string
+  name: string
+  icon: ComponentType<{ className?: string }>
+}): ReactElement | null {
+  const { commands } = useKeyboard()
+  // Subscribed so the button enables the moment there is something to undo.
+  const depth = useEditorStore((state) =>
+    commandId === "edit.undo" ? state.history.past.length : state.history.future.length,
+  )
+
+  const command = commands.get(commandId)
+
+  if (command === null) return null
+
+  return (
+    <Tooltip content={label}>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={name}
+        disabled={depth === 0}
+        onClick={() =>
+          void command.run({
+            scopes: ["studio"],
+            selectionCount: 0,
+            isEditingText: false,
+            isDirty: false,
+          })
+        }
+      >
+        <Icon aria-hidden="true" className="size-4" />
+      </Button>
+    </Tooltip>
   )
 }

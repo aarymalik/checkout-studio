@@ -8,6 +8,7 @@ import {
   useEditorActions,
   useEditorStore,
   useEditorStoreApi,
+  useOptionalEditorStoreApi,
 } from "../../src/state/context"
 import { sampleDocument } from "./support"
 
@@ -261,5 +262,48 @@ describe("acting on the store", () => {
     })
 
     expect(screen.getByTestId("title")).toHaveTextContent("Outside")
+  })
+})
+
+describe("the optional store", () => {
+  /**
+   * For the surfaces that outlive a document.
+   *
+   * Commands and the shell are built once for the application and have to exist
+   * with no page open. The throwing hook is right for a panel that is
+   * meaningless without one and wrong for a registry that has to be able to say
+   * "not available yet".
+   */
+  it("is null outside a provider rather than throwing", () => {
+    let seen: unknown = "unset"
+
+    function Peek(): ReactNode {
+      seen = useOptionalEditorStoreApi()
+
+      return null
+    }
+
+    render(<Peek />)
+
+    expect(seen).toBeNull()
+  })
+
+  it("is the store inside one", () => {
+    let seen: unknown = null
+
+    function Peek(): ReactNode {
+      seen = useOptionalEditorStoreApi()
+
+      return null
+    }
+
+    render(
+      <Editor>
+        <Peek />
+      </Editor>,
+    )
+
+    expect(seen).not.toBeNull()
+    expect(typeof (seen as { getState?: unknown }).getState).toBe("function")
   })
 })

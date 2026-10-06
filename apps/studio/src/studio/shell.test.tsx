@@ -324,15 +324,16 @@ describe("StudioShell", () => {
       press({ key: "KeyK", mod: true })
 
       /*
-       * Four shell commands, six tabs, four the application contributes, and
-       * eight for the viewport: three zoom steps, two zoom targets, and three
-       * devices.
+       * Four shell commands, six tabs, four the application contributes, eight
+       * for the viewport — three zoom steps, two zoom targets, three devices —
+       * and nine for editing: undo, redo, the five clipboard operations,
+       * duplicate and delete.
        *
        * The viewport six are listed even here, where no page is open and they
        * are unavailable: the palette greys what cannot run rather than hiding
        * it, so the list does not rearrange itself as pages open and close.
        */
-      expect(screen.getAllByRole("option")).toHaveLength(22)
+      expect(screen.getAllByRole("option")).toHaveLength(31)
     })
 
     it("shows each command's shortcut beside it", () => {
