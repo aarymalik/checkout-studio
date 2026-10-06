@@ -139,7 +139,17 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
   }, [selected, hovered, document])
 
   const rects = useNodeRects(frame, measured)
-  const frameBox = frameRect(breakpoint, contentHeight)
+  /*
+   * Memoised, because its identity is a dependency.
+   *
+   * `frameRect` is pure and recomputing it is free, so this looks like
+   * premature optimisation and is not. The effect below publishes the canvas's
+   * shape "on every change", and a fresh object every render made that every
+   * *render* instead — which during a pan is sixty times a second, each one
+   * forcing a layout to read the surface and writing to the store. The effect
+   * says what it means now.
+   */
+  const frameBox = useMemo(() => frameRect(breakpoint, contentHeight), [breakpoint, contentHeight])
 
   /*
    * Resizing, and the guides it produces.

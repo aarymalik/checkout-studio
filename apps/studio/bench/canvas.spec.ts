@@ -3,22 +3,49 @@ import { expect, test, type Page } from "@playwright/test"
 /**
  * The canvas, measured.
  *
- * Phase 7's exit criteria are numbers, and until now none of them had ever been
- * taken: sixty frames a second while panning and zooming two thousand nodes,
- * selection feedback inside sixteen milliseconds, the layers panel under a
- * hundred. jsdom can answer none of that — it has no layout and no frames — so
- * this drives a real browser against the bench harness.
+ * Phase 7's exit criteria are numbers: sixty frames a second while panning and
+ * zooming two thousand nodes, selection feedback inside sixteen milliseconds,
+ * the layers panel under a hundred. jsdom can answer none of that — it has no
+ * layout and no frames — so this drives a real browser against the bench
+ * harness.
  *
  * Reported as well as asserted. A benchmark that only says pass or fail tells
  * you nothing on the day it starts drifting, so every measurement is printed.
  *
- * The thresholds are the phase's, with one deliberate allowance: these run on
- * whatever machine they are run on, and a shared CI runner is not a workstation.
- * So the frame budget is checked against a p95 rather than a mean — one slow
- * frame while the profiler warms up is not a dropped frame budget — and the
- * numbers are generous enough that a pass means "nothing is badly wrong" rather
- * than "this is as fast as it could be".
+ * ## What the first version of this measured, and why it was wrong
+ *
+ * It recorded the interval between animation frames and compared the 95th
+ * percentile against 16.67ms. That number cannot mean what it was taken to
+ * mean. On a 60Hz display frames *arrive* every 16.7ms however idle the page
+ * is, so the percentile of the interval is a property of the display, not of
+ * the canvas. Measured here: a page with no input at all scores a p95 of
+ * 17.4ms, and panning two thousand nodes scores 17.5ms. The first version
+ * reported that as "the pan criterion is not met" when what it had found was
+ * the refresh rate.
+ *
+ * So the interval is now used for the one thing it does say: whether a frame
+ * was *missed*. A browser that cannot finish in time does not return a slightly
+ * larger interval, it skips a vsync and returns roughly double. Everything else
+ * is measured as the cost a gesture *adds* to an idle frame, which is the
+ * quantity the 16.67ms budget is actually about — how much of a frame's working
+ * time the gesture consumes.
+ *
+ * Every test therefore calibrates against its own idle page first, in the same
+ * browser on the same machine, seconds apart. That also makes the numbers
+ * meaningful on a 120Hz laptop or a throttled runner, where a hardcoded 16.67
+ * would be wrong in both directions.
  */
+
+/**
+ * The recorder's own state, which lives in the page because that is where the
+ * frames are. Separate from `__bench`, which the harness owns.
+ */
+declare global {
+  interface Window {
+    __benchFrames?: number[]
+    __benchRecording?: boolean
+  }
+}
 
 const NODES = 2_000
 
@@ -28,27 +55,69 @@ const FRAME_BUDGET_MS = 16.67
 /** Phase 7 § Performance: selection change under 16ms. */
 const SELECTION_BUDGET_MS = 16
 
+/** Enough of them that the median is a measurement rather than a coin toss. */
+const SELECTION_SAMPLES = 40
+
 /** Phase 7 § Performance: the layers panel with 2,000 nodes under 100ms. */
 const PANEL_BUDGET_MS = 100
 
-/*
- * Where the canvas measures today, plus room for the machine.
+/**
+ * A frame longer than this multiple of the display's period was missed.
  *
- * Panning and zooming sit a little over the frame budget and a selection change
- * a little over its own — close enough that a quieter machine would pass, far
- * enough that saying the criteria are met would be untrue. Memoising the
- * rendered page took zoom from 31ms to 19ms; what is left is the overlay layer
- * re-rendering with the transform, which is a separate piece of work.
+ * A browser that overruns does not deliver a frame late, it waits for the next
+ * vsync — so a missed frame measures near twice the period and an on-time one
+ * near once. Halfway between separates them with the most room for noise on
+ * either side.
  */
-const FRAME_CEILING_MS = 25
-const SELECTION_CEILING_MS = 25
+const MISSED_FRAME_RATIO = 1.5
 
-function report(name: string, value: number, budget: number, unit = "ms"): void {
-  const verdict = value <= budget ? "ok" : "OVER BUDGET"
+/*
+ * Ratchets, set just above where the canvas measures today.
+ *
+ * Asserted, unlike the budgets, which are printed. The distinction matters:
+ * a budget is what the phase asks for, and a ceiling is what stops a
+ * regression. Lower one when the canvas gets faster; never raise one to make a
+ * run green.
+ *
+ * Checked against the regression they exist for rather than assumed to work.
+ * With the memoisation of the rendered page removed — the real 31ms frame this
+ * benchmark found when it was first written — all three of the timing
+ * measurements below fail: one missed frame of 42 panning, 21 of 88 zooming
+ * with 9.6ms added, and a selection median of 6ms. The metric this replaced
+ * caught two of those three.
+ */
+const PAN_ADDED_CEILING_MS = 3
+const ZOOM_ADDED_CEILING_MS = 4
 
-  console.log(
-    `  ${name.padEnd(40)} ${value.toFixed(2)}${unit} (budget ${budget}${unit}) ${verdict}`,
-  )
+/*
+ * Selection is held to its median, not its 95th percentile.
+ *
+ * Not a softening — the opposite. The latency from writing the selection to the
+ * overlay changing includes React committing, which its scheduler may do in the
+ * same task or after the frame already in flight. That makes the tail a
+ * property of when the write landed relative to a frame boundary: over six runs
+ * the p95 wandered between 3.9 and 5.3ms while the median stayed inside half a
+ * millisecond. A ceiling has to sit above the worst tail to be usable, and by
+ * then it is above the cost it was meant to catch — the regression above
+ * reaches a median of 6ms and a p95 of 10.7ms, so only the median separates
+ * them. The p95 is printed beside it.
+ */
+const SELECTION_CEILING_MS = 4
+
+interface Frames {
+  /** The display's period: the median interval of an idle page. */
+  period: number
+  p95: number
+  missed: number
+  total: number
+}
+
+function percentile(values: readonly number[], fraction: number): number {
+  if (values.length === 0) return 0
+
+  const sorted = [...values].sort((a, b) => a - b)
+
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))] as number
 }
 
 /** Frame intervals while `drive` runs, measured by the browser itself. */
@@ -63,32 +132,86 @@ async function frameIntervals(page: Page, drive: () => Promise<void>): Promise<n
       frames.push(now - previous)
       previous = now
 
-      if ((window as unknown as { __recording?: boolean }).__recording === true) {
-        requestAnimationFrame(tick)
-      }
+      if (window.__benchRecording === true) requestAnimationFrame(tick)
     }
 
-    ;(window as unknown as { __frames?: number[] }).__frames = frames
-    ;(window as unknown as { __recording?: boolean }).__recording = true
+    window.__benchFrames = frames
+    window.__benchRecording = true
     requestAnimationFrame(tick)
   })
 
   await drive()
 
   return page.evaluate(() => {
-    ;(window as unknown as { __recording?: boolean }).__recording = false
+    window.__benchRecording = false
 
     // The first interval spans the gap before the gesture began.
-    return ((window as unknown as { __frames?: number[] }).__frames ?? []).slice(1)
+    return (window.__benchFrames ?? []).slice(1)
   })
 }
 
-function percentile(values: readonly number[], fraction: number): number {
-  if (values.length === 0) return 0
+/**
+ * What the machine does when nothing is asked of it.
+ *
+ * Taken in the same page as the gesture it is compared against, because this
+ * is the quantity everything else is measured relative to — a baseline from
+ * another run, or from another machine, would not be a baseline.
+ */
+async function idle(page: Page): Promise<Frames> {
+  const intervals = await frameIntervals(page, () => page.waitForTimeout(1_200))
+  const period = percentile(intervals, 0.5)
 
-  const sorted = [...values].sort((a, b) => a - b)
+  return {
+    period,
+    p95: percentile(intervals, 0.95),
+    missed: intervals.filter((interval) => interval > period * MISSED_FRAME_RATIO).length,
+    total: intervals.length,
+  }
+}
 
-  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))] as number
+function summarise(intervals: readonly number[], baseline: Frames): Frames {
+  return {
+    period: baseline.period,
+    p95: percentile(intervals, 0.95),
+    missed: intervals.filter((interval) => interval > baseline.period * MISSED_FRAME_RATIO).length,
+    total: intervals.length,
+  }
+}
+
+function report(name: string, value: number, budget: number, unit = "ms", note = ""): void {
+  const verdict = value <= budget ? "ok" : "OVER BUDGET"
+  const against = note === "" ? `budget ${budget}${unit}` : `ceiling ${budget}${unit}, ${note}`
+
+  console.log(`  ${name.padEnd(42)} ${value.toFixed(2)}${unit} (${against}) ${verdict}`)
+}
+
+/**
+ * Everything a gesture's frames say, printed together so drift is visible.
+ *
+ * The added work is printed against its ceiling rather than against the frame
+ * budget, because a share of a frame is not a frame: the first version of this
+ * printed "9.60ms (budget 16.67ms) ok" for a gesture that had just missed
+ * twenty-one frames out of eighty-eight. Whether sixty frames a second is held
+ * is what the missed count answers; how much of a frame the gesture costs is
+ * what the added work answers. Two questions, two lines.
+ */
+function reportFrames(name: string, gesture: Frames, baseline: Frames, ceiling: number): void {
+  console.log(
+    `  ${`${name}: display period`.padEnd(42)} ${baseline.period.toFixed(2)}ms` +
+      ` (idle p95 ${baseline.p95.toFixed(2)}ms over ${baseline.total} frames)`,
+  )
+  console.log(
+    `  ${`${name}: frames missed`.padEnd(42)} ${gesture.missed} of ${gesture.total}` +
+      ` (over ${(baseline.period * MISSED_FRAME_RATIO).toFixed(2)}ms)` +
+      ` ${gesture.missed === 0 ? "ok" : "FRAMES DROPPED"}`,
+  )
+  report(
+    `${name}: work added to a frame`,
+    gesture.p95 - baseline.p95,
+    ceiling,
+    "ms",
+    `of a ${FRAME_BUDGET_MS}ms frame`,
+  )
 }
 
 async function open(page: Page, query: string): Promise<void> {
@@ -110,6 +233,7 @@ test("pan sustains the frame budget at 2,000 nodes", async ({ page }) => {
 
   await surface.hover()
 
+  const baseline = await idle(page)
   const intervals = await frameIntervals(page, async () => {
     await page.keyboard.down("Space")
     await page.mouse.down()
@@ -122,11 +246,12 @@ test("pan sustains the frame budget at 2,000 nodes", async ({ page }) => {
     await page.keyboard.up("Space")
   })
 
-  const p95 = percentile(intervals, 0.95)
+  const panning = summarise(intervals, baseline)
 
-  report("pan p95 frame interval", p95, FRAME_BUDGET_MS)
-  expect(intervals.length).toBeGreaterThan(10)
-  expect(p95).toBeLessThanOrEqual(FRAME_CEILING_MS)
+  reportFrames("pan", panning, baseline, PAN_ADDED_CEILING_MS)
+  expect(panning.total).toBeGreaterThan(10)
+  expect(panning.missed).toBe(0)
+  expect(panning.p95 - baseline.p95).toBeLessThanOrEqual(PAN_ADDED_CEILING_MS)
 })
 
 test("zoom sustains the frame budget at 2,000 nodes", async ({ page }) => {
@@ -134,6 +259,7 @@ test("zoom sustains the frame budget at 2,000 nodes", async ({ page }) => {
 
   await page.getByRole("main", { name: "Canvas" }).hover()
 
+  const baseline = await idle(page)
   const intervals = await frameIntervals(page, async () => {
     for (let step = 0; step < 30; step += 1) {
       await page.keyboard.down("Control")
@@ -142,43 +268,72 @@ test("zoom sustains the frame budget at 2,000 nodes", async ({ page }) => {
     }
   })
 
-  const p95 = percentile(intervals, 0.95)
+  const zooming = summarise(intervals, baseline)
 
-  report("zoom p95 frame interval", p95, FRAME_BUDGET_MS)
-  expect(intervals.length).toBeGreaterThan(10)
-  expect(p95).toBeLessThanOrEqual(FRAME_CEILING_MS)
+  reportFrames("zoom", zooming, baseline, ZOOM_ADDED_CEILING_MS)
+  expect(zooming.total).toBeGreaterThan(10)
+  expect(zooming.missed).toBe(0)
+  expect(zooming.p95 - baseline.p95).toBeLessThanOrEqual(ZOOM_ADDED_CEILING_MS)
 })
 
-test("a selection change lands within its budget", async ({ page }) => {
+test("a selection change reaches the overlay within its budget", async ({ page }) => {
   await open(page, "panel=0")
 
-  const measured = await page.evaluate(async () => {
+  /*
+   * Measured to the overlay, not to the next frame.
+   *
+   * The first version of this waited on `requestAnimationFrame` after writing
+   * the selection, which meant most of what it reported was the wait for the
+   * next vsync — the same mistake as the frame-interval metric, and the reason
+   * it read 17ms against a 16ms budget while doing almost no work.
+   *
+   * What the criterion is about is when the user sees the outline move, so the
+   * clock stops when the overlay layer's DOM changes rather than on the next
+   * frame. That is work and scheduling instead of waiting — but not purely
+   * work, which is why the median rather than the tail is what gets asserted:
+   * React's scheduler may commit in the same task or behind the frame already
+   * in flight, and which of those happened depends on when the write landed.
+   */
+  const samples = await page.evaluate(async (count: number) => {
     const bench = window.__bench
 
     if (bench === undefined) throw new Error("The harness did not publish its store.")
 
-    const samples: number[] = []
+    const overlays = document.querySelector("[data-canvas-overlays]")
 
-    for (let index = 0; index < 20; index += 1) {
+    if (overlays === null) throw new Error("The canvas has no overlay layer.")
+
+    const measured: number[] = []
+
+    for (let index = 0; index < count; index += 1) {
       const id = bench.nodes[(index * 7) % bench.nodes.length] as string
       const started = performance.now()
+      const drawn = new Promise<number>((resolve) => {
+        const observer = new MutationObserver(() => {
+          observer.disconnect()
+          resolve(performance.now() - started)
+        })
+
+        observer.observe(overlays, { childList: true, subtree: true, attributes: true })
+      })
 
       bench.store.getState().select([id])
+      measured.push(await drawn)
 
-      // Through a frame, so the measurement includes React rendering the
-      // overlay rather than only the store write.
+      // Clear of the next measurement, so one selection's overlay work is not
+      // attributed to the following one.
       await new Promise((resolve) => requestAnimationFrame(resolve))
-
-      samples.push(performance.now() - started)
     }
 
-    return samples
-  })
+    return measured
+  }, SELECTION_SAMPLES)
 
-  const p95 = percentile(measured, 0.95)
+  const median = percentile(samples, 0.5)
 
-  report("selection change p95", p95, SELECTION_BUDGET_MS)
-  expect(p95).toBeLessThanOrEqual(SELECTION_CEILING_MS)
+  report("selection change to overlay (median)", median, SELECTION_BUDGET_MS)
+  report("selection change to overlay (p95)", percentile(samples, 0.95), SELECTION_BUDGET_MS)
+  expect(samples).toHaveLength(SELECTION_SAMPLES)
+  expect(median).toBeLessThanOrEqual(SELECTION_CEILING_MS)
 })
 
 test("moving one node does not re-render the whole canvas", async ({ page }) => {
@@ -229,25 +384,46 @@ test("the layers panel renders 2,000 nodes within its budget", async ({ page }) 
   /*
    * Measured in the browser rather than from the navigation, which would
    * include the server render and the bundle.
+   *
+   * To the rows changing, not to `scrollTo` returning. The first version of
+   * this stopped the clock on the call and reported numbers between 0.00 and
+   * 1.60ms for identical code — because a scroll is handled asynchronously, so
+   * what it timed was the request, not the rebuild. A measurement that cannot
+   * fail is not a measurement, which is the same mistake this file's other
+   * metrics were corrected for.
    */
-  const measured = await page.evaluate(() => {
+  const measured = await page.evaluate(async () => {
     const tree = document.querySelector('[role="tree"]')
 
     if (tree === null) throw new Error("The layers panel did not render.")
 
-    const started = performance.now()
+    const scroller = tree.closest("[data-radix-scroll-area-viewport]")
+
+    if (scroller === null) throw new Error("The layers panel has no scroller.")
 
     // A scroll is the panel's most expensive ordinary operation: it rebuilds
     // the window and every row in it.
-    const scroller = tree.closest("[data-radix-scroll-area-viewport]")
+    const started = performance.now()
+    const rebuilt = new Promise<number>((resolve, reject) => {
+      const observer = new MutationObserver(() => {
+        observer.disconnect()
+        resolve(performance.now() - started)
+      })
 
-    scroller?.scrollTo({ top: 4_000 })
+      observer.observe(tree, { childList: true, subtree: true })
+      setTimeout(() => {
+        observer.disconnect()
+        reject(new Error("Scrolling the layers panel rebuilt no rows."))
+      }, 5_000)
+    })
 
-    return performance.now() - started
+    scroller.scrollTo({ top: 4_000 })
+
+    return rebuilt
   })
 
   report("layers panel window rebuild", measured, PANEL_BUDGET_MS)
-  console.log(`  ${"rows rendered of 2,000".padEnd(42)} ${rows}`)
+  console.log(`  ${"rows rendered of 2,000".padEnd(44)} ${rows}`)
 
   // Virtualized: a window, not the document.
   expect(rows).toBeGreaterThan(0)
