@@ -117,6 +117,46 @@ Virtualize:
 
 Never render thousands of DOM nodes unnecessarily.
 
+## Measured, not assumed
+
+`pnpm bench:canvas` drives a real browser against a 2,000-node page and prints
+every number. It is a tool rather than a gate: it is not in CI, because a shared
+runner cannot be held to a frame budget, and a benchmark that fails for the
+machine's reasons is one people learn to ignore.
+
+Each measurement carries two numbers. The **budget** is the target from
+docs/phases.md and is printed, not asserted. The **ceiling** is asserted — a
+ratchet set just above where the canvas measures today, so ordinary variance
+passes and a regression fails. Lower a ceiling when the canvas gets faster;
+never raise one to make a run green.
+
+As of Phase 7, on a developer machine also running the dev server, Postgres and
+Redis:
+
+```
+pan p95 frame interval        ~17.5ms   budget 16.67ms   over
+zoom p95 frame interval       ~18.5ms   budget 16.67ms   over
+selection change p95          ~17.5ms   budget 16ms      over
+one edit re-renders nothing   100% kept                  ok
+layers panel window rebuild   ~1ms      budget 100ms     ok
+rows rendered of 2,000        46                         ok
+```
+
+**Three of the five are not met.** They are close — a quieter machine would pass
+— but close is not met, and the gap is recorded rather than rounded away.
+
+The first run of this benchmark found the reason the gap was large: the canvas
+re-renders on every frame of a pan because it owns the transform, and the
+renderer is a plain function component, so the whole document re-rendered with
+it. Two thousand nodes, sixty times a second, for a transform that changes
+nothing any of them depends on. Memoising the rendered page took zoom from 31ms
+to 19ms and a selection change from 24ms to 17ms.
+
+What remains is the overlay layer, which re-renders with the transform by
+design — it draws the selection outline in screen space. Moving that to a CSS
+transform on a static layer is the next thing to try, and it is a separate piece
+of work from building the instrument.
+
 ---
 
 # Lazy Loading

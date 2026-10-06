@@ -27,13 +27,14 @@ import {
 import type { Rect } from "@checkout-studio/editor"
 import { CheckoutRenderer } from "@checkout-studio/renderer"
 import type { CheckoutTheme } from "@checkout-studio/schema"
+import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
 import { siblings } from "@checkout-studio/schema"
 
 import { Breadcrumb } from "./Breadcrumb"
 import { Overlays } from "./Overlays"
 import { RULER_SIZE, Rulers } from "./Rulers"
 import { useHeldKey } from "./useHeldKey"
-import { registry } from "@/studio/registry"
+import { registry as shippedRegistry } from "@/studio/registry"
 
 /**
  * The canvas.
@@ -73,9 +74,22 @@ export interface CanvasProps {
    * theme records — which the canvas has no business doing.
    */
   theme: CheckoutTheme
+  /**
+   * What knows how to draw each node.
+   *
+   * The build's own registry by default. Overridden only by the canvas
+   * benchmark, which has to draw real components to measure anything useful and
+   * cannot wait for the component library to ship them — see
+   * docs/phases.md Phase 7 § Performance, which asks for exactly that.
+   *
+   * Still built once and passed down rather than created per render: the
+   * renderer memoises component resolution on it, and a new object each render
+   * would give that cache a different key to miss against every time.
+   */
+  registry?: RendererRegistry
 }
 
-export function Canvas({ theme }: CanvasProps): ReactElement {
+export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): ReactElement {
   const store = useEditorStoreApi()
 
   /*
@@ -176,6 +190,31 @@ export function Canvas({ theme }: CanvasProps): ReactElement {
       observer.disconnect()
     }
   }, [store, frameBox, rects, selected])
+
+  /*
+   * The page, held still while the viewport moves.
+   *
+   * This component re-renders on every frame of a pan or a zoom — it has to,
+   * because it owns the transform — and the renderer is a plain function
+   * component, so without this the whole document re-rendered with it. At two
+   * thousand nodes the canvas benchmark measured 31ms a frame while zooming
+   * against a 16.67ms budget, and 24ms for a selection change against 16.
+   *
+   * None of the renderer's inputs change when the viewport moves, so none of
+   * that work was ever needed.
+   */
+  const page = useMemo(
+    () => (
+      <CheckoutRenderer
+        schema={document}
+        theme={theme}
+        registry={registry}
+        mode="editor-preview"
+        breakpoint={breakpoint}
+      />
+    ),
+    [document, theme, registry, breakpoint],
+  )
 
   const primary = selected[0]
   const resizable =
@@ -363,13 +402,7 @@ export function Canvas({ theme }: CanvasProps): ReactElement {
                 : undefined
             }
           >
-            <CheckoutRenderer
-              schema={document}
-              theme={theme}
-              registry={registry}
-              mode="editor-preview"
-              breakpoint={breakpoint}
-            />
+            {page}
           </div>
         </div>
 

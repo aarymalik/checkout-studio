@@ -65,8 +65,14 @@ export const baseConfig = tseslint.config(
     },
   },
   {
-    // Tests may reach for the console and for fixtures typed loosely.
-    files: ["**/*.test.ts", "**/*.test.tsx", "**/tests/**", "**/e2e/**"],
+    /*
+     * Tests may reach for the console and for fixtures typed loosely.
+     *
+     * Benchmarks are on the list for a stronger reason than convenience: their
+     * output *is* the numbers. One that only said pass or fail would tell
+     * nobody anything on the day it starts drifting.
+     */
+    files: ["**/*.test.ts", "**/*.test.tsx", "**/tests/**", "**/e2e/**", "**/bench/**"],
     rules: { "no-console": "off" },
   },
   {

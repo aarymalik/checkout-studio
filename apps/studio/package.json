@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:e2e": "NODE_OPTIONS=--conditions=react-server playwright test",
     "test:visual": "playwright test --config playwright.visual.config.ts",
-    "clean": "rm -rf .next coverage playwright-report .turbo"
+    "clean": "rm -rf .next coverage playwright-report .turbo",
+    "bench:canvas": "playwright test --config playwright.bench.config.ts"
   },
   "dependencies": {
     "@checkout-studio/api": "workspace:*",
