@@ -75,7 +75,11 @@ export function Overlays({
         for the same reason in the other direction: the page underneath has to
         receive every click, hover and scroll that is not a grip.
       */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        aria-hidden
+        data-canvas-overlays
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
         {guides.map((guide, index) => (
           <Line
             key={`${guide.axis}-${guide.position}-${index}`}
