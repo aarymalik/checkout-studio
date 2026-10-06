@@ -635,6 +635,30 @@ before releases.
 
 Replace vulnerable packages immediately.
 
+CI blocks on high and critical advisories, so a vulnerability in anything the
+workspace resolves stops the build rather than waiting for someone to run the
+audit.
+
+## Resolution overrides
+
+Most advisories arrive in a package we do not depend on and cannot upgrade: it
+is a transitive dependency of a framework, and the framework's own range already
+allows the patched version while the lockfile is pinned below it. `pnpm.overrides`
+in the root `package.json` raises the floor.
+
+Each one is here because an advisory made it necessary, and each is written as a
+minimum rather than an exact version so ordinary updates are not blocked by it.
+Remove an entry only when nothing in the tree resolves below the floor any more
+— at which point the override is inert and `pnpm audit` will stay quiet without
+it.
+
+| Override        | Floor      | Why                                                                                                                                                                                                                                                                                                                               |
+| --------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mysql2`        | `>=3.23.1` | Reaches us only through the Prisma CLI — a driver this project never loads.                                                                                                                                                                                                                                                       |
+| `deepmerge-ts`  | `>=8.0.0`  | Likewise through the Prisma CLI, in its config loader.                                                                                                                                                                                                                                                                            |
+| `source-map-js` | `>=1.2.2`  | GHSA-68fv-2mgg-jv7q — event-loop denial of service in versions below 1.2.2.                                                                                                                                                                                                                                                       |
+| `sharp`         | `>=0.35.5` | GHSA-wq5f-xc86-pv6w / CVE-2026-96889 — a flaw in the bundled librsvg. Reached through Next's optional image-optimisation dependency, whose own range (`^0.35.4`) already allowed the fix; the override moves the lockfile to it, and with it `@img/sharp-libvips-*` from 1.3.3 to 1.3.4, which is where the patch actually lives. |
+
 ---
 
 # Supply Chain Security
