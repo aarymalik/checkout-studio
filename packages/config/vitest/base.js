@@ -33,6 +33,7 @@ export const coverageThresholds = {
  *   env?: Record<string, string>,
  *   sequential?: boolean,
  *   globalSetup?: string[],
+ *   timeout?: number,
  * }} [options]
  */
 export function createVitestConfig(options = {}) {
@@ -58,6 +59,20 @@ export function createVitestConfig(options = {}) {
       // Packages still run in parallel; each is just no longer trying to use
       // the whole machine.
       ...(process.env["CI"] && !options.sequential ? { maxWorkers: 1 } : {}),
+      /*
+       * A longer limit for suites that cross a socket to a real server.
+       *
+       * Capping workers fixes the contention a package causes itself. It cannot
+       * fix the contention from the thirty other tasks Turbo runs beside it,
+       * and a test waiting on PostgreSQL is waiting on a process competing with
+       * all of them. One took 216ms alone, 3.8s under load, and over ten
+       * seconds in a full workspace run, where it failed — having measured the
+       * machine rather than the code, which is the mistake described above.
+       *
+       * Generous on purpose. This limit is here to catch a query that will
+       * never answer, not to hold a database to a budget.
+       */
+      ...(options.timeout ? { testTimeout: options.timeout, hookTimeout: options.timeout } : {}),
       ...(options.globalSetup ? { globalSetup: options.globalSetup } : {}),
       include: ["src/**/*.test.{ts,tsx,js}", "tests/**/*.test.{ts,tsx,js}"],
       passWithNoTests: true,

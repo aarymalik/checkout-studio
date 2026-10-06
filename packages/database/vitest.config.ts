@@ -25,5 +25,8 @@ export default createVitestConfig({
   },
   env: { DATABASE_URL: testDatabaseUrl },
   sequential: true,
+  // A real server over a socket, so the limit allows for a loaded machine. See
+  // the note in @checkout-studio/config/vitest/base.
+  timeout: 30_000,
   globalSetup: ["./tests/globalTeardown.ts"],
 })

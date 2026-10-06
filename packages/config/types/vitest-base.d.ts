@@ -30,6 +30,8 @@ export declare function createVitestConfig(options?: {
   sequential?: boolean
   /** Modules that set up and tear down shared connections once per run. */
   globalSetup?: string[]
+  /** Per-test limit, in milliseconds — for suites that wait on a real server. */
+  timeout?: number
 }): ViteUserConfig
 
 export default createVitestConfig
