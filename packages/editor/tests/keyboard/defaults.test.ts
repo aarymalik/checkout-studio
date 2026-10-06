@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  arrangeShortcuts,
   defaultShortcuts,
   globalShortcuts,
   editShortcuts,
@@ -21,7 +22,8 @@ describe("the shipped keymap", () => {
       globalShortcuts.length +
         shellShortcuts.length +
         viewportShortcuts.length +
-        editShortcuts.length,
+        editShortcuts.length +
+        arrangeShortcuts.length,
     )
   })
 
@@ -158,10 +160,19 @@ describe("the palette's own keys", () => {
   // Not registered: the palette is a combobox and handles them itself. Binding
   // them globally as well would move the highlight twice on every press.
   it("is not part of the keymap", () => {
-    const registered = new Set(defaultShortcuts.map((registration) => registration.binding.key))
+    /*
+     * The whole binding, not the key on its own.
+     *
+     * This compared `binding.key`, which made ⌘↑ look like ↑ — so the palette's
+     * bare arrows forbade the modified arrows that docs/keyboard-shortcuts.md
+     * § Movement asks for. A modifier is part of what a binding is.
+     */
+    const registered = new Set(
+      defaultShortcuts.map((registration) => serializeBinding(registration.binding)),
+    )
 
     for (const key of paletteKeys) {
-      expect(registered.has(key.binding.key)).toBe(false)
+      expect(registered.has(serializeBinding(key.binding)), key.description).toBe(false)
     }
   })
 

@@ -554,7 +554,7 @@ Quick actions
 
 # Inline Toolbar
 
-Appears above selection.
+Appears above selection, and below it when there is no room above.
 
 Contains
 
@@ -569,6 +569,29 @@ Lock
 Visibility
 
 Responsive
+
+**As built.** Five of the six. Every button runs a registered command and
+nothing else, so the keystroke, the palette, a context menu and the toolbar are
+four ways to reach one definition — and the disabled states are the commands'
+answers rather than the toolbar's opinion. A locked node offers no Move and no
+Delete because `arrange.move-*` and `edit.delete` report themselves unavailable,
+which is the same answer the keyboard gets.
+
+Move is the pair of reordering steps, `⌘↑` and `⌘↓`. Dragging a component to
+move it arrives with drag and drop in Phase 8.
+
+**Responsive is not built.** Responsive overrides are property editing, which
+phases.md puts in Phase 12 and names explicitly as out of scope for Phase 7, so
+there is nothing for the button to open. Switching which breakpoint is being
+edited already exists in the top toolbar, where it applies to the page rather
+than to one node — a sixth button here would either do nothing or duplicate
+that one. It belongs with the overrides it would edit.
+
+A WAI-ARIA toolbar: one tab stop for the group with the arrow keys moving
+inside it, rather than six tab stops per selection. Unavailable buttons carry
+`aria-disabled` rather than `disabled`, so they stay focusable — the arrow keys
+would otherwise dead-end on the first unavailable one, and a control that is
+simply absent from assistive technology cannot be discovered and asked about.
 
 ---
 

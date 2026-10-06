@@ -1,5 +1,5 @@
 import type { Command, CommandDescriptor, EditorContext } from "../commands/types"
-import { canRedo, canUndo } from "./selectors"
+import { canRedo, canUndo, isLocked } from "./selectors"
 import type { EditorStoreApi } from "./store"
 
 /**
@@ -45,6 +45,27 @@ interface EditCommandSpec {
 }
 
 const selected = (api: EditorStoreApi): boolean => api.getState().selection.ids.length > 0
+
+/**
+ * Whether the selection may be destroyed.
+ *
+ * docs/editor-behavior.md § Lock: a locked component "cannot move, cannot
+ * resize, cannot delete" and "remains selectable". Only the resize gate
+ * enforced any of that — `edit.delete` checked that something was selected and
+ * nothing else, so Backspace deleted a locked node as readily as any other,
+ * and the lock said nothing about the one operation that cannot be noticed and
+ * corrected by eye.
+ *
+ * `isLocked` is self-or-ancestor, so a locked container protects what is inside
+ * it. Nothing is deleted when any part of the selection is protected, rather
+ * than deleting the rest: a multiple selection where half of it vanished is
+ * worse than one where nothing did.
+ */
+const deletable = (api: EditorStoreApi): boolean => {
+  const { document, selection } = api.getState()
+
+  return selection.ids.length > 0 && !selection.ids.some((id) => isLocked(document, id))
+}
 const copied = (api: EditorStoreApi): boolean => api.getState().clipboard.fragment !== null
 
 const EDIT_COMMANDS: Readonly<Record<string, EditCommandSpec>> = {
@@ -75,7 +96,9 @@ const EDIT_COMMANDS: Readonly<Record<string, EditCommandSpec>> = {
   "edit.cut": {
     title: "Cut",
     keywords: ["clipboard", "move", "remove"],
-    available: selected,
+    // Cut removes, so the lock applies here too — otherwise ⌘X is a way to
+    // delete a locked node that ⌫ refuses.
+    available: deletable,
     run: (api) => {
       api.getState().cut()
     },
@@ -116,7 +139,7 @@ const EDIT_COMMANDS: Readonly<Record<string, EditCommandSpec>> = {
   "edit.delete": {
     title: "Delete",
     keywords: ["remove", "erase"],
-    available: selected,
+    available: deletable,
     run: (api) => {
       api.getState().remove(api.getState().selection.ids)
     },

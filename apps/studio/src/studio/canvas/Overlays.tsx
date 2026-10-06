@@ -3,6 +3,8 @@
 import { rectToScreen, type Guide, type NodeRects, type Transform } from "@checkout-studio/editor"
 import type { ReactElement } from "react"
 
+import { SelectionToolbar } from "./SelectionToolbar"
+
 /**
  * The selection and hover layer.
  *
@@ -48,6 +50,8 @@ export interface OverlaysProps {
    * drag would be a worse way to say the same thing.
    */
   resizable?: boolean
+  /** How tall the surface is, so the toolbar can flip below the selection. */
+  surfaceHeight?: number
 }
 
 export function Overlays({
@@ -59,10 +63,12 @@ export function Overlays({
   guides,
   marquee,
   resizable = true,
+  surfaceHeight = 0,
   onResizeStart,
 }: OverlaysProps): ReactElement {
   const primary = selected[0]
   const primaryRect = primary === undefined ? undefined : rects.get(primary)
+  const primaryScreen = primaryRect === undefined ? null : rectToScreen(primaryRect, transform)
 
   return (
     <>
@@ -164,7 +170,7 @@ export function Overlays({
       {primary !== undefined && primaryRect !== undefined && resizable ? (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           {HANDLES.map((handle) => {
-            const screen = rectToScreen(primaryRect, transform)
+            const screen = primaryScreen ?? { x: 0, y: 0, width: 0, height: 0 }
 
             return (
               <button
@@ -184,6 +190,15 @@ export function Overlays({
           })}
         </div>
       ) : null}
+
+      {/*
+        The inline selection toolbar, in the controls layer for the same reason
+        the grips are: it holds buttons, and `aria-hidden` on something
+        interactive hides it from every assistive technology.
+      */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <SelectionToolbar rect={primaryScreen} surfaceHeight={surfaceHeight} />
+      </div>
     </>
   )
 }

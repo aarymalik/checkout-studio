@@ -9,6 +9,7 @@ import {
   PaletteRegistry,
   ShellProvider,
   createCommandSource,
+  createArrangeCommands,
   createEditCommands,
   createShellCommands,
   defaultShortcuts,
@@ -185,6 +186,7 @@ function build({
     ...createAppCommands(app),
     ...createViewportCommands({ store: viewportStore }),
     ...createEditCommands({ store: viewportStore }),
+    ...createArrangeCommands({ store: viewportStore }),
   ])
 
   // Their changes applied to what the product ships: remapped keys replaced,

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createShellCommands } from "../../src/shell/commands"
 import { createViewportCommands } from "../../src/canvas/commands"
+import { createArrangeCommands } from "../../src/state/arrange"
 import { createEditCommands } from "../../src/state/commands"
 import { SIDEBAR_TABS } from "../../src/shell/layout"
 import type { ShellActions } from "../../src/shell/store"
@@ -80,9 +81,8 @@ describe("createShellCommands", () => {
   /*
    * Every studio binding points at a command that exists.
    *
-   * Three factories contribute them now — the frame's own, the viewport's and
-   * the editing ones —
-   * so the set is the union. What the test is protecting is unchanged: a
+   * Four factories contribute them now — the frame's own, the viewport's, the
+   * editing ones and the arranging ones — so the set is the union. What the test is protecting is unchanged: a
    * binding to a command nobody defines is a key that does nothing.
    */
   it("defines a command for every shell and sidebar binding", () => {
@@ -90,6 +90,7 @@ describe("createShellCommands", () => {
       ...createShellCommands(recorder()).map((command) => command.id),
       ...createViewportCommands({ store: () => null }).map((command) => command.id),
       ...createEditCommands({ store: () => null }).map((command) => command.id),
+      ...createArrangeCommands({ store: () => null }).map((command) => command.id),
     ])
     const bound = defaultShortcuts
       .filter((registration) => registration.scope === "studio")

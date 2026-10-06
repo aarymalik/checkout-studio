@@ -61,6 +61,24 @@ const RESERVED_KEYS = new Set(RESERVED.map(serializeBinding))
 const FIND_SCOPES: readonly ScopeId[] = ["layers", "inspector", "library"]
 
 /**
+ * The canvas, and the scopes that are the canvas with something selected.
+ *
+ * `canvas.text-editing` is deliberately absent: inside a text field ⌘L belongs
+ * to the browser, and so does every other key the field does not want.
+ *
+ * This list exists because the rule below was written as `scope !== "canvas"`,
+ * which refused `canvas.selection` — a scope that is only ever active when the
+ * canvas is. It forbade the narrower condition while allowing the broader one,
+ * so a binding the specification asks for ("bound only inside the canvas scope
+ * with the selection sub-scope active") could not be registered at all.
+ */
+const CANVAS_SELECTION_SCOPES: readonly ScopeId[] = [
+  "canvas",
+  "canvas.selection",
+  "canvas.multi-selection",
+]
+
+/**
  * Whether a binding may not be registered in a scope.
  *
  * ⌘L and ⌘R are conditionally reserved: they belong to the browser everywhere
@@ -71,7 +89,9 @@ export function isReserved(binding: KeyBinding, scope: ScopeId): boolean {
   const serialized = serializeBinding(binding)
 
   if (serialized === "mod+KeyF") return !FIND_SCOPES.includes(scope)
-  if (serialized === "mod+KeyL" || serialized === "mod+KeyR") return scope !== "canvas"
+  if (serialized === "mod+KeyL" || serialized === "mod+KeyR") {
+    return !CANVAS_SELECTION_SCOPES.includes(scope)
+  }
 
   return RESERVED_KEYS.has(serialized)
 }
@@ -117,8 +137,17 @@ export const DOCUMENTED_EXCEPTIONS: ReadonlyArray<{
   { binding: { key: "Equal", mod: true }, commandId: "view.zoom-in", shadows: "Zoom page in" },
   { binding: { key: "Minus", mod: true }, commandId: "view.zoom-out", shadows: "Zoom page out" },
   {
+    /*
+     * `arrange.hide`, not `view.toggle-visibility`.
+     *
+     * This table was written before the commands existed and named two of them
+     * inconsistently with the rest of itself — `arrange.group` and
+     * `arrange.send-backward` beside `view.toggle-visibility` and `edit.lock`,
+     * for four entries that docs/keyboard-shortcuts.md lists in one § Structure
+     * table. Hiding a node is not a view setting; the rulers are.
+     */
     binding: { key: "KeyH", mod: true, shift: true },
-    commandId: "view.toggle-visibility",
+    commandId: "arrange.hide",
     shadows: "Home page",
   },
   {
@@ -131,7 +160,7 @@ export const DOCUMENTED_EXCEPTIONS: ReadonlyArray<{
     commandId: "arrange.move-down",
     shadows: "Scroll to bottom",
   },
-  { binding: { key: "KeyL", mod: true }, commandId: "edit.lock", shadows: "Focus address bar" },
+  { binding: { key: "KeyL", mod: true }, commandId: "arrange.lock", shadows: "Focus address bar" },
   { binding: { key: "KeyR", mod: true }, commandId: "view.toggle-rulers", shadows: "Reload" },
 ]
 

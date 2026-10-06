@@ -9,6 +9,7 @@ import {
   expansionFor,
   flatten,
   indent,
+  isLocked,
   isUnsupported,
   moveDown,
   moveUp,
@@ -171,11 +172,22 @@ export function LayersPanel(): ReactElement {
     (move: Move | null): boolean => {
       if (move === null || !canEdit) return false
 
+      /*
+       * A locked node stays put, and so does a locked destination.
+       *
+       * docs/editor-behavior.md § Lock: a locked component "cannot move". This
+       * checked only whether the session could write, so Alt and an arrow key
+       * reordered a locked node — the one path to reordering that existed, and
+       * the lock did not reach it. `isLocked` is self-or-ancestor, so a locked
+       * container protects what is inside it as well as its own order.
+       */
+      if (isLocked(document, move.id) || isLocked(document, move.parentId)) return false
+
       store.getState().move(move.id, move.parentId, move.index)
 
       return true
     },
-    [store, canEdit],
+    [store, canEdit, document],
   )
 
   const onKeyDown = useCallback(
