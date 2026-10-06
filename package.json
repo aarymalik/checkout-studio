@@ -33,7 +33,8 @@
     "db:generate": "turbo db:generate",
     "db:migrate": "pnpm --filter @checkout-studio/database db:migrate",
     "db:seed": "pnpm --filter @checkout-studio/database db:seed",
-    "db:studio": "pnpm --filter @checkout-studio/database db:studio"
+    "db:studio": "pnpm --filter @checkout-studio/database db:studio",
+    "bench:canvas": "turbo bench:canvas"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",

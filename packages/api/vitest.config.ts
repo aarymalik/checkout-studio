@@ -23,5 +23,8 @@ export default createVitestConfig({
     REDIS_URL: `${process.env["REDIS_URL"] ?? "redis://localhost:6379"}/14`,
   },
   sequential: true,
+  // A real server over a socket, so the limit allows for a loaded machine. See
+  // the note in @checkout-studio/config/vitest/base.
+  timeout: 30_000,
   globalSetup: ["./tests/globalTeardown.ts"],
 })
