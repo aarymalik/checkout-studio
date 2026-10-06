@@ -12,11 +12,34 @@ import type { Breakpoint, CheckoutSchema, Fragment, StyleState } from "@checkout
  */
 
 /** Which way a page is being looked at. Never persisted. */
+/**
+ * What the canvas has measured about itself.
+ *
+ * Geometry, not document: it exists so that something which is not the canvas
+ * can act on the canvas's shape. Zooming to fit needs the size of the visible
+ * area and the size of the page; zooming to the selection needs where the
+ * selection is. All three are known only to a mounted canvas, and all three are
+ * needed by commands, which are built once for the application and have no DOM.
+ *
+ * Zero while no canvas is mounted, which is how a command that needs geometry
+ * reports itself unavailable rather than dividing by it.
+ */
+export interface CanvasMeasurements {
+  /** The visible canvas area, in screen pixels. */
+  surface: { width: number; height: number }
+  /** The device frame, in canvas units. */
+  frame: { x: number; y: number; width: number; height: number }
+  /** The selection's bounding box in canvas units, or null when nothing is selected. */
+  selection: { x: number; y: number; width: number; height: number } | null
+}
+
 export interface ViewportState {
   breakpoint: Breakpoint
   /** 0.1 to 4, per docs/editor-behavior.md. */
   zoom: number
   pan: { x: number; y: number }
+  /** Written by the canvas, read by anything that has to act on its shape. */
+  measured: CanvasMeasurements
   /** Editing chrome, not the page. */
   showRulers: boolean
   showGuides: boolean

@@ -28,6 +28,14 @@ export const viewportShortcuts: readonly ShortcutRegistration[] = [
   { commandId: "view.zoom-out", binding: { key: "Minus", mod: true }, scope: "studio" },
   { commandId: "view.zoom-reset", binding: { key: "Digit0", mod: true }, scope: "studio" },
 
+  /*
+   * Fit and fit-to-selection need the size of the canvas surface, which only a
+   * mounted canvas knows — so like the device keys, they belong to the scope
+   * that exists exactly when they can work.
+   */
+  { commandId: "view.zoom-fit", binding: { key: "Digit1", shift: true }, scope: "canvas" },
+  { commandId: "view.zoom-selection", binding: { key: "Digit2", shift: true }, scope: "canvas" },
+
   { commandId: "view.device.desktop", binding: { key: "KeyD", shift: true }, scope: "canvas" },
   { commandId: "view.device.tablet", binding: { key: "KeyT", shift: true }, scope: "canvas" },
   { commandId: "view.device.mobile", binding: { key: "KeyM", shift: true }, scope: "canvas" },

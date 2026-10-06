@@ -23,7 +23,7 @@ import {
 import { createStore, type StoreApi } from "zustand/vanilla"
 
 import { emptyHistory, entryFor, push, redo, undo, type PushOptions } from "./history"
-import type { BuilderState, HistoryEntry } from "./types"
+import type { BuilderState, CanvasMeasurements, HistoryEntry } from "./types"
 
 /**
  * The editor store.
@@ -90,6 +90,15 @@ export interface EditorActions {
   setBreakpoint: (breakpoint: Breakpoint) => void
   setZoom: (zoom: number) => void
   setPan: (pan: { x: number; y: number }) => void
+  /**
+   * Both at once.
+   *
+   * Setting the zoom and then the pan renders once at the new scale with the
+   * old offset, which is a visible jump at every step of a gesture.
+   */
+  setTransform: (transform: { zoom: number; pan: { x: number; y: number } }) => void
+  /** What the canvas has measured about itself. Written by the canvas alone. */
+  setMeasured: (measured: CanvasMeasurements) => void
   toggleViewportFlag: (flag: "showRulers" | "showGuides" | "showGrid" | "snapping") => void
 
   // ── Drag ──────────────────────────────────────────────────────────────────
@@ -134,6 +143,11 @@ function initialState(document: CheckoutSchema, baseVersion: number): BuilderSta
       showGuides: true,
       showGrid: false,
       snapping: true,
+      measured: {
+        surface: { width: 0, height: 0 },
+        frame: { x: 0, y: 0, width: 0, height: 0 },
+        selection: null,
+      },
     },
     history: emptyHistory(),
     clipboard: { fragment: null, sourceProjectId: null, cut: false, origin: null },
@@ -648,6 +662,19 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
         })),
 
       setPan: (pan) => set((state) => ({ ...state, viewport: { ...state.viewport, pan } })),
+
+      setTransform: ({ zoom, pan }) =>
+        set((state) => ({
+          ...state,
+          viewport: {
+            ...state.viewport,
+            zoom: Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)),
+            pan,
+          },
+        })),
+
+      setMeasured: (measured) =>
+        set((state) => ({ ...state, viewport: { ...state.viewport, measured } })),
 
       toggleViewportFlag: (flag) =>
         set((state) => ({

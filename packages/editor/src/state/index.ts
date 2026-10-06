@@ -60,6 +60,7 @@ export type { LoadResult } from "./projection"
 
 export type {
   AssetsState,
+  CanvasMeasurements,
   BuilderState,
   ClipboardState,
   DragState,

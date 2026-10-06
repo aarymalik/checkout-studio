@@ -325,13 +325,14 @@ describe("StudioShell", () => {
 
       /*
        * Four shell commands, six tabs, four the application contributes, and
-       * six for the viewport.
+       * eight for the viewport: three zoom steps, two zoom targets, and three
+       * devices.
        *
        * The viewport six are listed even here, where no page is open and they
        * are unavailable: the palette greys what cannot run rather than hiding
        * it, so the list does not rearrange itself as pages open and close.
        */
-      expect(screen.getAllByRole("option")).toHaveLength(20)
+      expect(screen.getAllByRole("option")).toHaveLength(22)
     })
 
     it("shows each command's shortcut beside it", () => {

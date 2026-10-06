@@ -79,7 +79,16 @@ describe("the shipped keymap", () => {
       (registration) => isCharacterKey(registration) && registration.scope === "canvas",
     )
 
+    /*
+     * Enumerated rather than counted, so adding one means saying which.
+     *
+     * Three devices and two zoom targets. Every one of them needs the canvas:
+     * switching device is meaningless without a frame to switch, and both zoom
+     * targets need the size of the surface.
+     */
     expect(exempt.map((registration) => serializeBinding(registration.binding)).sort()).toEqual([
+      "shift+Digit1",
+      "shift+Digit2",
       "shift+KeyD",
       "shift+KeyM",
       "shift+KeyT",

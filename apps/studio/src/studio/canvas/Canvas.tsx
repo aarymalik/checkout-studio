@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent, ReactElement } from "react"
 import {
   FRAME_LABEL,
@@ -18,6 +18,7 @@ import {
   useNodeRects,
   useNodeResolver,
   usePanZoom,
+  boundsOf,
   useResize,
   useScope,
   useViewport,
@@ -136,6 +137,44 @@ export function Canvas({ theme }: CanvasProps): ReactElement {
     rects,
     siblingsOf: useCallback((id: string) => siblings(document, id), [document]),
   })
+
+  /*
+   * Telling the store what this canvas looks like.
+   *
+   * Zoom-to-fit needs the size of the visible area and of the page; zoom-to-
+   * selection needs where the selection is. All three are known only here, and
+   * all three are needed by commands — which are built once for the application
+   * and have no DOM to ask.
+   *
+   * On every change rather than once: the surface resizes with the window and
+   * the panels, the frame changes with the breakpoint and the content, and the
+   * selection changes constantly. A stale measurement fits to where something
+   * used to be.
+   */
+  useEffect(() => {
+    const element = surface.current
+
+    if (element === null) return
+
+    const publish = (): void => {
+      store.getState().setMeasured({
+        surface: { width: element.clientWidth, height: element.clientHeight },
+        frame: frameBox,
+        selection: boundsOf(
+          selected.map((id) => rects.get(id)).filter((rect): rect is Rect => rect !== undefined),
+        ),
+      })
+    }
+
+    publish()
+
+    const observer = new ResizeObserver(publish)
+    observer.observe(element)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [store, frameBox, rects, selected])
 
   const primary = selected[0]
   const resizable =
