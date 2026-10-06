@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createShellCommands } from "../../src/shell/commands"
 import { createViewportCommands } from "../../src/canvas/commands"
 import { createArrangeCommands } from "../../src/state/arrange"
+import { createSelectionCommands } from "../../src/state/selection"
 import { createEditCommands } from "../../src/state/commands"
 import { SIDEBAR_TABS } from "../../src/shell/layout"
 import type { ShellActions } from "../../src/shell/store"
@@ -91,6 +92,7 @@ describe("createShellCommands", () => {
       ...createViewportCommands({ store: () => null }).map((command) => command.id),
       ...createEditCommands({ store: () => null }).map((command) => command.id),
       ...createArrangeCommands({ store: () => null }).map((command) => command.id),
+      ...createSelectionCommands({ store: () => null }).map((command) => command.id),
     ])
     const bound = defaultShortcuts
       .filter((registration) => registration.scope === "studio")

@@ -6,10 +6,12 @@ import {
   globalShortcuts,
   editShortcuts,
   paletteKeys,
+  selectionShortcuts,
   shellShortcuts,
   viewportShortcuts,
 } from "../../src/keyboard/defaults"
 import { detectConflicts } from "../../src/keyboard/conflicts"
+import { KeymapRegistry } from "../../src/keyboard/registry"
 import { serializeBinding } from "../../src/keyboard/normalize"
 
 /** A KeyboardEvent.code, not a character. See docs/keyboard-shortcuts.md. */
@@ -23,7 +25,8 @@ describe("the shipped keymap", () => {
         shellShortcuts.length +
         viewportShortcuts.length +
         editShortcuts.length +
-        arrangeShortcuts.length,
+        arrangeShortcuts.length +
+        selectionShortcuts.length,
     )
   })
 
@@ -157,23 +160,76 @@ describe("shell shortcuts", () => {
 })
 
 describe("the palette's own keys", () => {
-  // Not registered: the palette is a combobox and handles them itself. Binding
-  // them globally as well would move the highlight twice on every press.
-  it("is not part of the keymap", () => {
-    /*
-     * The whole binding, not the key on its own.
-     *
-     * This compared `binding.key`, which made ⌘↑ look like ↑ — so the palette's
-     * bare arrows forbade the modified arrows that docs/keyboard-shortcuts.md
-     * § Movement asks for. A modifier is part of what a binding is.
-     */
-    const registered = new Set(
-      defaultShortcuts.map((registration) => serializeBinding(registration.binding)),
+  /*
+   * The palette is a combobox and handles its own keys. What must be true is
+   * that nothing else answers them while it is open, which this asserts twice
+   * over — once about the keymap and once about the thing that enforces it.
+   *
+   * It used to assert that no palette key appeared in the keymap at all, by
+   * comparing `binding.key` and ignoring modifiers. Both halves of that were
+   * too strong. Ignoring modifiers made ⌘↑ look like ↑, so the palette's bare
+   * arrows forbade the modified arrows docs/keyboard-shortcuts.md § Movement
+   * asks for. And forbidding the key everywhere forbade `Tab`, `↵` and
+   * `Escape` in `canvas.selection`, which § Selection requires — a scoped
+   * binding is not a global one, and the comment's own reason was that binding
+   * them *globally* would move the highlight twice.
+   */
+  it("is not registered in any overlay scope, where it would compete", () => {
+    const overlay = defaultShortcuts.filter((registration) =>
+      registration.scope.startsWith("overlay."),
     )
+    const strokes = new Set(overlay.map((registration) => serializeBinding(registration.binding)))
 
     for (const key of paletteKeys) {
-      expect(registered.has(serializeBinding(key.binding)), key.description).toBe(false)
+      expect(strokes.has(serializeBinding(key.binding)), key.description).toBe(false)
     }
+  })
+
+  it("reaches nothing underneath while the palette is open", () => {
+    const registry = new KeymapRegistry({
+      get: () => ({
+        id: "selection.next-sibling",
+        title: "Select the next sibling",
+        category: "selection",
+        isAvailable: () => true,
+        run: () => undefined,
+        mutates: false,
+      }),
+      has: () => true,
+    } as never)
+
+    registry.registerAll(defaultShortcuts)
+
+    /*
+     * `Tab` is bound in `canvas.selection`, and the canvas is still there
+     * underneath an open palette. What keeps the two apart is
+     * `resolveActiveScopes`, which drops every non-overlay scope while an
+     * overlay is open — so this is the assertion that matters, rather than the
+     * absence of a binding.
+     */
+    const resolution = registry.resolve({ key: "Tab" }, ["canvas", "canvas.selection"], {
+      scopes: ["canvas", "canvas.selection"],
+      selectionCount: 1,
+      isEditingText: false,
+      isDirty: false,
+    })
+
+    expect("match" in resolution).toBe(true)
+
+    const behind = registry.resolve(
+      { key: "Tab" },
+      ["canvas", "canvas.selection", "overlay.command-palette"],
+      {
+        scopes: ["canvas", "canvas.selection", "overlay.command-palette"],
+        selectionCount: 1,
+        isEditingText: false,
+        isDirty: false,
+      },
+    )
+
+    // "unbound" rather than "unavailable": the binding was not even
+    // considered, because the scope it lives in was excluded.
+    expect(behind).toEqual({ miss: "unbound" })
   })
 
   it("describes every key, so the reference sheet can show them", () => {

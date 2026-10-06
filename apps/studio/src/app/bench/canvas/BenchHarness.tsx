@@ -8,6 +8,7 @@ import {
   KeyboardProvider,
   KeymapRegistry,
   createArrangeCommands,
+  createSelectionCommands,
   createEditCommands,
   createViewportCommands,
   defaultShortcuts,
@@ -94,6 +95,7 @@ function Keyboard({ children }: { children: ReactElement }): ReactElement {
       ...createViewportCommands({ store: () => store }),
       ...createEditCommands({ store: () => store }),
       ...createArrangeCommands({ store: () => store }),
+      ...createSelectionCommands({ store: () => store }),
     ])
     keys.registerAll(
       resolveShortcuts(defaultShortcuts, DEFAULT_KEYMAP).filter(

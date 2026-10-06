@@ -2,12 +2,14 @@ import type { ShortcutRegistration } from "../types"
 import { globalShortcuts } from "./global"
 import { arrangeShortcuts } from "./arrange"
 import { editShortcuts } from "./edit"
+import { selectionShortcuts } from "./selection"
 import { shellShortcuts } from "./shell"
 import { viewportShortcuts } from "./viewport"
 
 export { arrangeShortcuts } from "./arrange"
 export { editShortcuts } from "./edit"
 export { globalShortcuts } from "./global"
+export { selectionShortcuts } from "./selection"
 export { shellShortcuts } from "./shell"
 export { viewportShortcuts } from "./viewport"
 export { paletteKeys } from "./overlay"
@@ -27,4 +29,5 @@ export const defaultShortcuts: readonly ShortcutRegistration[] = [
   ...viewportShortcuts,
   ...editShortcuts,
   ...arrangeShortcuts,
+  ...selectionShortcuts,
 ]

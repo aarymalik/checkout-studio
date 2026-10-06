@@ -1510,7 +1510,11 @@ pnpm bench:canvas
 ✓ Selection feedback within 16ms
 ✓ Overlays render independently of node content
 ✓ Layers panel virtualized, verified with 2,000 nodes
-✓ Full canvas navigation by keyboard
+✓ Full canvas navigation by keyboard — § Selection in keyboard-shortcuts.md:
+  the siblings, the tree, the group, and clearing. Nudge is not built: it needs
+  a positioning model, and which property it would write is undecided until the
+  component library (Phase 9) and property editing (Phase 12). Keyboard drag
+  mode is Phase 8 by design.
 ✓ Zoom and pan state survive a device switch
 ```
 
