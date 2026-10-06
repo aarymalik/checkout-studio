@@ -4,6 +4,7 @@ import { createDocument } from "@checkout-studio/schema"
 import { createViewportCommands, viewportCommandDescriptors } from "../../src/canvas/commands"
 import { ZOOM_STEPS } from "../../src/canvas/viewport"
 import { createEditorStore, type EditorStoreApi } from "../../src/state/store"
+import type { Rect } from "../../src/canvas/transform"
 import { makeContext } from "../support"
 
 /**
@@ -114,6 +115,99 @@ describe("zoom", () => {
      * the test says so rather than leaving the next reader to wonder.
      */
     expect(api.getState().viewport.pan).toEqual({ x: 120, y: -40 })
+  })
+})
+
+describe("fitting", () => {
+  /** A canvas that has measured itself: 800 by 600, showing a 400-wide page. */
+  function measured(api: EditorStoreApi, selection: Rect | null = null): void {
+    api.getState().setMeasured({
+      surface: { width: 800, height: 600 },
+      frame: { x: 0, y: 0, width: 400, height: 1_200 },
+      selection,
+    })
+  }
+
+  it("is unavailable until a canvas has measured itself", () => {
+    const api = store()
+    const commands = commandsFor(api)
+
+    // Zero surface means no canvas. Fitting to nothing would divide by it.
+    expect(commands.get("view.zoom-fit")?.isAvailable(makeContext())).toBe(false)
+    expect(commands.get("view.zoom-selection")?.isAvailable(makeContext())).toBe(false)
+
+    // The ones that need no geometry are available regardless.
+    expect(commands.get("view.zoom-in")?.isAvailable(makeContext())).toBe(true)
+  })
+
+  it("becomes available once it has", () => {
+    const api = store()
+
+    measured(api)
+
+    expect(commandsFor(api).get("view.zoom-fit")?.isAvailable(makeContext())).toBe(true)
+  })
+
+  it("fits the page into the surface", () => {
+    const api = store()
+
+    measured(api)
+    api.getState().setZoom(4)
+    commandsFor(api).get("view.zoom-fit")?.run(makeContext())
+
+    // 1200 tall into 600, less padding, so well under 1:1 — and never above,
+    // because fitting must not magnify.
+    expect(api.getState().viewport.zoom).toBeLessThan(1)
+    expect(api.getState().viewport.zoom).toBeGreaterThan(0)
+  })
+
+  it("moves the pan as well as the zoom, in one step", () => {
+    const api = store()
+    let writes = 0
+
+    measured(api)
+    api.subscribe(() => {
+      writes += 1
+    })
+
+    commandsFor(api).get("view.zoom-fit")?.run(makeContext())
+
+    // One write, both fields. Two would render once at the new scale with the
+    // old offset, which is a visible jump.
+    expect(writes).toBe(1)
+  })
+
+  it("zooms to the selection when there is one", () => {
+    const api = store()
+
+    measured(api, { x: 100, y: 100, width: 50, height: 50 })
+    commandsFor(api).get("view.zoom-selection")?.run(makeContext())
+
+    // A small selection in a large surface magnifies, unlike fitting the page.
+    expect(api.getState().viewport.zoom).toBeGreaterThan(1)
+  })
+
+  it("fits the page when nothing is selected, rather than doing nothing", () => {
+    const api = store()
+
+    measured(api, null)
+    commandsFor(api).get("view.zoom-selection")?.run(makeContext())
+
+    const toSelection = api.getState().viewport
+
+    measured(api, null)
+    commandsFor(api).get("view.zoom-fit")?.run(makeContext())
+
+    // The nearest useful thing to what was asked for. A command that did
+    // nothing would leave somebody pressing the key again.
+    expect(toSelection.zoom).toBe(api.getState().viewport.zoom)
+  })
+
+  it("does nothing rather than throwing when run without a canvas", () => {
+    const commands = commandsFor(store())
+
+    expect(() => commands.get("view.zoom-fit")?.run(makeContext())).not.toThrow()
+    expect(() => commands.get("view.zoom-selection")?.run(makeContext())).not.toThrow()
   })
 })
 

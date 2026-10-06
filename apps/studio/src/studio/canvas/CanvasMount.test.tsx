@@ -128,6 +128,88 @@ describe("the canvas, with components to draw", () => {
   })
 })
 
+describe("what the canvas tells the store about itself", () => {
+  /**
+   * Published so that something which is not the canvas can act on its shape.
+   *
+   * jsdom reports zero for `clientWidth`, so the surface is stubbed — what is
+   * being tested is that the measurement reaches the store at all, and that the
+   * frame follows the breakpoint. Whether the numbers are right is a question
+   * for a browser.
+   */
+  function stubSurface(width: number, height: number): () => void {
+    const widthSpy = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width)
+    const heightSpy = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(height)
+
+    return () => {
+      widthSpy.mockRestore()
+      heightSpy.mockRestore()
+    }
+  }
+
+  it("publishes the surface, so fitting has something to fit into", () => {
+    const restore = stubSurface(800, 600)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      expect(harness.store().getState().viewport.measured.surface).toEqual({
+        width: 800,
+        height: 600,
+      })
+    } finally {
+      restore()
+    }
+  })
+
+  it("publishes a frame that follows the device", () => {
+    const restore = stubSurface(800, 600)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      const desktop = harness.store().getState().viewport.measured.frame.width
+
+      act(() => {
+        harness.store().getState().setBreakpoint("mobile")
+      })
+
+      const mobile = harness.store().getState().viewport.measured.frame.width
+
+      // A stale frame fits to the page the user used to be looking at.
+      expect(mobile).toBeLessThan(desktop)
+    } finally {
+      restore()
+    }
+  })
+
+  it("publishes the selection, and nothing when there is none", () => {
+    const restore = stubSurface(800, 600)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      expect(harness.store().getState().viewport.measured.selection).toBeNull()
+
+      act(() => {
+        harness.store().getState().select(["section"])
+      })
+
+      // Measured, even though jsdom's rect is zero — what matters here is that
+      // a selection produces a box rather than null.
+      expect(harness.store().getState().viewport.measured.selection).not.toBeNull()
+    } finally {
+      restore()
+    }
+  })
+})
+
 describe("the canvas keyboard scope", () => {
   /**
    * Shift and a letter, live only while the canvas is mounted.
@@ -151,6 +233,31 @@ describe("the canvas keyboard scope", () => {
 
     await user.keyboard("{Shift>}D{/Shift}")
     expect(harness.store().getState().viewport.breakpoint).toBe("desktop")
+  })
+
+  it("zooms to fit on the key the spec advertises", async () => {
+    const user = userEvent.setup()
+    const widthSpy = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800)
+    const heightSpy = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      act(() => {
+        harness.store().getState().setZoom(4)
+      })
+
+      await user.keyboard("{Shift>}1{/Shift}")
+
+      // Shift and a digit, live only in the canvas scope — which is also the
+      // only time there is a surface to fit into.
+      expect(harness.store().getState().viewport.zoom).toBeLessThan(4)
+    } finally {
+      widthSpy.mockRestore()
+      heightSpy.mockRestore()
+    }
   })
 
   it("does not switch it from outside the canvas", async () => {

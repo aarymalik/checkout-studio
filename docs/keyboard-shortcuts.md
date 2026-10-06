@@ -395,9 +395,15 @@ Two tests hold that line: at most one unmodified character key outside the
 canvas, and every character key claiming the canvas exemption is actually scoped
 to the canvas.
 
-`⇧1` (zoom to fit) and `⇧2` (zoom to selection) are unbound for a different
-reason: both need the size of the canvas surface, and only a mounted canvas
-knows it.
+`⇧1` (zoom to fit) and `⇧2` (zoom to selection) are in the canvas scope for the
+same reason, and need it for a second one: both work from the size of the canvas
+surface, and only a mounted canvas knows it. The canvas publishes what it has
+measured — the surface, the device frame and the selection's box — which is what
+lets a command act on the canvas's shape without having a DOM to ask.
+
+Zooming to the selection with nothing selected fits the page instead. It is the
+nearest useful thing to what was asked for, and a command that did nothing would
+leave somebody pressing the key again.
 
 `⌘R` shadows browser reload and is therefore canvas-scoped, opt-in via settings, and disabled by default. Users who want it must enable it knowingly.
 

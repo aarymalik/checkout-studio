@@ -2,7 +2,8 @@ import { BREAKPOINTS, type Breakpoint } from "@checkout-studio/schema"
 
 import type { Command, CommandDescriptor } from "../commands/types"
 import type { EditorStoreApi } from "../state/store"
-import { steppedZoom } from "./viewport"
+import type { CanvasMeasurements } from "../state/types"
+import { steppedZoom, zoomToFit, zoomToRect } from "./viewport"
 
 /**
  * The viewport's commands.
@@ -49,6 +50,18 @@ export const viewportCommandDescriptors: readonly CommandDescriptor[] = [
     category: "view",
     keywords: ["actual", "reset", "hundred", "scale"],
   },
+  {
+    id: "view.zoom-fit",
+    title: "Zoom to fit the page",
+    category: "view",
+    keywords: ["fit", "whole", "page", "everything", "scale"],
+  },
+  {
+    id: "view.zoom-selection",
+    title: "Zoom to the selection",
+    category: "view",
+    keywords: ["fit", "selection", "selected", "close", "scale"],
+  },
   ...BREAKPOINTS.map((breakpoint) => ({
     id: `view.device.${breakpoint}`,
     title: `Edit at ${DEVICE_TITLES[breakpoint].toLowerCase()}`,
@@ -82,10 +95,51 @@ export function createViewportCommands(options: ViewportCommandOptions): readonl
     api.getState().setZoom(steppedZoom(api.getState().viewport.zoom, direction))
   }
 
+  /** Whether a canvas is mounted and has told us its shape. */
+  function measured(): CanvasMeasurements | null {
+    const api = store()
+
+    if (api === null) return null
+
+    const { measured: shape } = api.getState().viewport
+
+    // Zero means no canvas. Fitting to nothing would divide by it.
+    return shape.surface.width > 0 && shape.surface.height > 0 ? shape : null
+  }
+
   const behaviour: Record<string, () => void> = {
     "view.zoom-in": () => zoom(1),
     "view.zoom-out": () => zoom(-1),
     "view.zoom-reset": () => store()?.getState().setZoom(1),
+
+    "view.zoom-fit": () => {
+      const shape = measured()
+
+      if (shape === null) return
+
+      store()?.getState().setTransform(zoomToFit(shape.frame, shape.surface))
+    },
+
+    "view.zoom-selection": () => {
+      const shape = measured()
+
+      if (shape === null) return
+
+      /*
+       * Fitting the page when nothing is selected.
+       *
+       * The nearest useful thing to what was asked for, and it is what the
+       * viewport controller already does — a command that did nothing would
+       * leave somebody pressing the key again.
+       */
+      store()
+        ?.getState()
+        .setTransform(
+          shape.selection === null
+            ? zoomToFit(shape.frame, shape.surface)
+            : zoomToRect(shape.selection, shape.surface),
+        )
+    },
   }
 
   for (const breakpoint of BREAKPOINTS) {
@@ -94,10 +148,16 @@ export function createViewportCommands(options: ViewportCommandOptions): readonl
 
   return viewportCommandDescriptors.map((descriptor) => ({
     ...descriptor,
-    // Nothing to zoom and no breakpoint to switch without a document. Shown
-    // greyed rather than hidden, so the interface does not rearrange itself as
-    // pages open and close.
-    isAvailable: () => store() !== null,
+    /*
+     * Nothing to zoom and no breakpoint to switch without a document, and
+     * nothing to fit without a canvas that has measured itself. Shown greyed
+     * rather than hidden, so the interface does not rearrange itself as pages
+     * open and close.
+     */
+    isAvailable: () =>
+      descriptor.id === "view.zoom-fit" || descriptor.id === "view.zoom-selection"
+        ? measured() !== null
+        : store() !== null,
     isActive: () => {
       const api = store()
 
