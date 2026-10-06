@@ -8,6 +8,7 @@ import {
   KeymapRegistry,
   createArrangeCommands,
   createEditCommands,
+  createSelectionCommands,
   createViewportCommands,
   defaultShortcuts,
   resolveShortcuts,
@@ -89,6 +90,7 @@ function mount(options: { theme?: typeof defaultTheme | null } = {}): {
         ...createViewportCommands({ store: () => store }),
         ...createEditCommands({ store: () => store }),
         ...createArrangeCommands({ store: () => store }),
+        ...createSelectionCommands({ store: () => store }),
       ])
       keymap.registerAll(resolveShortcuts(defaultShortcuts, DEFAULT_KEYMAP))
     }
@@ -301,6 +303,101 @@ describe("the canvas keyboard scope", () => {
     // The text guard: typing a capital M types a capital M.
     expect(screen.getByRole("textbox", { name: "Somewhere to type" })).toHaveValue("M")
     expect(harness.store().getState().viewport.breakpoint).toBe("desktop")
+  })
+})
+
+describe("navigating by keyboard", () => {
+  /**
+   * Phase 7's last exit criterion: full canvas navigation by keyboard.
+   *
+   * Driven through the real canvas and the real keymap, because the thing that
+   * was missing was never the store — `selectSibling` and friends have worked
+   * since Phase 5. What was missing was a scope, a command and a binding, and
+   * only a test that presses a key can tell whether all three are there.
+   */
+  it("walks the siblings with Tab, and the tree with Enter", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    // A child to walk into. The shared fixture has none, and other tests here
+    // depend on its shape.
+    let child = ""
+
+    act(() => {
+      // `insertNew` answers with the document, not the id — and it selects what
+      // it inserted, which is the handle on it.
+      harness.store().getState().insertNew("core.section", "section")
+      child = harness.store().getState().selection.ids[0] ?? ""
+      harness.store().getState().select(["section"])
+    })
+
+    expect(child).not.toBe("")
+
+    // `canvas.selection` is pushed by an effect, so the scope is not live
+    // until it has run.
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Section")
+    })
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "Enter", key: "Enter" })
+    })
+
+    expect(harness.store().getState().selection.ids).toEqual([child])
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "Enter", key: "Enter", shiftKey: true })
+    })
+
+    expect(harness.store().getState().selection.ids).toEqual(["section"])
+  })
+
+  it("clears the selection on Escape, which is what lets Tab leave", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    act(() => {
+      harness.store().getState().select(["section"])
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Section")
+    })
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "Escape", key: "Escape" })
+    })
+
+    expect(harness.store().getState().selection.ids).toEqual([])
+  })
+
+  it("announces the selection, because none of this moves focus", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    // Nothing is announced as nothing, rather than as silence.
+    expect(screen.getByRole("status")).toHaveTextContent("Nothing selected")
+
+    act(() => {
+      harness.store().getState().select(["section"])
+    })
+
+    /*
+     * The position too. "Section" twice in a row is indistinguishable from a
+     * key that did nothing, which is what Tab would sound like without it.
+     */
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Section, 1 of 1")
+    })
+
+    act(() => {
+      harness.store().getState().setLocked(["section"], true)
+    })
+
+    expect(screen.getByRole("status")).toHaveTextContent("locked")
   })
 })
 

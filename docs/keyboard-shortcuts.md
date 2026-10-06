@@ -298,6 +298,29 @@ Selected node has children      → select its first child
 Otherwise                       → no-op
 ```
 
+**As built.** The middle branch and the no-op. Text edit mode does not exist
+yet — there are no text components until Phase 9 and no inline editor until
+Phase 12 — and the binding is the same one the first branch takes when it
+arrives, so nothing moves then but the command's body.
+
+Every binding in this section is scoped to `canvas.selection`: the canvas, with
+something selected. That is what makes taking `Tab` acceptable. Inside the
+canvas with a node selected it moves to the next sibling rather than the next
+focusable element, and the escapes are the ones § Accessibility promises — `F6`
+and `⇧F6` reach the next region from anywhere, `Escape` clears the selection and
+with it the scope, and with nothing selected the scope was never active. All of
+them decline while a text field has focus, so `Tab` still leaves a rename field
+and `↵` still commits it.
+
+None of this moves focus, because the thing being selected is a node in a
+rendered page rather than a control. So the canvas carries a live region that
+announces the selected node, its position among its siblings, and whether it is
+locked or hidden — "Section, 2 of 4" rather than "Section", because the same
+name twice is indistinguishable from a key that did nothing.
+`aria-activedescendant` would be the usual answer and needs an id on the
+element; the renderer emits only a class, on purpose, because the same renderer
+draws the published page where ids are a shared namespace.
+
 `Escape` follows [editor-behavior.md](./editor-behavior.md) exactly: the first press exits edit mode if active, the next clears the selection.
 
 There is no separate "deselect all" shortcut. `⌘⇧A` is Chrome's tab search on macOS, and `Escape` already does the job.

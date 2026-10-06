@@ -10,6 +10,7 @@ import {
   ShellProvider,
   createCommandSource,
   createArrangeCommands,
+  createSelectionCommands,
   createEditCommands,
   createShellCommands,
   defaultShortcuts,
@@ -187,6 +188,7 @@ function build({
     ...createViewportCommands({ store: viewportStore }),
     ...createEditCommands({ store: viewportStore }),
     ...createArrangeCommands({ store: viewportStore }),
+    ...createSelectionCommands({ store: viewportStore }),
   ])
 
   // Their changes applied to what the product ships: remapped keys replaced,

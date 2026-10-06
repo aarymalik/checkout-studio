@@ -9,6 +9,8 @@ export type { EditorProviderProps } from "./context"
 
 export { createArrangeCommands, arrangeCommandDescriptors } from "./arrange"
 export type { ArrangeCommandOptions } from "./arrange"
+export { createSelectionCommands, selectionCommandDescriptors } from "./selection"
+export type { SelectionCommandOptions } from "./selection"
 export { createEditCommands, editCommandDescriptors } from "./commands"
 export type { EditCommandOptions } from "./commands"
 

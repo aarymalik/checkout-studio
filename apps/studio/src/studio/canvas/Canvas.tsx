@@ -33,6 +33,7 @@ import { siblings } from "@checkout-studio/schema"
 
 import { Breadcrumb } from "./Breadcrumb"
 import { Overlays } from "./Overlays"
+import { SelectionAnnouncer } from "./SelectionAnnouncer"
 import { RULER_SIZE, Rulers } from "./Rulers"
 import { useHeldKey } from "./useHeldKey"
 import { registry as shippedRegistry } from "@/studio/registry"
@@ -453,6 +454,12 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
           }}
         />
       </div>
+
+      {/*
+        Outside the gesture surface and outside the overlay layers, because it
+        is neither: it draws nothing and it never receives a pointer.
+      */}
+      <SelectionAnnouncer />
 
       {showRulers ? (
         <Rulers
