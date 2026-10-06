@@ -381,6 +381,8 @@ export function useResize({ rects, siblingsOf }: UseResizeOptions): ResizeContro
     id: string
     handle: ResizeHandle
     from: Point
+    /** The pan when the gesture began, so a canvas that scrolls under it counts. */
+    fromPan: Point
     start: Rect
     targets: readonly Rect[]
   } | null>(null)
@@ -403,6 +405,7 @@ export function useResize({ rects, siblingsOf }: UseResizeOptions): ResizeContro
         id,
         handle,
         from: { x: event.clientX, y: event.clientY },
+        fromPan: { ...state.viewport.pan },
         start,
         targets: siblingsOf(id)
           .map((sibling) => rects.get(sibling))
@@ -423,10 +426,26 @@ export function useResize({ rects, siblingsOf }: UseResizeOptions): ResizeContro
       if (current === null) return
 
       const state = store.getState()
-      // Screen pixels into canvas units: ten pixels at 200% is five units.
+
+      /*
+       * How far the pointer moved relative to the content, in canvas units.
+       *
+       * Two things move: the pointer, and the canvas under it. Auto-scroll pans
+       * while a drag sits near an edge, so a pointer held still is still
+       * travelling across the page — and a delta measured against the screen
+       * alone would ignore that, making auto-scroll decorative: the canvas would
+       * slide and the box would stop growing.
+       *
+       * Divided by the zoom last, because ten screen pixels at 200% is five
+       * units of document.
+       */
       const delta = {
-        x: (event.clientX - current.from.x) / state.viewport.zoom,
-        y: (event.clientY - current.from.y) / state.viewport.zoom,
+        x:
+          (event.clientX - current.from.x - (state.viewport.pan.x - current.fromPan.x)) /
+          state.viewport.zoom,
+        y:
+          (event.clientY - current.from.y - (state.viewport.pan.y - current.fromPan.y)) /
+          state.viewport.zoom,
       }
 
       const resized = resizeRect(current.start, current.handle, delta, {

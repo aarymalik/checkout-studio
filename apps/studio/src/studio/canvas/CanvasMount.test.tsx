@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {
   CommandRegistry,
@@ -467,6 +467,52 @@ describe("resizing by a handle", () => {
       // window is measured against the last entry, so a continuous drag
       // collapses however long it lasts.
       expect(harness.store().getState().history.past.length).toBe(before + 1)
+    } finally {
+      Element.prototype.getBoundingClientRect = original
+    }
+  })
+
+  it("pans the canvas while the pointer sits at the edge, and stops after", async () => {
+    const original = Element.prototype.getBoundingClientRect
+
+    stubLayout(200, 100)
+
+    try {
+      const harness = mount()
+
+      render(harness.element)
+
+      act(() => {
+        harness.store().getState().select(["section"])
+      })
+
+      const grip = await screen.findByRole("button", { name: "Resize e" })
+
+      fireEvent.pointerDown(grip, { clientX: 200, clientY: 50 })
+
+      /*
+       * At the right-hand edge of a 200-wide surface, which is where auto-scroll
+       * is supposed to take over.
+       *
+       * It pans on animation frames, so this waits for one rather than
+       * asserting immediately — and asserts the pan moved at all rather than by
+       * how much, since the velocity curve is the autoscroll module's own test.
+       */
+      fireEvent.pointerMove(window, { clientX: 199, clientY: 50 })
+
+      await waitFor(() => {
+        expect(harness.store().getState().viewport.pan.x).not.toBe(0)
+      })
+
+      const panned = harness.store().getState().viewport.pan.x
+
+      fireEvent.pointerUp(window)
+
+      // Released, so it has to stop: a canvas that kept scrolling after the
+      // gesture would be unusable.
+      await new Promise((resolve) => setTimeout(resolve, 60))
+
+      expect(harness.store().getState().viewport.pan.x).toBe(panned)
     } finally {
       Element.prototype.getBoundingClientRect = original
     }

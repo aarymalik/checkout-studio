@@ -19,6 +19,7 @@ import {
   useNodeResolver,
   usePanZoom,
   boundsOf,
+  useAutoScroll,
   useResize,
   useScope,
   useViewport,
@@ -188,6 +189,48 @@ export function Canvas({ theme }: CanvasProps): ReactElement {
 
     return { x: event.clientX - bounds.left, y: event.clientY - bounds.top, width: 0, height: 0 }
   }, [])
+
+  const autoScroll = useAutoScroll(surface)
+
+  /*
+   * Read through a ref, and deliberately.
+   *
+   * The controls depend on the viewport transform, so their identity changes on
+   * every pan — and auto-scroll pans. Depending on them directly made the
+   * effect below tear down and re-run on each frame, calling `track(null)` in
+   * its own cleanup and killing the loop it had just started. It panned by
+   * exactly nothing, which looked like auto-scroll not being wired at all.
+   */
+  const autoScrollRef = useRef(autoScroll)
+  autoScrollRef.current = autoScroll
+
+  /*
+   * Panning while a resize sits near an edge.
+   *
+   * The reason the resize delta counts the pan: a pointer held at the edge is
+   * still travelling across the page while the canvas slides under it, so the
+   * box keeps growing. Without that this would slide the canvas and stop the
+   * resize, which is worse than not scrolling at all.
+   *
+   * Tracked from here rather than inside the gesture, because the surface and
+   * the pointer's position within it are this component's to know.
+   */
+  useEffect(() => {
+    if (!resize.resizing) return
+
+    const move = (event: PointerEvent): void => {
+      const at = localPoint(event)
+
+      autoScrollRef.current.track({ x: at.x, y: at.y })
+    }
+
+    window.addEventListener("pointermove", move)
+
+    return () => {
+      window.removeEventListener("pointermove", move)
+      autoScrollRef.current.track(null)
+    }
+  }, [resize.resizing, localPoint])
 
   const selectFromMarquee = useCallback(
     (box: Rect) => {

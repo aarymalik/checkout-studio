@@ -791,6 +791,34 @@ describe("useResize", () => {
     expect(store.getState().document.nodes["header"]?.styles.desktop).toBeUndefined()
   })
 
+  it("counts the canvas sliding under a held pointer", () => {
+    const { store, controls } = harness()
+
+    act(() => {
+      store.getState().select(["header"])
+    })
+
+    act(() => {
+      controls().begin("e", { clientX: 200, clientY: 50 })
+    })
+
+    /*
+     * Auto-scroll pans while a drag sits near an edge, so a pointer held still
+     * is still travelling across the page. A delta measured against the screen
+     * alone would ignore that: the canvas would slide and the box would stop
+     * growing, which is worse than not scrolling at all.
+     *
+     * Panning by -40 reveals content to the right, so a stationary pointer is
+     * forty units further along the page.
+     */
+    act(() => {
+      store.getState().setPan({ x: -40, y: 0 })
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 200, clientY: 50 }))
+    })
+
+    expect(store.getState().document.nodes["header"]?.styles.desktop?.base?.["width"]).toBe(240)
+  })
+
   it("holds the proportions while shift is down", () => {
     const { store, controls } = harness()
 
