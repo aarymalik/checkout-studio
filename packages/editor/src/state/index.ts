@@ -7,6 +7,8 @@ export {
 } from "./context"
 export type { EditorProviderProps } from "./context"
 
+export { createArrangeCommands, arrangeCommandDescriptors } from "./arrange"
+export type { ArrangeCommandOptions } from "./arrange"
 export { createEditCommands, editCommandDescriptors } from "./commands"
 export type { EditCommandOptions } from "./commands"
 

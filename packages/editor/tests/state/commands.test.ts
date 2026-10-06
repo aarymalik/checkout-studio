@@ -248,6 +248,80 @@ describe("the clipboard", () => {
   })
 })
 
+describe("a locked node", () => {
+  /**
+   * docs/editor-behavior.md § Lock: a locked component "cannot move, cannot
+   * resize, cannot delete" and "remains selectable". Only the resize gate
+   * enforced any of it — ⌫ deleted a locked node as readily as any other, and
+   * ⌘X was a second way to do the same thing.
+   */
+  it("cannot be deleted or cut, but stays selectable", () => {
+    const api = store()
+    const child = childOf(api)
+    const commands = commandsFor(api)
+
+    api.getState().setLocked([child], true)
+    api.getState().select([child])
+
+    expect(api.getState().selection.ids).toEqual([child])
+    expect(commands.get("edit.delete")?.isAvailable(makeContext())).toBe(false)
+    expect(commands.get("edit.cut")?.isAvailable(makeContext())).toBe(false)
+
+    commands.get("edit.delete")?.run(makeContext())
+    commands.get("edit.cut")?.run(makeContext())
+
+    expect(api.getState().document.nodes[child]).toBeDefined()
+  })
+
+  it("can still be copied and duplicated", () => {
+    const api = store()
+    const child = childOf(api)
+    const commands = commandsFor(api)
+
+    api.getState().setLocked([child], true)
+    api.getState().select([child])
+
+    // Neither one touches the locked node: a copy of a protected thing is not
+    // a change to it.
+    expect(commands.get("edit.copy")?.isAvailable(makeContext())).toBe(true)
+    expect(commands.get("edit.duplicate")?.isAvailable(makeContext())).toBe(true)
+  })
+
+  it("protects what is inside it", () => {
+    const api = store()
+    const parent = childOf(api)
+    const inserted = api.getState().insertNew("core.section", parent)
+
+    expect(inserted.ok).toBe(true)
+
+    const grandchild = api.getState().document.nodes[parent]?.children[0] as string
+
+    api.getState().setLocked([parent], true)
+    api.getState().select([grandchild])
+
+    // `isLocked` is self-or-ancestor: deleting a child empties the container
+    // that was locked.
+    expect(commandsFor(api).get("edit.delete")?.isAvailable(makeContext())).toBe(false)
+  })
+
+  it("stops a mixed selection entirely rather than deleting the rest", () => {
+    const api = store()
+    const locked = childOf(api)
+    const inserted = api.getState().insertNew("core.section", api.getState().document.root)
+
+    expect(inserted.ok).toBe(true)
+
+    const free = api.getState().document.nodes[api.getState().document.root]?.children[1] as string
+
+    api.getState().setLocked([locked], true)
+    api.getState().select([locked, free])
+
+    // A selection where half of it vanished is worse than one where nothing
+    // did: the user can see nothing happened and ask why.
+    expect(commandsFor(api).get("edit.delete")?.isAvailable(makeContext())).toBe(false)
+  })
+})
+
 describe("every one of them", () => {
   it("declares that it changes the document", () => {
     for (const command of commandsFor(store()).values()) {

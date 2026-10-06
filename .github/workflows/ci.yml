@@ -87,11 +87,16 @@ jobs:
       # Phase 5. The thresholds live in each package's vitest config, and
       # `pnpm test` does not measure coverage — so without this step the
       # requirement is a comment rather than a gate.
+      #
+      # `pnpm coverage` rather than the filters spelled out here, because they
+      # were spelled out here and nowhere else: `pnpm check` ran lint, types,
+      # tests, the boundaries and the tokens, and not this — so the script a
+      # developer runs to mean "am I good?" passed while the build failed on a
+      # threshold. One list, in package.json, run by both.
       - name: Coverage on the engine
-        run: >-
-          pnpm --filter @checkout-studio/schema --filter @checkout-studio/editor
-          --filter @checkout-studio/renderer --filter @checkout-studio/plugin-sdk
-          test:coverage
+        run: pnpm coverage
+        env:
+          TURBO_CONCURRENCY: 4
 
       - name: Build
         run: pnpm build

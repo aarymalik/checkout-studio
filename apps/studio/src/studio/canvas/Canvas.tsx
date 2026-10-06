@@ -12,6 +12,7 @@ import {
   nodesIn,
   rectBetween,
   selectionFor,
+  isLocked,
   useContentHeight,
   useEditorStore,
   useEditorStoreApi,
@@ -110,6 +111,17 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
   const showRulers = useEditorStore((state) => state.viewport.showRulers)
   const showGrid = useEditorStore((state) => state.viewport.showGrid)
   const canEdit = useEditorStore((state) => state.persistence.canEdit)
+
+  /*
+   * And the canvas with something selected, which is a narrower scope.
+   *
+   * It is what lets ⌘L be bound at all: the browser's "focus address bar" is
+   * taken only inside the canvas with a selection, per docs/keyboard-shortcuts.md
+   * § Structure. The scope was defined, ranked in scopes.ts, labelled in the
+   * shortcut reference and listed in the preferences route — and nothing ever
+   * activated it, so a binding there could never have fired.
+   */
+  useScope("canvas.selection", selected.length > 0)
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [marquee, setMarquee] = useState<Rect | null>(null)
@@ -227,8 +239,15 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
   )
 
   const primary = selected[0]
-  const resizable =
-    primary !== undefined && document.nodes[primary]?.metadata.locked !== true && canEdit
+  /*
+   * `isLocked` rather than the node's own flag.
+   *
+   * It was reading `metadata.locked` directly, which meant locking a container
+   * left every one of its children resizable — and resizing a child moves the
+   * contents of the thing that was locked. `isLocked` is self-or-ancestor,
+   * which is what docs/editor-behavior.md § Lock describes.
+   */
+  const resizable = primary !== undefined && canEdit && !isLocked(document, primary)
 
   /** The pointer's position inside the surface, which every gesture works in. */
   const localPoint = useCallback((event: { clientX: number; clientY: number }): Rect => {
@@ -425,6 +444,7 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
           guides={resize.guides}
           marquee={marquee}
           resizable={resizable}
+          surfaceHeight={surface.current?.clientHeight ?? 0}
           onResizeStart={(handle, event) => {
             // The grip owns the gesture from here, so the surface beneath it
             // must not also start a marquee.

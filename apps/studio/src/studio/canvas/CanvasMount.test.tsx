@@ -6,6 +6,8 @@ import {
   EditorProvider,
   KeyboardProvider,
   KeymapRegistry,
+  createArrangeCommands,
+  createEditCommands,
   createViewportCommands,
   defaultShortcuts,
   resolveShortcuts,
@@ -80,7 +82,14 @@ function mount(options: { theme?: typeof defaultTheme | null } = {}): {
     captured = store
 
     if (!commands.has("view.zoom-in")) {
-      commands.registerAll(createViewportCommands({ store: () => store }))
+      // The editing and arranging commands too, because the inline toolbar is
+      // a view over them: without them registered it renders nothing, which
+      // would make a test of it pass for the wrong reason.
+      commands.registerAll([
+        ...createViewportCommands({ store: () => store }),
+        ...createEditCommands({ store: () => store }),
+        ...createArrangeCommands({ store: () => store }),
+      ])
       keymap.registerAll(resolveShortcuts(defaultShortcuts, DEFAULT_KEYMAP))
     }
 
@@ -334,6 +343,45 @@ describe("resizing by a handle", () => {
 
     expect(grips).toHaveLength(8)
     await user.click(grips[0] as HTMLElement)
+  })
+
+  it("offers the inline toolbar on the selection", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    expect(screen.queryByRole("toolbar", { name: "Selection" })).not.toBeInTheDocument()
+
+    act(() => {
+      harness.store().getState().select(["section"])
+    })
+
+    /*
+     * Through the real canvas, not handed a rect.
+     *
+     * SelectionToolbar.test.tsx mounts the component directly, which proves
+     * what it does with a box but not that anything gives it one. Six features
+     * in this project were built, tested and reached by nothing; this is the
+     * test that would have caught that for this one.
+     */
+    expect(await screen.findByRole("toolbar", { name: "Selection" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Duplicate" })).toBeInTheDocument()
+  })
+
+  it("keeps the inline toolbar out of the decoration, which is hidden", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    act(() => {
+      harness.store().getState().select(["section"])
+    })
+
+    const toolbar = await screen.findByRole("toolbar", { name: "Selection" })
+
+    // Six labelled buttons. `aria-hidden` on them would hide the whole toolbar
+    // from assistive technology, which is what happened to the grips.
+    expect(toolbar.closest("[aria-hidden='true']")).toBeNull()
   })
 
   it("keeps the grips out of the decoration, which is hidden", async () => {
