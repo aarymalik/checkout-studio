@@ -69,7 +69,16 @@ export type { Fragment } from "./tree/fragment"
 export { ancestors, collect, isDescendant, siblings, subtreeIds, traverse } from "./tree/traverse"
 export type { VisitContext } from "./tree/traverse"
 
-export { duplicate, insert, move, remove, unwrap, update, wrap } from "./tree/operations"
+export {
+  duplicate,
+  insert,
+  move,
+  moveRefusal,
+  remove,
+  unwrap,
+  update,
+  wrap,
+} from "./tree/operations"
 export type {
   DuplicateResult,
   TreeErrorCode,

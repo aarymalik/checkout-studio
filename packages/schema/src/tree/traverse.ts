@@ -33,9 +33,31 @@ export function traverse(
   if (start === undefined) return
 
   const stack: VisitContext[] = [{ node: start, depth: 0, index: 0 }]
+  /*
+   * Visited, so a `children` loop ends instead of running for ever.
+   *
+   * Without this, a document where a node is its own descendant through
+   * `children` pushes without bound: the editor freezes and the tab grows
+   * until it is killed. A hang is the worst failure available here — nothing
+   * is logged, nothing is recoverable, and the user cannot even reload before
+   * it takes the window.
+   *
+   * Such a document is invalid and `validateReferences` rejects it, which is
+   * why nothing in the product has hit this. But `traverse` is the primitive
+   * under the canvas's hit testing, the layers tree, drag and drop and the
+   * style pass, and every one of those runs on a pointer move. "Validated
+   * upstream" is a good reason to expect it never happens and a poor one to
+   * hang if it does. `findOrphans` in validate.ts guards the same walk the
+   * same way.
+   */
+  const seen = new Set<string>()
 
   while (stack.length > 0) {
     const current = stack.pop() as VisitContext
+
+    if (seen.has(current.node.id)) continue
+
+    seen.add(current.node.id)
 
     if (visit(current) === false) return
 

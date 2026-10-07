@@ -32,5 +32,19 @@ export default createVitestConfig({
       functions: 100,
       lines: 100,
     },
+    /*
+     * Collision and validity, per docs/phases.md Phase 8.
+     *
+     * The rules that decide whether a drag may land somewhere. A wrong answer
+     * here is either a drop the user was promised and did not get, or a tree
+     * that should have been impossible — and both are decided by arithmetic
+     * that no test in a browser would pin down as precisely.
+     */
+    "src/dnd/*.ts": {
+      statements: 100,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+    },
   },
 })

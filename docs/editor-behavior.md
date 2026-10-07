@@ -249,6 +249,42 @@ Sections
 
 Insert after
 
+**As built — the rules, ahead of the sensors.** Where a drop lands is decided by
+arithmetic in `packages/editor/src/dnd`, with no library and no React, because
+the rule for a nested container is a product decision rather than a property of
+whatever moves the pointer. Held at 100% coverage per phases.md Phase 8.
+
+A node has three regions, not one. The top and bottom quarters of its height —
+capped at 12px, so a tall section does not get a 200px edge — mean _before_ and
+_after_. The middle means _inside_, for something that can hold children, and
+falls back to a side decided by the midpoint for something that cannot. A node
+with no height has no edges at all, which falls out of the arithmetic rather
+than needing a case: a quarter of zero is zero.
+
+"Insert inside" resolves to a position rather than to the end of the list. A
+user whose pointer is in the gap above the third card means _here_, and
+appending would be easier and wrong.
+
+Two things the first version got wrong, both found by tests:
+
+- The index is counted against **every** child, including unmeasured ones and
+  the ones being dragged. It is an index into `children`, and `move` reads it
+  against the list as it is _before_ anything is lifted out — so skipping any
+  child returns a number that does not mean what it says.
+- What is being dragged is excluded from collision, descendants included.
+  Without that, the dragged node is the deepest thing under the pointer for the
+  whole gesture and every drop resolves to "beside where you already are".
+
+Whether a drop is **allowed** calls the schema's own `moveRefusal` — the
+function `move` itself uses — rather than restating its rules. A second copy in
+the drag layer is a copy that drifts, and the day it drifts is the day the
+indicator promises a drop that then fails. On top of it sit the two rules the
+schema has no opinion about: locking, and which components take children.
+
+A lock is reported before a cycle. Told "this is locked" a user knows what to do
+next; told "that would make a loop" about a locked node, they would unlock it
+and then hit the loop.
+
 ---
 
 # Drag Preview

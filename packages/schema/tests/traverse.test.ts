@@ -19,6 +19,48 @@ describe("traverse", () => {
     expect(seen).toEqual(["root", "section", "heading", "text", "footer"])
   })
 
+  it("ends on a document whose children loop, rather than hanging", () => {
+    /*
+     * Found while writing a drag-and-drop test, which never finished.
+     *
+     * A node that is its own descendant through `children` pushed onto the
+     * stack without bound: the tab freezes and grows until it is killed.
+     * Nothing is logged and nothing is recoverable, which makes it the worst
+     * failure available here — and `traverse` is the primitive under the
+     * canvas's hit testing, the layers tree, drag and drop and the style pass,
+     * every one of which runs on a pointer move.
+     *
+     * `validateReferences` rejects such a document and the store refuses to
+     * open one, so nothing in the product has reached this. "Validated
+     * upstream" is a good reason to expect it never happens and a poor one to
+     * hang if it does.
+     */
+    const looped = makeDocument([
+      makeNode("root", { type: "core.page", children: ["section"] }),
+      makeNode("section", { parentId: "root", children: ["root"] }),
+    ])
+    const seen: string[] = []
+
+    traverse(looped, ({ node }) => void seen.push(node.id))
+
+    expect(seen).toEqual(["root", "section"])
+  })
+
+  it("visits a node shared by two parents once", () => {
+    // The same guard, reached the ordinary way a broken document reaches it.
+    const shared = makeDocument([
+      makeNode("root", { type: "core.page", children: ["a", "b"] }),
+      makeNode("a", { parentId: "root", children: ["twice"] }),
+      makeNode("b", { parentId: "root", children: ["twice"] }),
+      makeNode("twice", { parentId: "a" }),
+    ])
+    const seen: string[] = []
+
+    traverse(shared, ({ node }) => void seen.push(node.id))
+
+    expect(seen.filter((id) => id === "twice")).toHaveLength(1)
+  })
+
   it("reports depth and sibling position", () => {
     const seen: Array<[string, number, number]> = []
 

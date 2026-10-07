@@ -140,13 +140,26 @@ export function insert(
  * Moving a node into its own descendant would detach that whole branch from the
  * root and make both unreachable, so it is refused rather than performed.
  */
-export function move(
+/**
+ * Why `id` may not become a child of `parentId`, or null when it may.
+ *
+ * Extracted from `move`, which calls it, so that a caller can ask before
+ * committing. Drag and drop has to say where something will land *and* whether
+ * it can land there while the pointer is still down — and a second copy of
+ * these rules living in the drag layer is a second copy that can disagree with
+ * the one that actually refuses.
+ *
+ * Note what is not here: whether anything is locked. Locking is an editor
+ * concept and this engine has no opinion about it, the same way it has no
+ * opinion about which components take children. Both arrive as the caller's
+ * rules — see `TreeOptions`, and `dropRejection` in packages/editor/src/dnd.
+ */
+export function moveRefusal(
   document: CheckoutSchema,
   id: string,
   parentId: string,
-  index?: number,
   options: TreeOptions = {},
-): TreeResult {
+): TreeFailure | null {
   const node = document.nodes[id]
 
   if (node === undefined) return fail("missing-node", `There is no node "${id}".`, [id])
@@ -162,12 +175,37 @@ export function move(
     return fail("rejects-children", `"${parentId}" does not take children.`, [parentId])
   }
 
+  /*
+   * Into itself, or into something inside it.
+   *
+   * `isDescendant` counts a node as its own descendant, so this one check
+   * covers both — a node dropped on itself and a node dropped into its own
+   * child are the same impossibility.
+   */
   if (isDescendant(document, parentId, id)) {
     return fail("cycle", `"${parentId}" is inside "${id}", so it cannot also contain it.`, [
       id,
       parentId,
     ])
   }
+
+  return null
+}
+
+export function move(
+  document: CheckoutSchema,
+  id: string,
+  parentId: string,
+  index?: number,
+  options: TreeOptions = {},
+): TreeResult {
+  const refusal = moveRefusal(document, id, parentId, options)
+
+  if (refusal !== null) return refusal
+
+  // Both exist and the move is legal, which `moveRefusal` has just established.
+  const node = document.nodes[id] as Node
+  const parent = document.nodes[parentId] as Node
 
   const from = node.parentId
   const sameParent = from === parentId
