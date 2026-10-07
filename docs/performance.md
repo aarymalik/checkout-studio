@@ -184,7 +184,9 @@ eight runs:
 ```
 pan: work added to a frame      -0.1–0.8ms   ceiling 3ms    ok
 zoom: work added to a frame      0.7–2.3ms   ceiling 4ms    ok
-frames missed, either gesture    0 of ~100                  ok
+drag: work added to a frame      0.0–0.3ms   ceiling 3ms    ok   (sustained)
+drag: starting it                1–2 frames, as the preview mounts
+frames missed while sustaining   0 of ~200                  ok
 selection to overlay (median)    0.7–1.4ms   ceiling 4ms    ok
 selection to overlay (p95)       3.9–5.3ms   budget 16ms    ok
 one edit re-renders nothing      100% kept                  ok
@@ -239,6 +241,39 @@ entirely — and measuring the result, three runs each way, showed it buys about
 not show benefit, so the complexity is not justified. The diagnosis is recorded
 here so that if a later feature makes a per-frame store write or a per-change
 observer expensive, nobody has to find it twice.
+
+### Starting a gesture is not sustaining one
+
+The drag measurement failed the moment it existed: 11.7ms of added work and two
+dropped frames of forty. Seven explanations were tried and six were wrong.
+
+```
+React re-rendering the preview per frame   memoised it — 11.7 → 10.4ms
+the renderer re-inserting a stylesheet     profile counted zero <style> inserts
+opacity and the shadow on a moving layer   removed both — no change
+hover re-measuring during the drag         removed it — no change
+resolveDrop traversing 2,000 nodes         measured directly — 0.303ms
+dropRejection                              measured directly — 0.003ms
+the raster area of a 1440x80 layer         capped it to 320 — no change
+```
+
+What found it was the dumbest available test: run the drag for a hundred moves
+instead of forty. **0.3ms added, one frame missed of a hundred.** The cost was
+the preview's subtree mounting, once, on the first frame of the gesture — and
+over forty frames that single frame _is_ the 95th percentile.
+
+So the instrument was too short to tell "slow" from "slow once", which is the
+same class of mistake as measuring the display's refresh rate and calling it the
+canvas: a number that is real and does not mean what it is being read to mean.
+The benchmark now reports the two separately — the frames missed while starting,
+printed, and the frames missed while sustaining, asserted — because "sustains 60
+FPS" is a claim about the second.
+
+Two of the six wrong guesses left improvements behind and are kept on their own
+merits, with their comments corrected to say so: the canvas no longer calls
+`getBoundingClientRect` on every pointer move (the pan's added work went from
+0.3ms to 0.0ms), and hover stops while something is being dragged, because the
+drop indicator already answers what the pointer is over.
 
 ### Proving the instrument can fail
 
