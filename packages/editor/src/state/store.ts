@@ -23,7 +23,8 @@ import {
 import { createStore, type StoreApi } from "zustand/vanilla"
 
 import { emptyHistory, entryFor, push, redo, undo, type PushOptions } from "./history"
-import type { BuilderState, CanvasMeasurements, HistoryEntry } from "./types"
+import { findProblems } from "./recovery"
+import type { BuilderState, CanvasMeasurements, HistoryEntry, RecoveryState } from "./types"
 
 /**
  * The editor store.
@@ -131,7 +132,37 @@ export interface CreateStoreOptions {
 const ZOOM_MIN = 0.1
 const ZOOM_MAX = 4
 
-function initialState(document: CheckoutSchema, baseVersion: number): BuilderState {
+/**
+ * The check, at the one door documents come through.
+ *
+ * `fromSchema` calls itself "the one door in" and validates shape and
+ * migrations — not references. Zod cannot see an orphan, a cycle or a node
+ * claimed by two parents, so a document carrying any of those passed straight
+ * into the editor, and the first anyone knew was a canvas drawing a tree that
+ * does not exist.
+ *
+ * This is the only place it can usefully go. A tree operation cannot produce a
+ * corrupt document — Phase 5's exit criteria hold that no sequence of them can,
+ * proven over every mutation type — and the server refuses to persist one,
+ * rejecting a patched document that fails `validateReferences` before it is
+ * written. What is left is a document that arrived already broken: a revision
+ * from an older build, a draft recovered out of IndexedDB, a migration that
+ * went wrong. All of them come through here.
+ *
+ * Which also means there is never history to walk back to at this point: this
+ * *is* the new history. So a corrupt document freezes rather than restoring,
+ * and the server's copy is the next thing to try — docs/error-handling.md
+ * § State Corruption Recovery.
+ */
+function recoveryFor(document: CheckoutSchema, at: number): RecoveryState {
+  const problems = findProblems(document)
+
+  return { corruption: problems.length === 0 ? null : { document, problems, at } }
+}
+
+function initialState(document: CheckoutSchema, baseVersion: number, at: number): BuilderState {
+  const recovery = recoveryFor(document, at)
+
   return {
     document,
     selection: { ids: [], editingState: "base" },
@@ -156,11 +187,21 @@ function initialState(document: CheckoutSchema, baseVersion: number): BuilderSta
       baseVersion,
       lastSavedAt: null,
       error: null,
-      canEdit: true,
+      /*
+       * Read-only, through the flag every command already consults.
+       *
+       * A second gate would have to be threaded through the command sets, the
+       * resize handles, the layers panel and the inline toolbar — and the first
+       * one missed is the one that writes to a document nothing can read. The
+       * editor says *why* it is read-only by reading `recovery`, so this does
+       * not have to carry the reason.
+       */
+      canEdit: recovery.corruption === null,
     },
     drag: { ids: [], overId: null, position: null },
     assets: { used: [] },
     publishing: { publishedRevisionId: null, publishedAt: null },
+    recovery,
   }
 }
 
@@ -193,6 +234,25 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
     ): TreeResult {
       if (!result.ok) return result
 
+      /*
+       * A document that cannot be read cannot be built on.
+       *
+       * Refused here rather than only in the commands, because the store is
+       * called directly as well — `store.getState().move(...)` from the layers
+       * panel, and from anything else that holds the api. Editing on top of a
+       * document that failed its invariants is how a small corruption becomes
+       * an unrecoverable one.
+       */
+      if (frozen(get())) {
+        return {
+          ok: false,
+          code: "document-unreadable",
+          message:
+            "This document failed a structural check when it was loaded, so it cannot be edited.",
+          nodeIds: [],
+        }
+      }
+
       const before = snapshot()
 
       set((state) => {
@@ -220,6 +280,11 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
       })
 
       return result
+    }
+
+    /** Whether mutations are refused: the document does not hold together. */
+    function frozen(state: BuilderState): boolean {
+      return state.recovery.corruption !== null
     }
 
     /** Drop selected ids that are no longer in the document. */
@@ -250,12 +315,12 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
     }
 
     return {
-      ...initialState(options.document, options.baseVersion ?? 0),
+      ...initialState(options.document, options.baseVersion ?? 0, now()),
 
       // ── Document ───────────────────────────────────────────────────────────
       load: (document, baseVersion = 0) =>
         set((state) => ({
-          ...initialState(document, baseVersion),
+          ...initialState(document, baseVersion, now()),
           viewport: state.viewport,
         })),
 
@@ -355,7 +420,10 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
               },
             })),
           ),
-          { label: "Style", groupKey: `styles:${ids.join(",")}:${breakpoint}:${state}` },
+          {
+            label: "Style",
+            groupKey: `styles:${ids.join(",")}:${breakpoint}:${state}`,
+          },
         )
       },
 

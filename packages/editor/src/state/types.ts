@@ -1,4 +1,10 @@
-import type { Breakpoint, CheckoutSchema, Fragment, StyleState } from "@checkout-studio/schema"
+import type {
+  Breakpoint,
+  CheckoutSchema,
+  Fragment,
+  SchemaProblem,
+  StyleState,
+} from "@checkout-studio/schema"
 
 /**
  * The editor's state.
@@ -125,6 +131,33 @@ export interface PublishingState {
   publishedAt: number | null
 }
 
+/**
+ * A document that broke a structural invariant, and what was wrong with it.
+ *
+ * Kept whatever happens next. docs/error-handling.md § State Corruption
+ * Recovery: "We never delete a document we cannot read." It is the only copy of
+ * whatever the person was doing, and they may be able to export it even when
+ * nothing can load it.
+ */
+export interface Corruption {
+  document: CheckoutSchema
+  problems: readonly SchemaProblem[]
+  at: number
+}
+
+export interface RecoveryState {
+  /**
+   * Null until a document arrived that does not hold together.
+   *
+   * Set means frozen: mutations are refused, the editor is read-only, and the
+   * server's copy is the next thing to try. There is no third state, because
+   * the only door corruption comes through is the one that replaces the
+   * document — and that is also the one that clears history, so there is never
+   * anything to walk back to. See the note on `recoveryFor` in store.ts.
+   */
+  corruption: Corruption | null
+}
+
 export interface BuilderState {
   document: CheckoutSchema
   selection: SelectionState
@@ -135,4 +168,5 @@ export interface BuilderState {
   drag: DragState
   assets: AssetsState
   publishing: PublishingState
+  recovery: RecoveryState
 }

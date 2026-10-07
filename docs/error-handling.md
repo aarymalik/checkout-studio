@@ -617,6 +617,44 @@ The corrupted snapshot is always retained locally so the user can export it, eve
 
 We never delete a document we cannot read.
 
+### As built
+
+The check is on the way **in**, and that is the finding rather than a shortcut.
+
+`fromSchema` calls itself "the one door in" and validates shape and migrations.
+It never validated references — Zod cannot see an orphan, a cycle or a node
+claimed by two parents — so a document carrying any of those passed straight
+into the editor, and the first anyone knew was a canvas drawing a tree that does
+not exist. The studio opens a page through `createEditorStore`, so that is where
+the check now runs, and `load` builds on the same path.
+
+The other two doors are already shut, which is why the pipeline's first step has
+no trigger from inside a session:
+
+- A tree operation cannot produce a document that fails these invariants. Phase
+  5's exit criteria assert it over every mutation type, and the operation tests
+  prove it.
+- The server will not persist one. `writeDraft` parses the patched document and
+  runs `validateReferences` before writing, rejecting it as `invalid` otherwise.
+
+So **"walk back through history" has no producer today.** A load is also what
+clears history, so at the moment corruption is found there is by definition
+nothing behind it to return to — the live path is the one below it: the server's
+copy, and read-only with export when that fails too. `walkBack` and `inspect`
+remain in `packages/editor/src/state/recovery.ts`, tested, for the case that
+would create one: a plugin contributing tree operations of its own.
+
+What running the check per mutation would cost, measured rather than assumed:
+`validateReferences` is a multi-pass walk of every node, **1.1–1.8ms over two
+thousand** of them — a tenth of a frame, in a path where resizing writes styles
+on every frame of a drag.
+
+While a corruption is held, `persistence.canEdit` is false, which is the flag
+every command, the resize handles, the layers panel and the inline toolbar
+already consult. Autosave returns early on the same flag and the page is still
+`saved`, so there are two independent reasons the corruption cannot be written
+back.
+
 ## Graceful Degradation
 
 Some failures should reduce capability rather than stop work.

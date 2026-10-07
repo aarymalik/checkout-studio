@@ -26,6 +26,8 @@ export type TreeErrorCode =
   | "id-collision"
   | "empty-selection"
   | "not-siblings"
+  /** The document breaks a structural invariant, so it cannot be built on. */
+  | "document-unreadable"
 
 export interface TreeFailure {
   ok: false

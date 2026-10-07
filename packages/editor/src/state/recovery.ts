@@ -4,7 +4,7 @@ import {
   type SchemaProblem,
 } from "@checkout-studio/schema"
 
-import type { HistoryEntry } from "./types"
+import type { Corruption, HistoryEntry } from "./types"
 
 /**
  * Corruption recovery.
@@ -20,12 +20,6 @@ import type { HistoryEntry } from "./types"
  *
  * See docs/error-handling.md § State Corruption Recovery.
  */
-
-export interface Corruption {
-  document: CheckoutSchema
-  problems: readonly SchemaProblem[]
-  at: number
-}
 
 export type Recovery =
   /** A valid state was found in history. Editing resumes from it. */
