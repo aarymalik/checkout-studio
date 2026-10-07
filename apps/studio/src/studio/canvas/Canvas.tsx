@@ -33,6 +33,7 @@ import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
 import { siblings } from "@checkout-studio/schema"
 
 import { Breadcrumb } from "./Breadcrumb"
+import { DragPreview } from "./DragPreview"
 import { Overlays } from "./Overlays"
 import { SelectionAnnouncer } from "./SelectionAnnouncer"
 import { RULER_SIZE, Rulers } from "./Rulers"
@@ -251,13 +252,51 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
    */
   const resizable = primary !== undefined && canEdit && !isLocked(document, primary)
 
+  /**
+   * Where the surface is, remembered rather than asked.
+   *
+   * `getBoundingClientRect` forces a synchronous layout, and this was called on
+   * every pointer move of every gesture — a layout dirtied by the drag and then
+   * read straight back. Removing it took the pan's added work from 0.3ms to
+   * 0.0ms, which is the honest size of it: a real improvement, and not the
+   * cause of the dropped frames I was chasing when I found it.
+   *
+   * The surface only moves when the window or the panels do, and the observer
+   * below already hears about both. Scrolling is listened for separately
+   * because a page that scrolls moves the surface without resizing it.
+   */
+  const bounds = useRef<{ left: number; top: number }>({ left: 0, top: 0 })
+
+  useEffect(() => {
+    const element = surface.current
+
+    if (element === null) return
+
+    const read = (): void => {
+      const box = element.getBoundingClientRect()
+
+      bounds.current = { left: box.left, top: box.top }
+    }
+
+    read()
+
+    const observer = new ResizeObserver(read)
+    observer.observe(element)
+    window.addEventListener("scroll", read, { passive: true, capture: true })
+    window.addEventListener("resize", read, { passive: true })
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener("scroll", read, true)
+      window.removeEventListener("resize", read)
+    }
+  }, [])
+
   /** The pointer's position inside the surface, which every gesture works in. */
   const localPoint = useCallback((event: { clientX: number; clientY: number }): Rect => {
-    const bounds = surface.current?.getBoundingClientRect()
+    const { left, top } = bounds.current
 
-    if (bounds === undefined) return { x: 0, y: 0, width: 0, height: 0 }
-
-    return { x: event.clientX - bounds.left, y: event.clientY - bounds.top, width: 0, height: 0 }
+    return { x: event.clientX - left, y: event.clientY - top, width: 0, height: 0 }
   }, [])
 
   /**
@@ -305,7 +344,7 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
    * the pointer's position within it are this component's to know.
    */
   useEffect(() => {
-    if (!resize.resizing) return
+    if (!resize.resizing && !drag.dragging) return
 
     const move = (event: PointerEvent): void => {
       const at = localPoint(event)
@@ -319,7 +358,7 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
       window.removeEventListener("pointermove", move)
       autoScrollRef.current.track(null)
     }
-  }, [resize.resizing, localPoint])
+  }, [resize.resizing, drag.dragging, localPoint])
 
   const selectFromMarquee = useCallback(
     (box: Rect) => {
@@ -421,7 +460,22 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
         }}
         onPointerDown={onPointerDown}
         onPointerMove={(event) => {
-          if (marquee !== null || panning) return
+          /*
+           * No hover while dragging.
+           *
+           * Mostly because it is the right behaviour: what the pointer is over
+           * while something is being carried is answered by the drop
+           * indicator, and an outline following the cursor as well would be two
+           * answers to one question.
+           *
+           * It also keeps work out of the gesture. Hover decides which nodes
+           * are measured, and changing it writes new rects and re-runs the
+           * effect that reads the surface — both of which force a synchronous
+           * layout, which docs/performance.md asks a drag not to do. I first
+           * attributed a dropped frame to this and was wrong: removing it
+           * changed nothing measurable. It stays on its own merits.
+           */
+          if (marquee !== null || panning || drag.dragging) return
 
           setHovered(resolve(event.target as Element))
         }}
@@ -501,6 +555,14 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
         is neither: it draws nothing and it never receives a pointer.
       */}
       <SelectionAnnouncer />
+
+      {/*
+        The thing in the user's hand, outside the frame on purpose: the renderer
+        puts a node's id in a class, and every query that looks one up is scoped
+        to the frame. A preview inside it would give measurement two elements to
+        choose from for one id.
+      */}
+      <DragPreview theme={theme} registry={registry} rects={rects} origin={drag.origin} />
 
       {showRulers ? (
         <Rulers

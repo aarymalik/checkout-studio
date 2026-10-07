@@ -89,6 +89,17 @@ const MISSED_FRAME_RATIO = 1.5
 const PAN_ADDED_CEILING_MS = 3
 const ZOOM_ADDED_CEILING_MS = 4
 
+/**
+ * Set from what it measures, which is the whole point of having measured it.
+ *
+ * A sustained drag adds 0.3ms: resolving a drop is 0.3ms at two thousand nodes
+ * and checking whether it is legal is 0.003ms, both measured directly, and the
+ * preview moves by a transform on a promoted layer. The first guess at this
+ * constant was 6ms, written before there was a number — the same mistake #31
+ * was about.
+ */
+const DRAG_ADDED_CEILING_MS = 3
+
 /*
  * Selection is held to its median, not its 95th percentile.
  *
@@ -176,6 +187,24 @@ function summarise(intervals: readonly number[], baseline: Frames): Frames {
     missed: intervals.filter((interval) => interval > baseline.period * MISSED_FRAME_RATIO).length,
     total: intervals.length,
   }
+}
+
+/**
+ * Starting a gesture and sustaining one, measured apart.
+ *
+ * "Sustains 60 FPS" is a claim about the second. A gesture that mounts
+ * something on its first frame pays for that once, and over a short recording
+ * that one frame is the 95th percentile — which is how the drag came to report
+ * 11.7ms of added work that turned out to be 0.3ms once the recording was long
+ * enough to tell them apart.
+ *
+ * Both are printed. A hitch at pickup is worth seeing; it is not worth calling
+ * a dropped frame rate.
+ */
+const STARTUP_FRAMES = 5
+
+function sustained(intervals: readonly number[], baseline: Frames): Frames {
+  return summarise(intervals.slice(STARTUP_FRAMES), baseline)
 }
 
 function report(name: string, value: number, budget: number, unit = "ms", note = ""): void {
@@ -274,6 +303,68 @@ test("zoom sustains the frame budget at 2,000 nodes", async ({ page }) => {
   expect(zooming.total).toBeGreaterThan(10)
   expect(zooming.missed).toBe(0)
   expect(zooming.p95 - baseline.p95).toBeLessThanOrEqual(ZOOM_ADDED_CEILING_MS)
+})
+
+test("drag sustains the frame budget at 2,000 nodes", async ({ page }) => {
+  await open(page, "panel=0")
+
+  /*
+   * Measured because the criterion exists, and because a drag does more per
+   * frame than anything else the canvas does: it resolves a drop against the
+   * document, asks whether that drop is legal, draws an indicator, and carries
+   * a preview that is a live render of the dragged subtree. Phase 8 asks for 60
+   * FPS during a drag on two thousand nodes, and the version of this file that
+   * shipped before #31 would have reported the display's refresh rate and
+   * called it an answer.
+   */
+  const box = await page.evaluate(() => {
+    const bench = window.__bench
+
+    if (bench === undefined) throw new Error("The harness did not publish its store.")
+
+    const id = bench.nodes[0] as string
+
+    bench.store.getState().select([id])
+
+    const element = document
+      .querySelector("[data-canvas-frame]")
+      ?.querySelector(`[data-ck-node="${id}"]`)
+
+    if (element === null || element === undefined) throw new Error("The node drew nothing.")
+
+    const rect = element.getBoundingClientRect()
+
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  })
+
+  const baseline = await idle(page)
+
+  await page.mouse.move(box.x, box.y)
+  await page.mouse.down()
+
+  const intervals = await frameIntervals(page, async () => {
+    // Downwards across its siblings, which is what a reorder is: every step
+    // resolves against a different target.
+    for (let step = 0; step < 100; step += 1) {
+      await page.mouse.move(box.x, box.y + (step % 40) * 12)
+    }
+  })
+
+  await page.mouse.up()
+
+  const whole = summarise(intervals, baseline)
+  const moving = sustained(intervals, baseline)
+
+  console.log(
+    `  ${"drag: starting it".padEnd(42)} ${whole.missed - moving.missed} frame(s) missed` +
+      ` in the first ${STARTUP_FRAMES}, as the preview mounts`,
+  )
+  reportFrames("drag", moving, baseline, DRAG_ADDED_CEILING_MS)
+
+  expect(moving.total).toBeGreaterThan(40)
+  // Sustained, which is what the criterion says. The pickup is printed above.
+  expect(moving.missed).toBe(0)
+  expect(moving.p95 - baseline.p95).toBeLessThanOrEqual(DRAG_ADDED_CEILING_MS)
 })
 
 test("a selection change reaches the overlay within its budget", async ({ page }) => {

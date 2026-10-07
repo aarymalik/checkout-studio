@@ -35,6 +35,14 @@ const THRESHOLD = 4
 export interface DragControls {
   /** Whether a drag is in progress. */
   dragging: boolean
+  /**
+   * Where the pointer was when the drag was picked up, in client coordinates.
+   *
+   * Set once per gesture rather than tracked, so reading it costs nothing per
+   * frame. The preview needs it to stay under the hand: without it the node
+   * jumps so its corner meets the cursor the moment the drag starts.
+   */
+  origin: Point | null
   /** Where it would land, or null when nowhere would take it. */
   drop: Drop | null
   /** Why it would be refused, or null when it would be accepted. */
@@ -55,6 +63,7 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
   const dragging = useEditorStore((state) => state.drag.ids.length > 0)
   const [drop, setDrop] = useState<Drop | null>(null)
   const [rejection, setRejection] = useState<Rejection | null>(null)
+  const [origin, setOrigin] = useState<Point | null>(null)
 
   /** Armed but not yet dragging: the pointer is down and has not moved far. */
   const armed = useRef<{ ids: readonly string[]; from: Point } | null>(null)
@@ -91,6 +100,7 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
     armed.current = null
     setDrop(null)
     setRejection(null)
+    setOrigin(null)
     store.getState().endDrag()
   }, [store])
 
@@ -110,6 +120,7 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
         if (travelled < THRESHOLD) return
 
         store.getState().beginDrag(start.ids)
+        setOrigin(start.from)
       }
 
       const document = store.getState().document
@@ -209,5 +220,5 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
     }
   }, [store, dragging, drop, rejection, cancel])
 
-  return { dragging, drop, rejection, begin }
+  return { dragging, origin, drop, rejection, begin }
 }
