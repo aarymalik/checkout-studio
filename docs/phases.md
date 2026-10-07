@@ -1566,6 +1566,20 @@ packages/editor/src/dnd  apps/studio
 
 ### Implementation Steps
 
+**dnd-kit covers the panels, not the canvas.** Its draggable model needs refs
+and listeners attached to each draggable element, and the canvas does not own
+that DOM — the renderer does, because the same renderer draws the published
+page, and architecture.md holds that it must never depend on builder code.
+Making it accept editor-supplied props per node would trade the one boundary
+this project is built on for a library's convenience.
+
+So canvas-node dragging uses raw pointer events, which is the shape
+`usePanZoom` and `useResize` already established and which the canvas is
+already arranged for: it resolves a pointer to a node by hit testing rather
+than by asking the element. dnd-kit does the layers panel and the component
+library, where the editor owns the rows and its sensors, keyboard support and
+announcements are worth having.
+
 ```
 1.  Integrate dnd-kit sensors: pointer, keyboard, touch
 2.  Implement collision detection tuned for nested containers

@@ -9,6 +9,9 @@
  * See docs/phases.md Phase 8.
  */
 
+export { useDrag } from "./hooks"
+export type { DragControls, UseDragOptions } from "./hooks"
+
 export { edgeBand, indexWithin, resolveDrop } from "./resolve"
 export type { Drop, DropPosition, ResolveOptions } from "./resolve"
 

@@ -1,7 +1,17 @@
 "use client"
 
-import { rectToScreen, type Guide, type NodeRects, type Transform } from "@checkout-studio/editor"
+import {
+  indicatorFor,
+  rectToScreen,
+  type DropPosition,
+  type Guide,
+  type NodeRects,
+  type Rect,
+  type Transform,
+} from "@checkout-studio/editor"
 import type { ReactElement } from "react"
+
+import { cn } from "@checkout-studio/ui"
 
 import { SelectionToolbar } from "./SelectionToolbar"
 
@@ -52,6 +62,8 @@ export interface OverlaysProps {
   resizable?: boolean
   /** How tall the surface is, so the toolbar can flip below the selection. */
   surfaceHeight?: number
+  /** Where a drag would land, drawn so the drop is never a surprise. */
+  drop?: { rect: Rect; position: DropPosition; refused: boolean } | null
 }
 
 export function Overlays({
@@ -64,6 +76,7 @@ export function Overlays({
   marquee,
   resizable = true,
   surfaceHeight = 0,
+  drop = null,
   onResizeStart,
 }: OverlaysProps): ReactElement {
   const primary = selected[0]
@@ -139,6 +152,16 @@ export function Overlays({
           )
         })}
 
+        {/*
+          Where it would land, or that it would not.
+
+          Phase 8's first exit criterion is that the drop position is always
+          shown before release; the second half of that is showing when there
+          is no drop — a refused drag that looked identical to an accepted one
+          would be the guessing this is here to remove.
+        */}
+        {drop === null ? null : <DropIndicator {...drop} transform={transform} />}
+
         {marquee === null ? null : (
           <div
             className="absolute border border-primary bg-primary/10"
@@ -200,6 +223,53 @@ export function Overlays({
         <SelectionToolbar rect={primaryScreen} surfaceHeight={surfaceHeight} />
       </div>
     </>
+  )
+}
+
+/**
+ * The insertion line, or the container that would receive the drop.
+ *
+ * Two shapes, because a drop means two different things. Between siblings there
+ * is an edge to point at; inside a container there is not, and a line drawn
+ * somewhere within it would be a claim about which part.
+ *
+ * Drawn in screen space, which is what `indicatorFor` returns: a 2px line
+ * inside the scaled layer would be 0.2px at 10% zoom and 8px at 400% —
+ * invisible exactly when the user is squinting at it.
+ */
+function DropIndicator({
+  rect,
+  position,
+  refused,
+  transform,
+}: {
+  rect: Rect
+  position: DropPosition
+  refused: boolean
+  transform: Transform
+}): ReactElement {
+  const at = indicatorFor(rect, position, transform)
+
+  if (at.shape === "outline") {
+    return (
+      <div
+        className={cn(
+          "absolute rounded-tight border-2",
+          refused ? "border-danger bg-danger/5" : "border-primary bg-primary/5",
+        )}
+        style={{ left: at.x, top: at.y, width: at.width, height: at.height }}
+      />
+    )
+  }
+
+  return (
+    <div
+      // Centred on the edge rather than hanging below it, so the line marks the
+      // gap rather than appearing to belong to the node under it.
+      className={cn("absolute -translate-y-1/2", refused ? "bg-danger" : "bg-primary")}
+      // design-system-ignore: an insertion line is a hairline, not a spacing step.
+      style={{ left: at.x, top: at.y, width: at.width, height: 2 }}
+    />
   )
 }
 
