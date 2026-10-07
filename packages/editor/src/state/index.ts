@@ -60,7 +60,7 @@ export { describeConflict } from "./conflict"
 export type { ConflictSummary } from "./conflict"
 
 export { findProblems, inspect, isValid, walkBack } from "./recovery"
-export type { Corruption, Recovery, RecoveryReport } from "./recovery"
+export type { Recovery, RecoveryReport } from "./recovery"
 
 export { fromSchema, toJson, toSchema } from "./projection"
 export type { LoadResult } from "./projection"
@@ -70,11 +70,13 @@ export type {
   CanvasMeasurements,
   BuilderState,
   ClipboardState,
+  Corruption,
   DragState,
   HistoryEntry,
   HistoryState,
   PersistenceState,
   PublishingState,
+  RecoveryState,
   SaveStatus,
   SelectionState,
   ViewportState,

@@ -1110,7 +1110,10 @@ pnpm bench --filter=@checkout-studio/editor
 ✓ No sequence of operations can produce an invalid tree
 ✓ Undo/redo verified across every mutation type
 ✓ 2,000-node benchmark meets every target
-✓ Corrupted state recovers from history without data loss
+✓ Corrupted state is detected, retained and never written back — see
+  error-handling.md § As built. Recovery is from the server rather than from
+  history: nothing inside a session can corrupt a document, so the walk back
+  has no producer. The corrupted document is kept and exportable.
 ```
 
 ---

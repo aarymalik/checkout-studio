@@ -9,6 +9,7 @@ import { useAutosave } from "@/studio/autosave/Autosave"
 
 import { useEditSession } from "./EditSessionProvider"
 import { ReadOnlyNotice } from "./ReadOnlyNotice"
+import { RecoveryNotice } from "./RecoveryNotice"
 
 /**
  * What the status bar says about this session.
@@ -17,10 +18,21 @@ import { ReadOnlyNotice } from "./ReadOnlyNotice"
  * not write, and saying "Unsaved changes" there would describe a problem the
  * person cannot act on.
  */
-export function EditorStatus(): ReactElement {
+export function EditorStatus(): ReactElement | null {
   const canEdit = useEditorStore((state) => state.persistence.canEdit)
+  const corrupted = useEditorStore((state) => state.recovery.corruption !== null)
   const session = useEditSession()
   const autosave = useAutosave()
+
+  /*
+   * A document that cannot be read outranks everything else here.
+   *
+   * It also makes the page read-only, so without this the notice beside it
+   * would say the page is held by somebody — a wrong answer to the right
+   * question, and one that would have people waiting for a lock to clear that
+   * was never taken.
+   */
+  if (corrupted) return <RecoveryNotice />
 
   if (canEdit) {
     /*
