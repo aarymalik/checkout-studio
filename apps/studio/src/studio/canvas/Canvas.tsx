@@ -21,6 +21,7 @@ import {
   usePanZoom,
   boundsOf,
   useAutoScroll,
+  useDrag,
   useResize,
   useScope,
   useViewport,
@@ -259,6 +260,25 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
     return { x: event.clientX - bounds.left, y: event.clientY - bounds.top, width: 0, height: 0 }
   }, [])
 
+  /**
+   * The pointer in canvas space.
+   *
+   * `localPoint` gives the surface; the drop resolution works in the frame's
+   * own units, which is where the measured boxes are. Two conversions, because
+   * the frame is both panned and scaled inside the surface.
+   */
+  const canvasPoint = useCallback(
+    (event: { clientX: number; clientY: number }): Rect => {
+      const at = localPoint(event)
+      const { zoom, pan } = store.getState().viewport
+
+      return { x: (at.x - pan.x) / zoom, y: (at.y - pan.y) / zoom, width: 0, height: 0 }
+    },
+    [localPoint, store],
+  )
+
+  const drag = useDrag({ rects, toCanvas: canvasPoint })
+
   const autoScroll = useAutoScroll(surface)
 
   /*
@@ -335,6 +355,14 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
         store
           .getState()
           .select(canEdit ? selectionFor(document, hit, store.getState().selection.ids) : [hit])
+
+        /*
+         * Armed, not started. Nothing moves until the pointer travels, so a
+         * click that selects is still a click — and selecting first means the
+         * drag carries what the user just picked up rather than what was
+         * selected before they aimed at it.
+         */
+        drag.begin(event)
         return
       }
 
@@ -446,6 +474,19 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
           marquee={marquee}
           resizable={resizable}
           surfaceHeight={surface.current?.clientHeight ?? 0}
+          drop={
+            drag.drop === null
+              ? null
+              : (() => {
+                  const target = rects.get(drag.drop.overId) ?? frameBox
+
+                  return {
+                    rect: target,
+                    position: drag.drop.position,
+                    refused: drag.rejection !== null,
+                  }
+                })()
+          }
           onResizeStart={(handle, event) => {
             // The grip owns the gesture from here, so the surface beneath it
             // must not also start a marquee.
