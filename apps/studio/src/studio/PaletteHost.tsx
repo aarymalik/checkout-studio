@@ -21,7 +21,7 @@ import { usePalette } from "./palette-context"
 export function PaletteHost() {
   const overlays = useOverlays()
   const palette = usePalette()
-  const { commands } = useKeyboard()
+  const { run } = useKeyboard()
   const [query, setQuery] = useState("")
   const open = overlays.open === "palette"
 
@@ -55,18 +55,21 @@ export function PaletteHost() {
       query={query}
       onQueryChange={setQuery}
       onSelect={(item) => {
-        const command = commands.get(item.id)
-
         // Closed first, so a command that navigates does not leave a palette
         // floating over the page it arrived at.
         overlays.close()
 
-        void command?.run({
-          scopes: [],
-          selectionCount: 0,
-          isEditingText: false,
-          isDirty: false,
-        })
+        /*
+         * `isEditingText: false`, although the user has just been typing. The
+         * field they typed into is the palette's own search box, and a command
+         * they deliberately picked from a list is not a keystroke that belongs
+         * to a text field.
+         */
+        run(
+          item.id,
+          { scopes: [], selectionCount: 0, isEditingText: false, isDirty: false },
+          "palette",
+        )
       }}
       emptyMessage="Nothing matches. Try a shorter search."
     />

@@ -5,6 +5,7 @@ export { redact, hashValue, truncateIp, REDACTED } from "./logger/redact"
 
 export {
   createMetrics,
+  createBoundedSink,
   createInMemorySink,
   metrics,
   metricsSink,

@@ -9,6 +9,7 @@ import {
   useActiveScopes,
   useChordHint,
   useKeyboard,
+  type KeyboardProviderProps,
 } from "../../src/keyboard/context"
 import { useScope } from "../../src/keyboard/hooks/useScope"
 import { useShortcut } from "../../src/keyboard/hooks/useShortcut"
@@ -20,7 +21,10 @@ describe("KeyboardProvider", () => {
   let keymap: KeymapRegistry
   let ran: string[]
 
-  function Provider({ children, ...rest }: { children: ReactNode; getState?: () => never }) {
+  function Provider({
+    children,
+    ...rest
+  }: Omit<KeyboardProviderProps, "commands" | "keymap" | "platform">) {
     return (
       <KeyboardProvider commands={commands} keymap={keymap} platform="mac" {...rest}>
         {children}
@@ -393,6 +397,164 @@ describe("KeyboardProvider", () => {
       press({ key: "KeyE", alt: true })
 
       expect(onError).toHaveBeenCalledWith(expect.any(Error), "edit.explode")
+    })
+  })
+
+  describe("telemetry", () => {
+    /**
+     * Phases 7 and 8 shipped without any of this, which phases.md recorded as
+     * outstanding against the universal criteria. The port is what closes it:
+     * the editor reports a run and the application decides what that means, so
+     * the engine never imports a metrics client.
+     */
+    it("reports a command run from a keystroke", () => {
+      const runs: { commandId: string; source: string }[] = []
+
+      commands.register(makeCommand({ id: "edit.duplicate" }))
+      keymap.register({
+        commandId: "edit.duplicate",
+        binding: { key: "KeyD", mod: true },
+        scope: "canvas",
+      })
+
+      render(
+        <Provider telemetry={{ commandRan: (run) => runs.push(run) }}>
+          <Scoped scope="canvas" />
+        </Provider>,
+      )
+
+      press({ key: "KeyD", mod: true })
+
+      expect(runs).toEqual([
+        expect.objectContaining({ commandId: "edit.duplicate", source: "keyboard" }),
+      ])
+    })
+
+    it("reports a run from a button as its own source", () => {
+      const runs: { commandId: string; source: string }[] = []
+
+      commands.register(makeCommand({ id: "view.zoom-in", run: () => void ran.push("zoom") }))
+
+      function Pressable(): ReactNode {
+        const { run } = useKeyboard()
+
+        return (
+          <button
+            type="button"
+            onClick={() =>
+              run(
+                "view.zoom-in",
+                { scopes: ["studio"], selectionCount: 0, isEditingText: false, isDirty: false },
+                "toolbar",
+              )
+            }
+          >
+            Zoom in
+          </button>
+        )
+      }
+
+      render(
+        <Provider telemetry={{ commandRan: (run) => runs.push(run) }}>
+          <Pressable />
+        </Provider>,
+      )
+
+      act(() => {
+        screen.getByRole("button", { name: "Zoom in" }).click()
+      })
+
+      /*
+       * The source is the whole point of the label: a command run from a
+       * toolbar two thousand times and never from a keystroke is a shortcut
+       * nobody found.
+       */
+      expect(ran).toEqual(["zoom"])
+      expect(runs).toEqual([
+        expect.objectContaining({ commandId: "view.zoom-in", source: "toolbar" }),
+      ])
+    })
+
+    it("does nothing for a command that is not registered", () => {
+      const runs: unknown[] = []
+
+      function Pressable(): ReactNode {
+        const { run } = useKeyboard()
+
+        return (
+          <button
+            type="button"
+            onClick={() =>
+              run(
+                "nothing.here",
+                { scopes: [], selectionCount: 0, isEditingText: false, isDirty: false },
+                "toolbar",
+              )
+            }
+          >
+            Press
+          </button>
+        )
+      }
+
+      render(
+        <Provider telemetry={{ commandRan: (run) => runs.push(run) }}>
+          <Pressable />
+        </Provider>,
+      )
+
+      // A control for an unbuilt feature stays absent rather than throwing.
+      act(() => {
+        screen.getByRole("button", { name: "Press" }).click()
+      })
+
+      expect(runs).toEqual([])
+    })
+
+    it("sends a button's failure to the same handler a keystroke uses", () => {
+      const onError = vi.fn()
+
+      commands.register(
+        makeCommand({
+          id: "edit.paste",
+          run: () => {
+            throw new Error("no clipboard")
+          },
+        }),
+      )
+
+      function Pressable(): ReactNode {
+        const { run } = useKeyboard()
+
+        return (
+          <button
+            type="button"
+            onClick={() =>
+              run(
+                "edit.paste",
+                { scopes: [], selectionCount: 0, isEditingText: false, isDirty: false },
+                "toolbar",
+              )
+            }
+          >
+            Paste
+          </button>
+        )
+      }
+
+      render(
+        <Provider onError={onError}>
+          <Pressable />
+        </Provider>,
+      )
+
+      act(() => {
+        screen.getByRole("button", { name: "Paste" }).click()
+      })
+
+      // Every button in the application used to call `command.run` directly,
+      // so a throw reached nothing and a rejection reached less than nothing.
+      expect(onError).toHaveBeenCalledOnce()
     })
   })
 

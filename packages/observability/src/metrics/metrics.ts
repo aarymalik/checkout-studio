@@ -22,6 +22,10 @@ export interface MetricLabels {
   plan?: string
   component_type?: string
   interaction?: string
+  /** Bounded by the command registry, which is a fixed list per build. */
+  command_id?: string
+  /** How the user reached a command: keyboard, palette, toolbar. */
+  source?: string
   mode?: string
   outcome?: string
   cache?: string
@@ -41,7 +45,55 @@ export interface MetricsSink {
   record: (sample: MetricSample) => void
 }
 
-/** Collects in memory. Replaced by a real exporter in Phase 21. */
+/**
+ * Collects in memory, keeping the most recent `limit` samples.
+ *
+ * For a long-lived client. docs/observability.md § Bound every queue: "client
+ * queues cap at 100 events, dropping oldest with a counter — telemetry must
+ * never cause an out-of-memory condition". The editor is open for hours, so an
+ * unbounded array of samples is a leak that grows with how much work somebody
+ * gets done.
+ *
+ * The drop count is kept rather than discarded, because a sink that silently
+ * loses data is worse than one that says how much: Phase 21's exporter needs
+ * to know that what it drained is not everything.
+ */
+export function createBoundedSink(limit = 100) {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new RangeError(`A bounded sink needs a positive integer limit, not ${limit}.`)
+  }
+
+  let samples: MetricSample[] = []
+  let dropped = 0
+
+  return {
+    record: (sample: MetricSample) => {
+      samples.push(sample)
+
+      if (samples.length > limit) {
+        // Oldest first. A client's most recent samples are the ones that
+        // describe what the user is doing now, which is what an investigation
+        // starts from.
+        samples = samples.slice(samples.length - limit)
+        dropped += 1
+      }
+    },
+    samples: () => [...samples],
+    /** How many were lost to the cap, since the last drain. */
+    dropped: () => dropped,
+    /** Takes everything and resets, for an exporter that has sent it on. */
+    drain: () => {
+      const taken = samples
+
+      samples = []
+      dropped = 0
+
+      return taken
+    },
+  }
+}
+
+/** Collects in memory, unbounded. For a process that is not long-lived. */
 export function createInMemorySink() {
   const samples: MetricSample[] = []
 

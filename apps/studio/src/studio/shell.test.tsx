@@ -10,6 +10,7 @@ import {
 import { LAYOUT } from "@checkout-studio/design-system"
 
 import { StudioShell } from "./StudioShell"
+import { clientMetricsSink } from "@/lib/telemetry"
 import { REGIONS } from "./regions"
 import { expectNoViolations } from "../../tests/axe"
 
@@ -462,6 +463,90 @@ describe("StudioShell", () => {
       press({ key: "Digit2", mod: true })
 
       expect(screen.getByRole("region", { name: "Components" })).toBeInTheDocument()
+    })
+  })
+
+  describe("telemetry", () => {
+    /**
+     * Phases 7 and 8 shipped emitting no client metrics at all, which
+     * phases.md recorded as outstanding against the universal criteria. This
+     * is the test that the wiring exists rather than the port: the editor
+     * reports a run, `StudioProviders` hands it to the metrics client, and the
+     * sink holds the sample. Ten features in this project were built, tested
+     * and reached by nothing, and a telemetry port is an easy eleventh.
+     */
+    beforeEach(() => {
+      clientMetricsSink.drain()
+    })
+
+    it("counts a command run from a keystroke", () => {
+      renderShell()
+
+      press({ key: "Backslash", mod: true })
+
+      const counted = clientMetricsSink
+        .samples()
+        .filter((sample) => sample.name === "editor_command_total")
+
+      expect(counted).toHaveLength(1)
+      expect(counted[0]?.labels).toMatchObject({ source: "keyboard", outcome: "ok" })
+      expect(counted[0]?.labels.command_id).toBe("view.toggle-left-panel")
+    })
+
+    it("times it, so a slow command is findable rather than anecdotal", () => {
+      renderShell()
+
+      press({ key: "Backslash", mod: true })
+
+      const timed = clientMetricsSink
+        .samples()
+        .find((sample) => sample.name === "editor_frame_duration_ms")
+
+      expect(timed?.kind).toBe("histogram")
+      expect(timed?.value).toBeGreaterThanOrEqual(0)
+    })
+
+    it("carries no ids, which is what keeps the cardinality bounded", () => {
+      renderShell()
+
+      press({ key: "Backslash", mod: true })
+
+      /*
+       * docs/observability.md forbids userId, projectId, pageId, nodeId and
+       * correlationId as labels: storage is combinatorial, so an unbounded
+       * label is how an observability bill becomes a surprise. Ids belong in
+       * logs, where storage is linear.
+       */
+      for (const sample of clientMetricsSink.samples()) {
+        expect(Object.keys(sample.labels).sort()).not.toContain("projectId")
+        expect(JSON.stringify(sample.labels)).not.toMatch(/prj_|pag_|nod_/)
+      }
+    })
+
+    it("distinguishes a button press from the same command on a keystroke", async () => {
+      const user = userEvent.setup()
+
+      renderShell()
+
+      await user.click(screen.getByRole("button", { name: "Toggle left sidebar" }))
+      press({ key: "Backslash", mod: true })
+
+      const counted = clientMetricsSink
+        .samples()
+        .filter((sample) => sample.name === "editor_command_total")
+
+      /*
+       * The reason the label exists: a command reached two thousand times from
+       * a toolbar and never from the keyboard is a shortcut nobody found.
+       *
+       * This button used to call the shell action straight through, so the
+       * toolbar half of that comparison did not exist and nothing looked
+       * wrong — both paths did the same thing.
+       */
+      expect(counted.map((sample) => sample.labels)).toEqual([
+        expect.objectContaining({ command_id: "view.toggle-left-panel", source: "toolbar" }),
+        expect.objectContaining({ command_id: "view.toggle-left-panel", source: "keyboard" }),
+      ])
     })
   })
 
