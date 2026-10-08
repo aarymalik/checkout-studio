@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { EditorProvider } from "@checkout-studio/editor"
 import type { CheckoutSchema, Node } from "@checkout-studio/schema"
@@ -340,6 +340,149 @@ describe("reorder", () => {
     await user.keyboard("{Alt>}{ArrowLeft}{/Alt}")
 
     expect(rowNamed("Second")).toHaveAttribute("aria-level", "1")
+  })
+})
+
+describe("drag reorder", () => {
+  /**
+   * docs/phases.md Phase 8: drag reorder in the Layers panel.
+   *
+   * jsdom lays nothing out, so the scroller's box is zero and the pointer's y
+   * is its client y — which is exactly the space the panel works in. Rows are a
+   * fixed `ROW_HEIGHT` by design, so a row's band is arithmetic rather than a
+   * measurement, and that is what these drive.
+   */
+  const ROW = 28
+
+  /** A point a fraction of the way into the row at `index`. */
+  const at = (index: number, fraction: number): number => index * ROW + ROW * fraction
+
+  const order = (): readonly string[] =>
+    screen
+      .getAllByRole("treeitem")
+      .map((row) => within(row).getAllByRole("button")[0]?.textContent ?? "")
+
+  function flat() {
+    return documentOf("page", [
+      { id: "page", type: "core.page", children: ["a", "b", "c"] },
+      { id: "a", type: "core.button", name: "First" },
+      { id: "b", type: "core.button", name: "Second" },
+      { id: "c", type: "core.button", name: "Third" },
+    ])
+  }
+
+  /** Drag the row named `name` to a point, and release. */
+  function dragTo(name: string, y: number): void {
+    const row = rowNamed(name)
+
+    fireEvent.pointerDown(row, { button: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientY: y })
+    fireEvent.pointerUp(window)
+  }
+
+  it("moves a row to where the pointer says", () => {
+    mount(flat())
+
+    expect(order()).toEqual(["First", "Second", "Third"])
+
+    // The bottom third of the last row: after it.
+    dragTo("First", at(2, 0.9))
+
+    expect(order()).toEqual(["Second", "Third", "First"])
+  })
+
+  it("drops into a container when the pointer is in its middle", () => {
+    mount(
+      documentOf("page", [
+        { id: "page", type: "core.page", children: ["box", "b"] },
+        { id: "box", type: "core.container", name: "Box" },
+        { id: "b", type: "core.button", name: "Second" },
+      ]),
+    )
+
+    dragTo("Second", at(0, 0.5))
+
+    // Inside `Box`, which means a level deeper.
+    expect(rowNamed("Second")).toHaveAttribute("aria-level", "2")
+  })
+
+  it("shows where it would land before the pointer comes up", () => {
+    mount(flat())
+
+    const row = rowNamed("First")
+
+    fireEvent.pointerDown(row, { button: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientY: at(2, 0.9) })
+
+    /*
+     * The criterion is that the drop position is always shown before release.
+     * The line is drawn inside the row it would arrive at, because a
+     * virtualized list has no "between" to render into.
+     */
+    const target = rowNamed("Third")
+
+    expect(target.querySelector("[aria-hidden='true'].absolute")).not.toBeNull()
+
+    fireEvent.pointerUp(window)
+  })
+
+  it("is a click when the pointer barely moved", () => {
+    mount(flat())
+
+    const row = rowNamed("First")
+
+    fireEvent.pointerDown(row, { button: 0, clientY: 0 })
+    // Under the threshold: a pointer is never perfectly still.
+    fireEvent.pointerMove(window, { clientY: 2 })
+    fireEvent.pointerUp(window)
+
+    expect(order()).toEqual(["First", "Second", "Third"])
+  })
+
+  it("cancels on Escape, leaving the order alone", () => {
+    mount(flat())
+
+    const row = rowNamed("First")
+
+    fireEvent.pointerDown(row, { button: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientY: at(2, 0.9) })
+    fireEvent.keyDown(window, { key: "Escape" })
+    fireEvent.pointerUp(window)
+
+    // Nothing was written, so cancelling is the absence of a change.
+    expect(order()).toEqual(["First", "Second", "Third"])
+  })
+
+  it("refuses to drop a row inside itself", () => {
+    mount(
+      documentOf("page", [
+        { id: "page", type: "core.page", children: ["box", "b"] },
+        { id: "box", type: "core.container", name: "Box", children: ["inner"] },
+        { id: "inner", type: "core.button", name: "Inner" },
+        { id: "b", type: "core.button", name: "Second" },
+      ]),
+    )
+
+    // Row 0 is Box itself; its middle means "inside Box".
+    dragTo("Box", at(0, 0.5))
+
+    // The same rule the canvas drag applies, through the same function.
+    expect(rowNamed("Box")).toHaveAttribute("aria-level", "1")
+  })
+
+  it("will not move a locked row", () => {
+    mount(
+      documentOf("page", [
+        { id: "page", type: "core.page", children: ["a", "b"] },
+        { id: "a", type: "core.button", name: "First", locked: true },
+        { id: "b", type: "core.button", name: "Second" },
+      ]),
+    )
+
+    dragTo("First", at(1, 0.9))
+
+    // docs/editor-behavior.md § Lock: a locked component cannot move.
+    expect(order()).toEqual(["First", "Second"])
   })
 })
 

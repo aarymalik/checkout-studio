@@ -1,7 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { KeyboardEvent as ReactKeyboardEvent, ReactElement, ReactNode } from "react"
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactElement,
+  ReactNode,
+} from "react"
 import { ChevronDown, ChevronRight, Eye, EyeOff, Lock, LockOpen } from "lucide-react"
 import {
   ROW_HEIGHT,
@@ -9,12 +14,15 @@ import {
   expansionFor,
   flatten,
   indent,
+  canDrop,
   isLocked,
   isUnsupported,
   moveDown,
+  moveForRowDrop,
   moveUp,
   outdent,
   rowAfter,
+  rowDropAt,
   scrollToRow,
   searchLayers,
   useEditorStore,
@@ -23,8 +31,13 @@ import {
   type Expansion,
   type LayerRow,
   type Move,
+  type RowDrop,
+  type RowDropPosition,
 } from "@checkout-studio/editor"
 import { EmptyState, ScrollArea, SearchInput, cn } from "@checkout-studio/ui"
+
+/** Below this the pointer wobbled while clicking, and nothing is dragged. */
+const DRAG_THRESHOLD = 4
 
 /**
  * The Layers panel.
@@ -253,6 +266,109 @@ export function LayersPanel(): ReactElement {
     [active, rows, document, expanded, applyMove, toggle, store, canEdit],
   )
 
+  /*
+   * Dragging a row.
+   *
+   * Pointer events rather than a drag library, and the reason is the panel
+   * rather than taste: it is virtualized, so most rows are not in the DOM for
+   * anything to measure — and it does not need measuring, because a row is a
+   * fixed height by design. The row under the pointer is one division. See
+   * `rowDropAt`.
+   *
+   * Armed on pointer-down and started only once the pointer travels, so a
+   * click that selects is still a click.
+   */
+  const [dragging, setDragging] = useState<string | null>(null)
+  const [drop, setDrop] = useState<RowDrop | null>(null)
+  const armed = useRef<{ id: string; from: number } | null>(null)
+
+  /** Rows and the live document, read by listeners attached once per gesture. */
+  const latest = useRef({ rows, document, canEdit })
+
+  latest.current = { rows, document, canEdit }
+
+  const beginDrag = useCallback(
+    (id: string, event: ReactPointerEvent) => {
+      if (!canEdit || event.button !== 0) return
+
+      armed.current = { id, from: event.clientY }
+    },
+    [canEdit],
+  )
+
+  useEffect(() => {
+    const surface = viewport
+
+    if (surface === null) return
+
+    const move = (event: PointerEvent): void => {
+      const start = armed.current
+
+      if (start === null) return
+
+      const current = latest.current
+
+      if (Math.abs(event.clientY - start.from) < DRAG_THRESHOLD && dragging === null) return
+
+      setDragging(start.id)
+
+      // The pointer's position in the list's own space: inside the scroller,
+      // plus however far it has been scrolled.
+      const bounds = surface.getBoundingClientRect()
+      const y = event.clientY - bounds.top + surface.scrollTop
+      const resolved = rowDropAt(current.rows, y)
+
+      /*
+       * Refused drops show nothing rather than a line that lies.
+       *
+       * A row cannot go inside itself or inside its own descendant, and a
+       * locked row cannot move — the same rules the canvas drag applies,
+       * through the same function, so the two cannot disagree.
+       */
+      const legal =
+        resolved !== null &&
+        canDrop(current.document, [start.id], resolved.parentId) &&
+        resolved.parentId !== start.id
+
+      setDrop(legal ? resolved : null)
+    }
+
+    const up = (): void => {
+      const start = armed.current
+      const landing = drop
+
+      armed.current = null
+      setDragging(null)
+      setDrop(null)
+
+      if (start === null || landing === null || !latest.current.canEdit) return
+
+      const { id, parentId, index } = moveForRowDrop(start.id, landing)
+
+      store.getState().move(id, parentId, index)
+    }
+
+    const cancel = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape" || armed.current === null) return
+
+      // Nothing has been written, so there is nothing to undo.
+      event.preventDefault()
+      armed.current = null
+      setDragging(null)
+      setDrop(null)
+    }
+
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("keydown", cancel)
+
+    return () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("keydown", cancel)
+    }
+  }, [viewport, dragging, drop, store])
+
   const endRename = useCallback(
     (name: string | null) => {
       const id = renaming
@@ -309,6 +425,9 @@ export function LayersPanel(): ReactElement {
                 <Row
                   key={row.id}
                   row={row}
+                  dragging={dragging === row.id}
+                  drop={drop !== null && drop.overId === row.id ? drop.position : null}
+                  onDragStart={(event) => beginDrag(row.id, event)}
                   selected={selected.includes(row.id)}
                   active={active === row.id}
                   dimmed={query !== "" && !matched.has(row.id)}
@@ -339,6 +458,9 @@ function Row({
   active,
   dimmed,
   canEdit,
+  dragging,
+  drop,
+  onDragStart,
   renaming,
   onSelect,
   onRename,
@@ -353,6 +475,11 @@ function Row({
   /** Kept for context during a search, without pretending it matched. */
   dimmed: boolean
   canEdit: boolean
+  /** Whether this row is the one in the hand. */
+  dragging: boolean
+  /** Where a drop would land against this row, or null when it would not. */
+  drop: RowDropPosition | null
+  onDragStart: (event: ReactPointerEvent) => void
   renaming: boolean
   onSelect: () => void
   onRename: () => void
@@ -370,17 +497,41 @@ function Row({
       aria-level={row.depth + 1}
       aria-selected={selected}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
+      onPointerDown={canEdit ? onDragStart : undefined}
       className={cn(
-        "group flex items-center gap-1 rounded-tight pr-1",
+        "group relative flex items-center gap-1 rounded-tight pr-1",
         "transition-colors duration-fast ease-standard",
         "hover:bg-surface-hover",
         selected && "bg-primary-subtle",
         // The active row is where the keyboard is. It is drawn even when the
         // tree does not hold focus, so returning to the panel is not a guess.
         active && !selected && "bg-surface-hover",
+        // Faded while it is being carried, so the row and the line are not two
+        // claims about where it is.
+        dragging && "opacity-40",
+        // Dropped into: the whole row, because there is no edge to point at.
+        drop === "inside" && "ring-2 ring-inset ring-primary",
       )}
       style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX }}
     >
+      {/*
+        The insertion line, on the edge the row would arrive at.
+
+        Drawn inside the row rather than between rows, because a virtualized
+        list has no "between" to render into — and indented to the depth the
+        drop would land at, so the line says which container it means.
+      */}
+      {drop === "before" || drop === "after" ? (
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bg-primary",
+            drop === "before" ? "top-0" : "bottom-0",
+          )}
+          // design-system-ignore: an insertion line is a hairline, not a step.
+          style={{ height: 2, marginLeft: row.depth * INDENT_PX }}
+        />
+      ) : null}
       {row.hasChildren ? (
         <button
           type="button"

@@ -465,6 +465,33 @@ Rename
 
 Search
 
+**Drag reorder, as built.** Resolved by arithmetic rather than by measurement,
+and with no drag library. A row is a single line at a fixed height — that is a
+property of the design, not a simplification of it — so the row under the
+pointer is one division, and its three bands decide the rest: the top third
+means before it, the bottom third after it, and the middle of a container means
+inside it, first.
+
+"First" rather than appended, because dropping onto a container in a tree means
+"put it in there" and the first position is the one whose result is visible
+without scrolling.
+
+The panel is virtualized, which is the other half of the reason. A drag
+library's collision machinery wants the items mounted so it can measure them,
+and this panel renders about forty rows of two thousand — so it would be asked
+to measure what is not there, to work out the answer `floor` already gives.
+Sensors, keyboard reordering and announcements were the case for using one here,
+and the panel already has keyboard reordering on Alt and the arrows.
+
+Whether a drop is legal is the canvas's own `canDrop`, so a row cannot be
+dropped inside itself or into something locked, and the panel and the canvas
+cannot disagree about it. The insertion line is drawn inside the row the drop
+would arrive at, indented to the depth it would land at, because a virtualized
+list has no "between" to render into.
+
+Nothing is written until the pointer comes up, so Escape cancels and there is
+nothing to undo.
+
 ## Virtualization
 
 The panel renders the rows in view plus a margin, and replaces the rest with
