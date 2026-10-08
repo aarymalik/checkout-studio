@@ -6,6 +6,19 @@ import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
 /**
+ * A layer row, by the name on it.
+ *
+ * Scoped to the tree, which it did not need to be until Phase 9. A node's name
+ * now appears twice on screen — once here and once in the canvas breadcrumb,
+ * which exists because the canvas mounts and something is selected — so an
+ * unscoped query resolves to two elements and Playwright refuses it. The
+ * duplication is correct: both are places a user reads the name.
+ */
+function layerRow(page: Page, name: string) {
+  return page.getByRole("tree", { name: "Layers" }).getByRole("button", { name, exact: true })
+}
+
+/**
  * Autosave, end to end.
  *
  * The engine is tested in packages/editor, the transport and the wiring beside
@@ -72,7 +85,7 @@ async function stored(pageId: string): Promise<{ version: number; names: readonl
 }
 
 async function rename(page: Page, from: string, to: string): Promise<void> {
-  await page.getByRole("button", { name: from, exact: true }).click()
+  await layerRow(page, from).click()
   await page.keyboard.press("F2")
 
   const field = page.getByRole("textbox", { name: `Rename ${from}` })
@@ -127,7 +140,7 @@ test("the edit is still there on the next visit", async ({ context, page }) => {
   await waitForHydration(page)
   await page.getByRole("tab", { name: "Layers" }).click()
 
-  await expect(page.getByRole("button", { name: "Order summary", exact: true })).toBeVisible()
+  await expect(layerRow(page, "Order summary")).toBeVisible()
 })
 
 test("says it is unsaved the moment the document changes", async ({ context, page }) => {
@@ -172,7 +185,7 @@ test("does not write when nothing about the page changed", async ({ context, pag
   const before = await stored(pageId)
 
   // Selection and panel state change the store, and are not the page.
-  await page.getByRole("button", { name: "Body", exact: true }).click()
+  await layerRow(page, "Body").click()
   await page.getByRole("tab", { name: "Pages" }).click()
   await page.getByRole("tab", { name: "Layers" }).click()
 

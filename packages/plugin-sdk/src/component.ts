@@ -124,6 +124,16 @@ export interface ComponentDefinition {
   interactive: boolean
   /** Whether this component may hold children. A wrap or a drop into it is refused otherwise. */
   container: boolean
+  /**
+   * Whether a user may add one. Absent means yes.
+   *
+   * False for a component that exists only because a document already contains
+   * it: `core.page` is every document's root, and `core.unsupported` holds a
+   * node whose type is missing. Both must resolve in the registry or the
+   * renderer falls back on them — and neither belongs in the library panel,
+   * where the page would appear as something to drag onto itself.
+   */
+  insertable?: boolean
   /** Restricts what may be placed inside. Absent means any type. */
   allowedChildTypes?: readonly string[]
   defaultProps: Readonly<Record<string, PropValue>>

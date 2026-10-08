@@ -46,10 +46,18 @@ test("serves a published checkout", async ({ page }) => {
   // value would keep passing after somebody changed it.
   expect(primary.trim()).toBe(defaultTheme.colors.primary)
 
-  // Every node is an unsupported placeholder, because no plugin is installed.
-  // It keeps its space and says nothing to the customer.
-  await expect(page.locator("[data-ck-unsupported]")).toHaveCount(3)
-  await expect(page.locator("[data-ck-unsupported]").first()).toBeEmpty()
+  /*
+   * The page and the section are real components now; the text is not.
+   *
+   * `core-layout` registers `core.page` and `core.section`. `core.text` comes
+   * with `core-content`, so exactly one node still falls back — and the
+   * fallback keeps its space and says nothing to a customer, which is the
+   * behaviour that matters on a page somebody is paying on.
+   */
+  await expect(page.locator(".checkout-root main")).toBeVisible()
+  await expect(page.locator(".checkout-root main > section")).toBeVisible()
+  await expect(page.locator("[data-ck-unsupported]")).toHaveCount(1)
+  await expect(page.locator('[data-ck-unsupported="core.text"]')).toBeEmpty()
 
   // Zero hydration mismatches. React reports one as a recoverable error.
   expect(errors.filter((text) => /hydrat|did not match/i.test(text))).toEqual([])

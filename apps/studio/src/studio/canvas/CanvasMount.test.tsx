@@ -34,7 +34,11 @@ import { fixtureRegistry } from "./fixtures"
 // from the test suite, so the canvas around them can be tested at all.
 const fixtures = fixtureRegistry()
 
-vi.mock("@/studio/registry", () => ({ registry: fixtures }))
+/*
+ * `host` too, because the canvas area reads it to say which plugin failed when
+ * nothing is registered. A mock missing it is a module that throws on import.
+ */
+vi.mock("@/studio/registry", () => ({ registry: fixtures, host: { records: () => [] } }))
 
 const { CanvasArea } = await import("./CanvasArea")
 

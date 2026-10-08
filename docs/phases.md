@@ -222,7 +222,7 @@ These apply to **every** phase, in addition to its specific criteria.
 | 6     | Renderer Engine                 | **Complete** | 2, 5       |
 | 7     | Visual Canvas                   | **Complete** | 4, 6       |
 | 8     | Drag & Drop Engine              | **Complete** | 7          |
-| 9     | Core Component Library          | Not Started  | 8          |
+| 9     | Core Component Library          | In Progress  | 8          |
 | 10    | Form System                     | Not Started  | 9          |
 | 11    | Checkout Components             | Not Started  | 10         |
 | 12    | Property Inspector              | Not Started  | 11         |
@@ -1818,6 +1818,28 @@ pnpm test --filter="./plugins/*" --coverage
 pnpm test:visual -g "components"
 pnpm build && node scripts/check-bundle.mjs
 ```
+
+### Progress
+
+**Step 1 is done: the authoring pattern, with Section as the reference.**
+
+`plugins/core-layout` ships `core.section` and `core.page`, registered through
+`PluginApi` and installed by both applications. The page root is in this slice
+because it had to be: `core.page` is `ROOT_TYPE` in packages/schema and the
+renderer renders the root as an ordinary node, so until now every page in the
+product resolved its root to the unsupported fallback — a reference component
+that cannot sit in a rendered page proves nothing.
+
+Three things in plugin-sdk that the first real plugin needed, each recorded in
+plugin-api.md: a declared namespace, `insertable`, and `startSync`.
+
+The e2e flows deferred from Phases 7 and 8 are partly back on: four canvas
+tests that had been skipped since Phase 7 now run, and the published checkout
+renders a real `<main>` and `<section>`. The flows that need two components —
+drag a Section, then a Heading inside it — wait for `core-content`.
+
+Still to do: the remaining five layout components, `core-content`,
+`core-embed`, visual regression, and the 2,000-real-node performance run.
 
 ### Exit Criteria
 

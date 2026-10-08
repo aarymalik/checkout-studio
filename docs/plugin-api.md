@@ -285,6 +285,30 @@ Order Summary
 
 # Component Registration
 
+**As built — three things the first real plugin needed.**
+
+**A declared namespace.** A plugin id is normally the namespace of everything it
+registers, and the host scopes it accordingly. The catalog in
+component-library.md holds that the `core` namespace is shared by the `core-*`
+plugins, and three packages cannot each derive `core` from `core-layout`,
+`core-content` and `core-embed` — nor could the engine's own `core.page` belong
+to any one of them. So a manifest may declare `namespace`, defaulting to its id.
+This weakens the claim from derived to declared; it does not weaken the
+protection, because a duplicate type id is still refused. A plugin can add to a
+namespace it declares and never replace within it.
+
+**`insertable`.** Absent means yes. False for a component that exists only
+because a document already contains it — `core.page` is every document's root —
+so it resolves in the registry without appearing in the library panel as
+something to drag onto itself.
+
+**`PluginHost.startSync`.** An application builds its registry in one module
+that both the server and the client graph import, which is what stops the two
+disagreeing about what `core.button` is. That module cannot await: a top-level
+await in a client graph is a bundler problem, and a registry arriving a tick
+after the first render is a page of unsupported placeholders. A plugin that
+activates asynchronously is recorded as failed rather than half-activated.
+
 Each visual component registers itself.
 
 A component defines:
@@ -390,6 +414,41 @@ Accessibility
 Advanced
 
 The inspector builds itself dynamically.
+
+**As built — the property definition schema.** `propertyDefinition` in
+plugin-sdk, validated with Zod rather than only typed, because a plugin is
+third-party code compiled separately and the inspector is generated: a
+definition that cannot be drawn is a panel that renders wrong in front of
+somebody using it. Each component calls `defineProperties` at module scope, so a
+mistake fails at import in the plugin that made it.
+
+```ts
+{
+  key: "maxWidth",
+  target: "style",          // "prop" writes to props; "style" goes through the cascade
+  label: "Max width",
+  group: "Layout",          // one of the inspector's sections
+  control: "dimension",
+  units: ["px", "rem", "%"],
+  responsive: true,         // styles only — the schema stores overrides for styles
+}
+```
+
+The sections are reconciled from two documents that disagreed:
+ui-guidelines.md § Inspector listed General and Effects, this one listed Shadow
+where that listed Effects. The UI document wins, because it is the one
+describing the accordion.
+
+`control` is a closed union that grows one reviewed line at a time as components
+are built. The catalog names eighteen distinct editable concepts across Phase 9;
+guessing their shapes before writing the components that need them is how a
+schema ends up with members no inspector knows how to draw. The first use
+already corrected the rules: Section's radius was refused for offering `px`,
+which a radius plainly takes.
+
+Defaults are not part of a property definition. They stay in `defaultProps` and
+`defaultStyles`, where the cascade reads them, so there is one place a default
+lives.
 
 ---
 

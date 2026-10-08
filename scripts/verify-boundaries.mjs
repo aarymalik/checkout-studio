@@ -35,16 +35,38 @@ function readManifests(directory, kind) {
     .filter(Boolean)
 }
 
+const plugins = readManifests("plugins", "plugin")
+
 const targets = [
   ...readManifests("packages", "package"),
-  ...readManifests("plugins", "plugin"),
+  ...plugins,
   ...readManifests("apps", "app"),
 ]
+
+/**
+ * The plugin packages, discovered rather than listed.
+ *
+ * An application installs plugins, and which ones is a property of the build
+ * rather than of the layer model — so layers.js does not know their names and
+ * should not have to. A plugin's own allowance is unchanged: it may reach the
+ * layers below it and never another plugin, because plugins are independent.
+ *
+ * Discovered from `plugins/*` rather than matched on a `plugin-` prefix, which
+ * would quietly treat `plugin-sdk` — a layer-3 package every plugin depends on
+ * — as a plugin.
+ */
+const pluginPackages = new Set(
+  plugins.map((plugin) => plugin.manifest.name.slice(SCOPE.length + 1)),
+)
 
 const violations = []
 
 for (const target of targets) {
   const allowed = new Set(allowedDependencies(target.name, { kind: target.kind }))
+
+  if (target.kind === "app") {
+    for (const name of pluginPackages) allowed.add(name)
+  }
   const declared = Object.keys({
     ...target.manifest.dependencies,
     ...target.manifest.peerDependencies,

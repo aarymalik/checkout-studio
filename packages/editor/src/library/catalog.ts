@@ -40,6 +40,15 @@ export function catalogOf(registry: RendererRegistry): readonly LibraryGroup[] {
     .types()
     .map((type) => registry.get(type))
     .filter((definition): definition is ComponentDefinition => definition !== undefined)
+    /*
+     * A component a user cannot add is not in the library.
+     *
+     * `core.page` is every document's root and `core.unsupported` holds a node
+     * whose type is missing. Both have to resolve in the registry, and neither
+     * is something to drag onto a canvas — the page would be an entry offering
+     * to insert the thing it is already inside.
+     */
+    .filter((definition) => definition.insertable !== false)
     .map((definition) => ({
       type: definition.type,
       name: definition.name,

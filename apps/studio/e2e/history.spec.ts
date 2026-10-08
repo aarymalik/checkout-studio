@@ -6,6 +6,19 @@ import { modifier } from "./support/keyboard"
 import { createPage } from "./support/page"
 
 /**
+ * A layer row, by the name on it.
+ *
+ * Scoped to the tree, which it did not need to be until Phase 9. A node's name
+ * now appears twice on screen — once here and once in the canvas breadcrumb,
+ * which exists because the canvas mounts and something is selected — so an
+ * unscoped query resolves to two elements and Playwright refuses it. The
+ * duplication is correct: both are places a user reads the name.
+ */
+function layerRow(page: Page, name: string) {
+  return page.getByRole("tree", { name: "Layers" }).getByRole("button", { name, exact: true })
+}
+
+/**
  * Undo, in a real browser.
  *
  * The store has had a fifty-state history since Phase 5 and nothing could reach
@@ -65,7 +78,7 @@ async function storedNames(pageId: string): Promise<readonly string[]> {
 }
 
 async function rename(page: Page, from: string, to: string): Promise<void> {
-  await page.getByRole("button", { name: from, exact: true }).click()
+  await layerRow(page, from).click()
   await page.keyboard.press("F2")
 
   const field = page.getByRole("textbox", { name: `Rename ${from}` })
@@ -97,11 +110,11 @@ test("undoing from the toolbar puts the name back", async ({ context, page }) =>
   const pageId = await openLayers(context, page)
 
   await rename(page, "Body", "Renamed")
-  await expect(page.getByRole("button", { name: "Renamed", exact: true })).toBeVisible()
+  await expect(layerRow(page, "Renamed")).toBeVisible()
 
   await page.getByRole("button", { name: "Undo", exact: true }).click()
 
-  await expect(page.getByRole("button", { name: "Body", exact: true })).toBeVisible()
+  await expect(layerRow(page, "Body")).toBeVisible()
 
   // And it reaches the server, or reloading brings back what was undone.
   await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 20_000 })
@@ -118,10 +131,10 @@ test("undo and redo work from the documented keys", async ({ context, page }) =>
   // The first press is retried past the gap between hydration and the shell's
   // keyboard listener; undo is idempotent enough for that, since a second
   // press with nothing left to undo does nothing.
-  await pressUntil(page, `${mod}+KeyZ`, page.getByRole("button", { name: "Body", exact: true }))
+  await pressUntil(page, `${mod}+KeyZ`, layerRow(page, "Body"))
 
   await page.keyboard.press(`${mod}+Shift+KeyZ`)
-  await expect(page.getByRole("button", { name: "Renamed", exact: true })).toBeVisible()
+  await expect(layerRow(page, "Renamed")).toBeVisible()
 })
 
 test("the undo key belongs to a text field while one has focus", async ({ context, page }) => {
@@ -130,10 +143,10 @@ test("the undo key belongs to a text field while one has focus", async ({ contex
   const mod = await modifier(page)
 
   await rename(page, "Body", "Renamed")
-  await pressUntil(page, `${mod}+KeyZ`, page.getByRole("button", { name: "Body", exact: true }))
+  await pressUntil(page, `${mod}+KeyZ`, layerRow(page, "Body"))
 
   // Back to "Body". Now open a rename field and press the same key.
-  await page.getByRole("button", { name: "Body", exact: true }).click()
+  await layerRow(page, "Body").click()
   await page.keyboard.press("F2")
 
   const field = page.getByRole("textbox", { name: "Rename Body" })
@@ -148,6 +161,6 @@ test("the undo key belongs to a text field while one has focus", async ({ contex
    * node instead of a character.
    */
   await field.press("Escape")
-  await expect(page.getByRole("button", { name: "Body", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Renamed", exact: true })).toBeHidden()
+  await expect(layerRow(page, "Body")).toBeVisible()
+  await expect(layerRow(page, "Renamed")).toBeHidden()
 })

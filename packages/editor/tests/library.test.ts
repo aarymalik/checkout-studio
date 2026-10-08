@@ -101,6 +101,46 @@ describe("the catalog", () => {
   })
 })
 
+describe("what a user cannot insert", () => {
+  it("is left out of the panel", () => {
+    /*
+     * `core.page` is every document's root and `core.unsupported` holds a node
+     * whose type is missing. Both have to resolve in the registry, or the
+     * renderer falls back on them — and neither is something to drag onto a
+     * canvas. Listing the page would offer to insert the thing it is already
+     * inside.
+     */
+    const builder = new RegistryBuilder("core")
+
+    builder.component(definition("core.page", "Layout", { container: true, insertable: false }))
+    builder.component(definition("core.section", "Layout", { container: true }))
+
+    const groups = catalogOf(builder.build())
+
+    expect(groups.flatMap((group) => group.entries).map((entry) => entry.type)).toEqual([
+      "core.section",
+    ])
+  })
+
+  it("does not leave an empty group behind when it was the only one of its kind", () => {
+    const builder = new RegistryBuilder("core")
+
+    builder.component(definition("core.page", "Layout", { insertable: false }))
+    builder.component(definition("core.heading", "Typography"))
+
+    // A panel with a Layout heading and nothing under it reads as broken.
+    expect(catalogOf(builder.build()).map((group) => group.category)).toEqual(["Typography"])
+  })
+
+  it("counts only what can be inserted, because the count is for the empty state", () => {
+    const builder = new RegistryBuilder("core")
+
+    builder.component(definition("core.page", "Layout", { insertable: false }))
+
+    expect(catalogSize(catalogOf(builder.build()))).toBe(0)
+  })
+})
+
 describe("a plugin's components", () => {
   it("appear by being registered, with nothing to update", () => {
     /*
