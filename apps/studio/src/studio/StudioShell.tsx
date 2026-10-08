@@ -15,6 +15,7 @@ import { CanvasArea } from "./canvas/CanvasArea"
 import { ChordHint } from "./ChordHint"
 import { Inspector } from "./Inspector"
 import { LayersPanel } from "./layers/LayersPanel"
+import { ComponentLibrary } from "./library/ComponentLibrary"
 import { PaletteHost } from "./PaletteHost"
 import { ConflictPrompt } from "./conflict/ConflictPrompt"
 import { EditSessionProvider } from "./session/EditSessionProvider"
@@ -99,7 +100,10 @@ export function StudioShell({
             and nothing else, and outside the provider it would throw rather
             than render the empty state the caller intended.
           */}
-          {frame({ layers: <LayersPanel />, ...panels }, <EditorStatus />)}
+          {frame(
+            { components: <ComponentLibrary />, layers: <LayersPanel />, ...panels },
+            <EditorStatus />,
+          )}
 
           {/*
             Both are asked rather than assumed, and both sit here so they are

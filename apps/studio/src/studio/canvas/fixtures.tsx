@@ -41,6 +41,7 @@ function Box({ node, className, children }: ComponentRenderProps): ReactElement 
 function definition(overrides: Partial<ComponentDefinition> & { type: string }) {
   return {
     name: overrides.type,
+    category: "Utility",
     interactive: false,
     container: false,
     defaultProps: {},
@@ -62,12 +63,23 @@ export const FIXTURE_TYPES = ["core.page", "core.section", "core.heading", "core
 export function fixtureRegistry(): RendererRegistry {
   const builder = new RegistryBuilder("core")
 
-  builder.component(definition({ type: "core.page", container: true }))
+  /*
+   * Categorised as the catalog in docs/component-library.md categorises them,
+   * so the library panel groups the fixtures the way it will group the real
+   * components — a fixture that sat under "Utility" would make the panel's
+   * grouping untested in the only place it can be tested before Phase 9.
+   */
+  builder.component(definition({ type: "core.page", category: "Layout", container: true }))
   builder.component(
-    definition({ type: "core.section", container: true, defaultStyles: { minHeight: 120 } }),
+    definition({
+      type: "core.section",
+      category: "Layout",
+      container: true,
+      defaultStyles: { minHeight: 120 },
+    }),
   )
-  builder.component(definition({ type: "core.heading" }))
-  builder.component(definition({ type: "core.button", interactive: true }))
+  builder.component(definition({ type: "core.heading", category: "Typography" }))
+  builder.component(definition({ type: "core.button", category: "Forms", interactive: true }))
 
   return builder.build()
 }

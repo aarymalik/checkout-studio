@@ -311,6 +311,11 @@ Everything is discovered through the registry.
 
 The canonical list of components, with type ids and owning plugins, is the **Component Catalog** in [component-library.md](./component-library.md). The grouping below is illustrative.
 
+A component declares its own category through `ComponentDefinition.category`,
+which is required and typed to the eight. The editor's library panel groups by
+it, so a plugin's components are grouped with their own kind rather than with
+their own plugin — a quote is typography whoever shipped it.
+
 Layout
 
 - Section
