@@ -20,6 +20,14 @@ const DEPTH: Record<ScopeId, number> = {
   "canvas.selection": 3,
   "canvas.text-editing": 3,
   "canvas.multi-selection": 4,
+  /*
+   * Deeper than every selection scope, because a keyboard drag is modal: while
+   * something is in the hand, ↵ drops it rather than stepping into it and
+   * Escape puts it back rather than clearing the selection. Both of those are
+   * bound in `canvas.selection`, and this is how one wins without either
+   * knowing about the other.
+   */
+  "canvas.dragging": 5,
   "overlay.dialog": 10,
   "overlay.command-palette": 10,
   "overlay.context-menu": 10,

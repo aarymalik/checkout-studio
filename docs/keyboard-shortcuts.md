@@ -973,6 +973,35 @@ Each candidate position is announced
 Escape     cancel — the node returns to where it was
 ```
 
+**As built.** `M` is bound in the canvas scope; the arrows, `↵` and `Escape` are
+bound in `canvas.dragging`, which is deeper than `canvas.selection`. That is the
+whole of the modality: while something is in the hand `↵` drops it rather than
+stepping into it and `Escape` puts it back rather than clearing the selection,
+and when nothing is held those bindings are not consulted at all. Neither one
+knows about the other, which is what scopes are for.
+
+They are commands, not a handler in the canvas, so the palette and the reference
+sheet list them and a user can remap them. The pointer's drag is not built that
+way and should not be: moving a pointer is not a command.
+
+The pending move is held as a document with the move already applied, so each
+step is computed from where the node would be rather than from where it still
+is — which is what makes "every valid position" reachable by pressing a key
+repeatedly. Nothing is written until the drop, so cancelling is the absence of a
+change rather than the reversal of one, and there is nothing to undo.
+
+Each position is announced by the canvas's live region, which prefers the drag
+to the selection while one is held. "Last, after Footer, in Page" names the
+neighbour and the container, because a position is only meaningful relative to
+something the user already knows about — and reading an index would say nothing.
+
+A drop back where the node started writes nothing. An entry there would be one
+that undoes to the same thing.
+
+```
+
+```
+
 The mode is implemented with dnd-kit's keyboard sensor, rebound from its defaults (`Space` / `Enter`), which are already taken by pan and `↵`.
 
 This satisfies the requirement in [testing.md](./testing.md) that drag and drop be keyboard-testable.

@@ -328,14 +328,15 @@ describe("StudioShell", () => {
        * for the viewport — three zoom steps, two zoom targets, three devices —
        * nine for editing (undo, redo, the five clipboard operations, duplicate
        * and delete), six for arranging (lock, hide, and the four reordering
-       * steps) and six for selecting: the group, the two siblings, in, out,
-       * and clear.
+       * steps), six for selecting (the group, the two siblings, in, out, and
+       * clear) and seven for moving by keyboard: picking up, the four steps,
+       * dropping and putting back.
        *
        * Every one is listed even here, where no page is open and most of them
        * are unavailable: the palette greys what cannot run rather than hiding
        * it, so the list does not rearrange itself as pages open and close.
        */
-      expect(screen.getAllByRole("option")).toHaveLength(43)
+      expect(screen.getAllByRole("option")).toHaveLength(50)
     })
 
     it("shows each command's shortcut beside it", () => {

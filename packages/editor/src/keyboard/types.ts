@@ -41,6 +41,8 @@ export type ScopeId =
   | "canvas.selection"
   | "canvas.multi-selection"
   | "canvas.text-editing"
+  /** A node is in the hand, moved by the keyboard. Modal: it owns the arrows. */
+  | "canvas.dragging"
   | "layers"
   | "inspector"
   | "library"

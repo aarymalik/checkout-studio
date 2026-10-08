@@ -106,7 +106,15 @@ describe("drag", () => {
     store.getState().beginDrag(["heading", "text"])
     store.getState().setDropTarget("footer", "inside")
 
-    expect(state().drag).toEqual({ ids: ["heading", "text"], overId: "footer", position: "inside" })
+    expect(state().drag).toEqual({
+      ids: ["heading", "text"],
+      overId: "footer",
+      position: "inside",
+      // The keyboard's drag is a separate thing and a pointer gesture does not
+      // touch it: one waits to be dropped, the other ends when the button
+      // comes up.
+      keyboard: null,
+    })
   })
 
   it("clears on end", () => {
@@ -116,7 +124,7 @@ describe("drag", () => {
     store.getState().setDropTarget("footer", "before")
     store.getState().endDrag()
 
-    expect(state().drag).toEqual({ ids: [], overId: null, position: null })
+    expect(state().drag).toEqual({ ids: [], overId: null, position: null, keyboard: null })
   })
 
   // Drag state is separate from the document: nothing has happened yet.

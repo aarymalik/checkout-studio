@@ -7,6 +7,7 @@ import {
   KeyboardProvider,
   KeymapRegistry,
   createArrangeCommands,
+  createDndCommands,
   createEditCommands,
   createSelectionCommands,
   createViewportCommands,
@@ -91,6 +92,7 @@ function mount(options: { theme?: typeof defaultTheme | null } = {}): {
         ...createEditCommands({ store: () => store }),
         ...createArrangeCommands({ store: () => store }),
         ...createSelectionCommands({ store: () => store }),
+        ...createDndCommands({ store: () => store }),
       ])
       keymap.registerAll(resolveShortcuts(defaultShortcuts, DEFAULT_KEYMAP))
     }
@@ -398,6 +400,135 @@ describe("navigating by keyboard", () => {
     })
 
     expect(screen.getByRole("status")).toHaveTextContent("locked")
+  })
+})
+
+describe("moving a node with the keyboard", () => {
+  /**
+   * Phase 8's accessibility criteria: keyboard drag reachable and completable,
+   * every drop position announced, Escape cancels and restores.
+   *
+   * Driven with real keystrokes through the real keymap, because the thing
+   * being tested is partly the keymap: `↵` and `Escape` are bound in
+   * `canvas.selection` as well, and what makes the drag win is a deeper scope
+   * rather than anything either binding knows.
+   */
+  function lifted(harness: ReturnType<typeof mount>): string {
+    let second = ""
+
+    act(() => {
+      harness.store().getState().insertNew("core.section", harness.store().getState().document.root)
+      second = harness.store().getState().selection.ids[0] ?? ""
+      harness.store().getState().select(["section"])
+    })
+
+    expect(second).not.toBe("")
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "KeyM", key: "m" })
+    })
+
+    return second
+  }
+
+  it("picks a node up on M and announces where it is", async () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    expect(harness.store().getState().drag.keyboard?.id).toBe("section")
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(/Section/)
+    })
+  })
+
+  it("announces each position as the arrows move it", async () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    const before = screen.getByRole("status").textContent
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "ArrowDown", key: "ArrowDown" })
+    })
+
+    // The announcement has to change, or a screen reader user cannot tell a
+    // key that moved something from one that did nothing.
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).not.toBe(before)
+    })
+  })
+
+  it("drops on Enter as one history entry", () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    const steps = harness.store().getState().history.past.length
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "ArrowDown", key: "ArrowDown" })
+    })
+    act(() => {
+      fireEvent.keyDown(window, { code: "Enter", key: "Enter" })
+    })
+
+    expect(harness.store().getState().drag.keyboard).toBeNull()
+    expect(harness.store().getState().history.past).toHaveLength(steps + 1)
+  })
+
+  it("puts it back on Escape, with nothing to undo", () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    const before = harness.store().getState().document
+    const steps = harness.store().getState().history.past.length
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "ArrowDown", key: "ArrowDown" })
+    })
+    act(() => {
+      fireEvent.keyDown(window, { code: "Escape", key: "Escape" })
+    })
+
+    expect(harness.store().getState().drag.keyboard).toBeNull()
+    // Cancelling is the absence of a change, not the reversal of one: the move
+    // is only written on the drop.
+    expect(harness.store().getState().document).toBe(before)
+    expect(harness.store().getState().history.past).toHaveLength(steps)
+  })
+
+  it("lets Enter mean 'step into' again once nothing is held", () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    const child = lifted(harness)
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "Escape", key: "Escape" })
+    })
+
+    // `canvas.dragging` is gone, so `↵` resolves to `selection.enter` — which
+    // is the whole point of deciding this with a scope.
+    act(() => {
+      harness.store().getState().move(child, "section")
+    })
+    act(() => {
+      harness.store().getState().select(["section"])
+    })
+    act(() => {
+      fireEvent.keyDown(window, { code: "Enter", key: "Enter" })
+    })
+
+    expect(harness.store().getState().selection.ids).toEqual([child])
   })
 })
 

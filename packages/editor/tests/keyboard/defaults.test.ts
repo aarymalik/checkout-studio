@@ -6,6 +6,7 @@ import {
   globalShortcuts,
   editShortcuts,
   paletteKeys,
+  dndShortcuts,
   selectionShortcuts,
   shellShortcuts,
   viewportShortcuts,
@@ -26,7 +27,8 @@ describe("the shipped keymap", () => {
         viewportShortcuts.length +
         editShortcuts.length +
         arrangeShortcuts.length +
-        selectionShortcuts.length,
+        selectionShortcuts.length +
+        dndShortcuts.length,
     )
   })
 
@@ -91,11 +93,17 @@ describe("the shipped keymap", () => {
     /*
      * Enumerated rather than counted, so adding one means saying which.
      *
-     * Three devices and two zoom targets. Every one of them needs the canvas:
+     * Three devices and two zoom targets, each of which needs the canvas:
      * switching device is meaningless without a frame to switch, and both zoom
      * targets need the size of the surface.
+     *
+     * And `M`, which picks a node up for moving by keyboard. It is the one
+     * unmodified letter among them, and it earns the exemption the same way:
+     * live only while the canvas is in scope, and the command declines unless
+     * something is selected and nothing is already in the hand.
      */
     expect(exempt.map((registration) => serializeBinding(registration.binding)).sort()).toEqual([
+      "KeyM",
       "shift+Digit1",
       "shift+Digit2",
       "shift+KeyD",

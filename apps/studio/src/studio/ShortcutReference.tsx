@@ -26,6 +26,7 @@ const SCOPE_TITLES: Partial<Record<ScopeId, string>> = {
   studio: "Editor",
   canvas: "Canvas",
   "canvas.selection": "With a selection",
+  "canvas.dragging": "While moving something",
   "canvas.multi-selection": "With several selected",
   "canvas.text-editing": "Editing text",
   layers: "Layers",

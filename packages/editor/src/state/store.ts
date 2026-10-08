@@ -24,7 +24,13 @@ import { createStore, type StoreApi } from "zustand/vanilla"
 
 import { emptyHistory, entryFor, push, redo, undo, type PushOptions } from "./history"
 import { findProblems } from "./recovery"
-import type { BuilderState, CanvasMeasurements, HistoryEntry, RecoveryState } from "./types"
+import type {
+  BuilderState,
+  CanvasMeasurements,
+  HistoryEntry,
+  KeyboardDrag,
+  RecoveryState,
+} from "./types"
 
 /**
  * The editor store.
@@ -106,6 +112,7 @@ export interface EditorActions {
   beginDrag: (ids: readonly string[]) => void
   setDropTarget: (overId: string | null, position: DragPosition | null) => void
   endDrag: () => void
+  setKeyboardDrag: (keyboard: KeyboardDrag | null) => void
 
   // ── Persistence ───────────────────────────────────────────────────────────
   markSaving: () => void
@@ -198,7 +205,7 @@ function initialState(document: CheckoutSchema, baseVersion: number, at: number)
        */
       canEdit: recovery.corruption === null,
     },
-    drag: { ids: [], overId: null, position: null },
+    drag: { ids: [], overId: null, position: null, keyboard: null },
     assets: { used: [] },
     publishing: { publishedRevisionId: null, publishedAt: null },
     recovery,
@@ -752,13 +759,29 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
 
       // ── Drag ───────────────────────────────────────────────────────────────
       beginDrag: (ids) =>
-        set((state) => ({ ...state, drag: { ids, overId: null, position: null } })),
+        set((state) => ({
+          ...state,
+          drag: { ...state.drag, ids, overId: null, position: null },
+        })),
 
       setDropTarget: (overId, position) =>
         set((state) => ({ ...state, drag: { ...state.drag, overId, position } })),
 
+      /**
+       * The keyboard's pending drag, held until it is dropped or put back.
+       *
+       * The store keeps it and does not compute it: working out where a step
+       * lands is the drag layer's job, and `dnd/validity` reads this module's
+       * selectors — so an edge back from here would be a cycle.
+       */
+      setKeyboardDrag: (keyboard) =>
+        set((state) => ({ ...state, drag: { ...state.drag, keyboard } })),
+
       endDrag: () =>
-        set((state) => ({ ...state, drag: { ids: [], overId: null, position: null } })),
+        set((state) => ({
+          ...state,
+          drag: { ...state.drag, ids: [], overId: null, position: null },
+        })),
 
       // ── Persistence ────────────────────────────────────────────────────────
       markSaving: () =>
