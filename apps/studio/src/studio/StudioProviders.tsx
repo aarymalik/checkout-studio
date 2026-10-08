@@ -36,6 +36,7 @@ import { createAppCommands, type AppCommandActions } from "./commands"
 import { nextRegion } from "./regions"
 import { send } from "@/lib/api-client"
 import { registry } from "@/studio/registry"
+import { commandTelemetry } from "@/lib/telemetry"
 
 /**
  * Everything the shell needs to exist, assembled once.
@@ -156,7 +157,12 @@ function Registries({
   }, [warnings])
 
   return (
-    <KeyboardProvider commands={commands} keymap={keymap} platform={platform}>
+    <KeyboardProvider
+      commands={commands}
+      keymap={keymap}
+      platform={platform}
+      telemetry={commandTelemetry}
+    >
       <PaletteScope palette={palette}>{children}</PaletteScope>
     </KeyboardProvider>
   )

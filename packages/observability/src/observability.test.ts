@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
 import { createLogger, type LogRecord } from "./logger/logger"
 import { hashValue, redact, REDACTED, truncateIp } from "./logger/redact"
-import { createInMemorySink, createMetrics, templateRoute } from "./metrics/metrics"
+import {
+  createBoundedSink,
+  createInMemorySink,
+  createMetrics,
+  templateRoute,
+} from "./metrics/metrics"
 import { span } from "./tracing/tracer"
 import { createContext, currentContext, enrichContext, runWithContext } from "./context/server"
 import { createCorrelationId } from "./context/TelemetryContext"
@@ -154,6 +159,59 @@ describe("metrics", () => {
       "/api/v1/projects/[id]/pages/[id]",
     )
     expect(templateRoute("/api/v1/projects")).toBe("/api/v1/projects")
+  })
+})
+
+describe("a bounded sink", () => {
+  /**
+   * The editor is open for hours, so an unbounded array of samples is a leak
+   * that grows with how much work somebody gets done. docs/observability.md:
+   * "client queues cap at 100 events, dropping oldest with a counter —
+   * telemetry must never cause an out-of-memory condition".
+   */
+  it("keeps the most recent samples and drops the oldest", () => {
+    const sink = createBoundedSink(3)
+    const m = createMetrics(sink)
+
+    for (const id of ["a", "b", "c", "d", "e"]) m.increment("editor_command_total", { source: id })
+
+    expect(sink.samples().map((sample) => sample.labels.source)).toEqual(["c", "d", "e"])
+  })
+
+  it("counts what it dropped rather than losing that too", () => {
+    const sink = createBoundedSink(2)
+    const m = createMetrics(sink)
+
+    m.increment("editor_command_total")
+    m.increment("editor_command_total")
+
+    expect(sink.dropped()).toBe(0)
+
+    m.increment("editor_command_total")
+    m.increment("editor_command_total")
+
+    // An exporter needs to know that what it drained is not everything.
+    expect(sink.dropped()).toBe(2)
+  })
+
+  it("empties on a drain, so an exporter cannot send the same sample twice", () => {
+    const sink = createBoundedSink(5)
+    const m = createMetrics(sink)
+
+    m.increment("editor_command_total")
+    m.increment("editor_command_total")
+
+    expect(sink.drain()).toHaveLength(2)
+    expect(sink.samples()).toEqual([])
+    expect(sink.dropped()).toBe(0)
+  })
+
+  it("refuses a limit that is not a positive whole number", () => {
+    // A cap of zero is a sink that discards everything while looking like one
+    // that works, which is the worst of both.
+    expect(() => createBoundedSink(0)).toThrow(RangeError)
+    expect(() => createBoundedSink(-1)).toThrow(RangeError)
+    expect(() => createBoundedSink(1.5)).toThrow(RangeError)
   })
 })
 

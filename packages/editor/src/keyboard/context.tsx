@@ -13,6 +13,7 @@ import {
 
 import type { EditorContext } from "../commands/types"
 import { type CommandRegistry, commands as defaultCommands } from "../commands/registry"
+import { runCommand, type CommandSource, type CommandTelemetry } from "../commands/run"
 import type { Platform, ScopeId } from "./types"
 import { detectPlatform } from "./normalize"
 import { type KeymapRegistry, keymap as defaultKeymap } from "./registry"
@@ -77,6 +78,18 @@ interface KeyboardContextValue {
   platform: Platform
   scopes: ScopeStore
   dispatcher: KeyboardDispatcher
+  /**
+   * Runs a registered command, reporting it the way a keystroke is reported.
+   *
+   * Every control in the application reached `command.run` directly, which
+   * meant the keyboard was the only path that timed anything or caught a
+   * rejected promise. This is that path, available to a button.
+   *
+   * The caller supplies the context because the callers legitimately differ:
+   * the palette runs what the user picked with `isEditingText: false`, since
+   * the field they typed into is the palette's own.
+   */
+  run: (commandId: string, context: EditorContext, source: CommandSource) => void
   chord: {
     read: () => readonly ChordContinuation[]
     subscribe: (listener: () => void) => () => void
@@ -101,6 +114,14 @@ export interface KeyboardProviderProps {
   platform?: Platform
   /** Where a command's failure goes. Rethrown when absent. */
   onError?: (error: unknown, commandId: string) => void
+  /**
+   * Where a command run is reported.
+   *
+   * A port rather than a metrics client: the editor is the generic engine, and
+   * the application decides what telemetry means. Absent means nothing is
+   * recorded, which is what a test and an embedded editor both want.
+   */
+  telemetry?: CommandTelemetry
 }
 
 const IDLE_STATE: EditorState = { selectionCount: 0, isDirty: false }
@@ -112,6 +133,7 @@ export function KeyboardProvider({
   commands = defaultCommands,
   platform,
   onError,
+  telemetry,
 }: KeyboardProviderProps): ReactNode {
   const scopes = useMemo(createScopeStore, [])
 
@@ -123,6 +145,28 @@ export function KeyboardProvider({
   const errorRef = useRef(onError)
   errorRef.current = onError
 
+  const telemetryRef = useRef(telemetry)
+  telemetryRef.current = telemetry
+
+  /*
+   * One answer to "what moment is it", shared by the dispatcher and by every
+   * button. Read through the refs above for the same reason the dispatcher is
+   * built once: rebuilding it on a changed callback would drop a chord
+   * mid-chord.
+   */
+  const context = useCallback((): EditorContext => {
+    const state = stateRef.current?.() ?? IDLE_STATE
+
+    return {
+      scopes: scopes.read(),
+      selectionCount: state.selectionCount,
+      isDirty: state.isDirty,
+      // Derived rather than tracked: the element with focus is the truth,
+      // and anything else can disagree with it.
+      isEditingText: isTextEntry(document.activeElement),
+    }
+  }, [scopes])
+
   const chordRef = useRef<readonly ChordContinuation[]>([])
   const chordListeners = useMemo(() => new Set<() => void>(), [])
 
@@ -133,17 +177,11 @@ export function KeyboardProvider({
         commands,
         ...(platform === undefined ? {} : { platform }),
         getScopes: () => scopes.read(),
-        getContext: () => {
-          const state = stateRef.current?.() ?? IDLE_STATE
-
-          return {
-            scopes: scopes.read(),
-            selectionCount: state.selectionCount,
-            isDirty: state.isDirty,
-            // Derived rather than tracked: the element with focus is the truth,
-            // and anything else can disagree with it.
-            isEditingText: isTextEntry(document.activeElement),
-          } satisfies EditorContext
+        getContext: context,
+        telemetry: {
+          commandRan: (run) => {
+            telemetryRef.current?.commandRan(run)
+          },
         },
         onError: (error, commandId) => {
           if (errorRef.current === undefined) throw error
@@ -151,7 +189,7 @@ export function KeyboardProvider({
           errorRef.current(error, commandId)
         },
       }),
-    [keymap, commands, platform, scopes],
+    [keymap, commands, platform, scopes, context],
   )
 
   useEffect(() => {
@@ -168,6 +206,31 @@ export function KeyboardProvider({
     }
   }, [dispatcher, chordListeners])
 
+  const run = useCallback(
+    (commandId: string, runContext: EditorContext, source: CommandSource) => {
+      const command = commands.get(commandId)
+
+      // A control for a command that is not registered does nothing, which is
+      // how an unbuilt feature stays absent rather than arriving as a button
+      // that throws.
+      if (command === null) return
+
+      runCommand(command, runContext, source, {
+        telemetry: {
+          commandRan: (ran) => {
+            telemetryRef.current?.commandRan(ran)
+          },
+        },
+        onError: (error, id) => {
+          if (errorRef.current === undefined) throw error
+
+          errorRef.current(error, id)
+        },
+      })
+    },
+    [commands],
+  )
+
   const value = useMemo<KeyboardContextValue>(
     () => ({
       keymap,
@@ -175,6 +238,7 @@ export function KeyboardProvider({
       platform: platform ?? detectPlatform(),
       scopes,
       dispatcher,
+      run,
       chord: {
         read: () => chordRef.current,
         subscribe: (listener) => {
@@ -186,7 +250,7 @@ export function KeyboardProvider({
         },
       },
     }),
-    [keymap, commands, platform, scopes, dispatcher, chordListeners],
+    [keymap, commands, platform, scopes, dispatcher, chordListeners, run],
   )
 
   return <KeyboardContext.Provider value={value}>{children}</KeyboardContext.Provider>

@@ -1,4 +1,5 @@
 import type { Command, EditorContext } from "../commands/types"
+import { runCommand, type CommandTelemetry } from "../commands/run"
 import type { Disposable, KeyBinding, Platform, ScopeId } from "./types"
 import { bindingFromEvent, detectPlatform } from "./normalize"
 import { allowedWhileOverlayOpen, hasOverlay } from "./scopes"
@@ -48,6 +49,8 @@ export interface DispatcherOptions {
   chordTimeoutMs?: number
   /** Where an async command's rejection goes. Defaults to rethrowing. */
   onError?: (error: unknown, commandId: string) => void
+  /** Where a run is reported, when anybody is listening. */
+  telemetry?: CommandTelemetry
 }
 
 /** Modifiers alone are never a shortcut, and arrive as their own keydown. */
@@ -197,27 +200,21 @@ export class KeyboardDispatcher {
   }
 
   /**
-   * Run a command, and do not let a rejected promise vanish.
+   * Run a command through the shared runner.
    *
-   * A shortcut that silently fails is worse than one that throws: the person
-   * presses it again, and again, and concludes the product is broken.
+   * The error discipline lived here and only here, which meant every button in
+   * the application dropped a rejected promise on the floor. It is in
+   * `runCommand` now, along with the timing, so the keyboard is one source
+   * among several rather than the only instrumented one.
    */
   private run(command: Command, context: EditorContext): void {
-    try {
-      const result = command.run(context)
-      if (result instanceof Promise) {
-        void result.catch((error: unknown) => {
-          this.reportError(error, command.id)
-        })
-      }
-    } catch (error) {
-      this.reportError(error, command.id)
-    }
-  }
+    runCommand(command, context, "keyboard", {
+      ...(this.options.telemetry === undefined ? {} : { telemetry: this.options.telemetry }),
+      onError: (error, commandId) => {
+        if (this.options.onError === undefined) throw error
 
-  private reportError(error: unknown, commandId: string): void {
-    if (this.options.onError === undefined) throw error
-
-    this.options.onError(error, commandId)
+        this.options.onError(error, commandId)
+      },
+    })
   }
 }

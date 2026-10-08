@@ -322,6 +322,12 @@ status_code    (bounded)
 error_code     (bounded by the catalog)
 plan           (bounded)
 component_type (bounded by the registry)
+command_id     (bounded by the command registry)
+source         (bounded: keyboard, palette, toolbar)
+interaction    (bounded by the command registry)
+mode           (bounded)
+outcome        (bounded)
+cache  operation  model   (bounded)
 ```
 
 Forbidden labels
@@ -363,6 +369,49 @@ editor_command_total            counter     command_id, source
 ```
 
 `source` distinguishes `keyboard`, `toolbar`, `palette`, and `menu` — which is how we learn whether shortcuts are actually being discovered, per [keyboard-shortcuts.md](./keyboard-shortcuts.md).
+
+**As built — the command channel, and what it took to make the label mean something.**
+
+`editor_command_total{command_id, source, outcome}` and
+`editor_frame_duration_ms{interaction}` are emitted for every command run, from
+one place: `runCommand` in `packages/editor/src/commands/run.ts`. `menu` is not
+in the union yet because context menus do not exist; it joins on the day they
+do.
+
+The editor does not import a metrics client. It takes a `CommandTelemetry`
+port and the application decides what a run means — the editor is the generic
+engine architecture.md describes, and a module-level singleton compiled into it
+would make every embedder share one sink and every test of a command reach for
+module mocking. The wiring is one prop on `KeyboardProvider`, and there is a
+test that presses a key and reads the sink, because a port nothing is plugged
+into is the failure this project keeps finding.
+
+Two things had to be fixed before the measurement was worth taking:
+
+- **The toolbar's panel buttons did not run commands.** `⌘\` ran
+  `view.toggle-left-panel`; the button called the shell action that command
+  calls. Identical behaviour, so nothing looked wrong — but the one question
+  `source` exists to answer, "is anybody finding the shortcut", had only one of
+  its two numbers. It is also the rule commands exist for: one definition
+  reached from a keystroke, the palette and a button alike.
+- **Only the keyboard caught a failure.** The dispatcher wrapped `command.run`
+  in a try and caught rejected promises; every button in the application
+  passed `void command.run(...)` and dropped the rejection on the floor. That
+  discipline is in `runCommand` now, so a failed command is both handled and
+  counted — `outcome: "failed"` is the difference between "nobody uses this"
+  and "nobody can use this".
+
+An asynchronous command is timed to settlement rather than to the moment it
+returned a promise. The second number is always near zero and says nothing
+about what the user waited for.
+
+**Not built yet: the transport.** `createBoundedSink` caps the client queue at
+the 100 samples § Bound every queue specifies and keeps the drop count, so the
+memory discipline is real in a tab that stays open for hours. Nothing drains
+it. The exporter is Phase 21's, where this document already puts it, and the
+periodic sampler — `editor_frame_duration_ms` per frame during a drag,
+`editor_node_count`, `editor_memory_bytes`, `editor_history_depth`, the
+10-second `EditorPerformanceSample` — is not built either.
 
 ### Renderer
 

@@ -1677,14 +1677,26 @@ keymap, both of which this project already had, and adding a second keyboard
 model beside `canvas.dragging` would have meant two answers to "what does the
 down arrow do".
 
-**Telemetry is outstanding, here and in Phase 7.** The universal criteria ask
-for telemetry per observability.md, which specifies `editor_frame_duration_ms`,
-`editor_dropped_frames_total` and `editor_command_total`. The studio emits
-logs and no client metrics; `metricsSink` is in-memory with no transport, so
-there is nowhere for a client metric to go. Phase 7 added the canvas and
-emitted none either. Recorded rather than quietly carried forward a third time:
-a client telemetry transport is a piece of infrastructure, and which phase owns
-it is a decision, not an oversight to be fixed in passing.
+**Telemetry — the command channel is built; the rest is named.** The universal
+criteria ask for telemetry per observability.md. Phases 7 and 8 both shipped
+emitting no client metrics at all, which was recorded here rather than carried
+forward a third time, and the command half has since been built:
+`editor_command_total{command_id, source, outcome}` and
+`editor_frame_duration_ms{interaction}` for every command run, through a port
+the editor offers and the application fills, over a client sink capped at the
+100 samples observability.md requires.
+
+Still outstanding, and deliberately:
+
+- **No exporter.** Nothing drains the sink. observability.md puts the real
+  exporter in Phase 21, which is where it stays.
+- **No periodic sampler.** `editor_dropped_frames_total`, `editor_node_count`,
+  `editor_memory_bytes`, `editor_history_depth` and the 10-second
+  `EditorPerformanceSample` need something that samples rather than something
+  that reacts to a command, and per-frame emission during a drag has to be
+  measured against the <0.01 ms per metric that document budgets — on an
+  instrument this project has already had to rebuild twice for measuring the
+  wrong thing.
 
 ---
 

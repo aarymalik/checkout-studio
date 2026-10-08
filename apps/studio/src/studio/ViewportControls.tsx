@@ -28,7 +28,7 @@ const DEVICES: Record<Breakpoint, { label: string; icon: ComponentType<{ classNa
   }
 
 export function ViewportControls(): ReactElement | null {
-  const { commands, keymap, platform } = useKeyboard()
+  const { commands, keymap, platform, run: runCommand } = useKeyboard()
   const zoom = useEditorStore((state) => state.viewport.zoom)
   const breakpoint = useEditorStore((state) => state.viewport.breakpoint)
 
@@ -42,13 +42,12 @@ export function ViewportControls(): ReactElement | null {
     return binding === null ? fallback : `${fallback} · ${keymap.format(binding, platform)}`
   }
 
-  function run(id: string): void {
-    void commands.get(id)?.run({
-      scopes: ["studio"],
-      selectionCount: 0,
-      isEditingText: false,
-      isDirty: false,
-    })
+  function press(id: string): void {
+    runCommand(
+      id,
+      { scopes: ["studio"], selectionCount: 0, isEditingText: false, isDirty: false },
+      "toolbar",
+    )
   }
 
   return (
@@ -72,7 +71,7 @@ export function ViewportControls(): ReactElement | null {
                 // A toggle group: which one is on is the state, and a screen
                 // reader needs that said rather than inferred from a colour.
                 aria-pressed={active}
-                onClick={() => run(id)}
+                onClick={() => press(id)}
                 className={cn(active && "bg-surface text-foreground")}
               >
                 <Icon aria-hidden="true" className="size-4" />
@@ -88,7 +87,7 @@ export function ViewportControls(): ReactElement | null {
             variant="ghost"
             size="sm"
             aria-label="Zoom out"
-            onClick={() => run("view.zoom-out")}
+            onClick={() => press("view.zoom-out")}
           >
             <Minus aria-hidden="true" className="size-4" />
           </Button>
@@ -104,7 +103,7 @@ export function ViewportControls(): ReactElement | null {
             variant="ghost"
             size="sm"
             aria-label={`Zoom, ${Math.round(zoom * 100)} percent. Reset to 100%`}
-            onClick={() => run("view.zoom-reset")}
+            onClick={() => press("view.zoom-reset")}
             className="min-w-14 tabular-nums"
           >
             {Math.round(zoom * 100)}%
@@ -116,7 +115,7 @@ export function ViewportControls(): ReactElement | null {
             variant="ghost"
             size="sm"
             aria-label="Zoom in"
-            onClick={() => run("view.zoom-in")}
+            onClick={() => press("view.zoom-in")}
           >
             <Plus aria-hidden="true" className="size-4" />
           </Button>

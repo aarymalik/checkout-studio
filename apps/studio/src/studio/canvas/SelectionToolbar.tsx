@@ -85,7 +85,7 @@ export function SelectionToolbar({
   rect,
   surfaceHeight,
 }: SelectionToolbarProps): ReactElement | null {
-  const { commands, keymap, platform } = useKeyboard()
+  const { commands, keymap, platform, run } = useKeyboard()
   const selectionCount = useEditorStore((state) => state.selection.ids.length)
   const isDirty = useEditorStore((state) => state.persistence.status !== "saved")
   const canEdit = useEditorStore((state) => state.persistence.canEdit)
@@ -199,7 +199,7 @@ export function SelectionToolbar({
               onClick={() => {
                 // The command would decline anyway; not calling it keeps the
                 // press from reaching history as a no-op.
-                if (enabled) void command?.run(context())
+                if (enabled && command !== null) run(command.id, context(), "toolbar")
               }}
               className={cn(
                 "flex size-7 items-center justify-center rounded-tight text-foreground-muted transition-colors duration-fast",

@@ -8,7 +8,6 @@ import {
   useKeyboard,
   useOptionalEditorStoreApi,
   useShellLayout,
-  useShellActions,
 } from "@checkout-studio/editor"
 
 import { useOverlays } from "./overlays"
@@ -30,15 +29,33 @@ import { Logo } from "@/components/brand/Logo"
  * See docs/ui-guidelines.md § Top Toolbar and docs/phases.md, Phase 4 step 12.
  */
 export function Toolbar({ projectName }: { projectName: string }) {
-  const { keymap, platform, commands } = useKeyboard()
+  const { keymap, platform, commands, run } = useKeyboard()
   const layout = useShellLayout()
-  const actions = useShellActions()
   const overlays = useOverlays()
 
   function label(commandId: string, fallback: string): string {
     const binding = keymap.bindingFor(commandId)
 
     return binding === null ? fallback : `${fallback} · ${keymap.format(binding, platform)}`
+  }
+
+  /*
+   * Through the command, not through the shell action it happens to call.
+   *
+   * These two buttons reached `actions.toggleLeft()` directly while ⌘\ reached
+   * `view.toggle-left-panel`, which does the same thing. Identical behaviour,
+   * so nothing looked wrong — but it meant the one measurement
+   * docs/observability.md asks for by name could never be taken: a toggle run
+   * from a button was invisible, so "is anybody finding the shortcut" had only
+   * one of its two numbers. It is also the rule commands exist for, that one
+   * definition is reached from a keystroke, the palette and a button alike.
+   */
+  function press(commandId: string): void {
+    run(
+      commandId,
+      { scopes: ["studio"], selectionCount: 0, isEditingText: false, isDirty: false },
+      "toolbar",
+    )
   }
 
   /*
@@ -76,7 +93,7 @@ export function Toolbar({ projectName }: { projectName: string }) {
             size="sm"
             aria-label="Toggle left sidebar"
             aria-pressed={!layout.leftCollapsed}
-            onClick={() => actions.toggleLeft()}
+            onClick={() => press("view.toggle-left-panel")}
           >
             <PanelLeft aria-hidden="true" className="size-4" />
           </Button>
@@ -88,7 +105,7 @@ export function Toolbar({ projectName }: { projectName: string }) {
             size="sm"
             aria-label="Toggle inspector"
             aria-pressed={!layout.rightCollapsed}
-            onClick={() => actions.toggleRight()}
+            onClick={() => press("view.toggle-right-panel")}
           >
             <PanelRight aria-hidden="true" className="size-4" />
           </Button>
@@ -141,7 +158,7 @@ function HistoryButton({
   name: string
   icon: ComponentType<{ className?: string }>
 }): ReactElement | null {
-  const { commands } = useKeyboard()
+  const { commands, run } = useKeyboard()
   // Subscribed so the button enables the moment there is something to undo.
   const depth = useEditorStore((state) =>
     commandId === "edit.undo" ? state.history.past.length : state.history.future.length,
@@ -159,12 +176,11 @@ function HistoryButton({
         aria-label={name}
         disabled={depth === 0}
         onClick={() =>
-          void command.run({
-            scopes: ["studio"],
-            selectionCount: 0,
-            isEditingText: false,
-            isDirty: false,
-          })
+          run(
+            commandId,
+            { scopes: ["studio"], selectionCount: 0, isEditingText: false, isDirty: false },
+            "toolbar",
+          )
         }
       >
         <Icon aria-hidden="true" className="size-4" />
