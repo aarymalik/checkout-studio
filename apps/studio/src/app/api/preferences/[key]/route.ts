@@ -31,6 +31,7 @@ const SCOPE_IDS = [
   "canvas.selection",
   "canvas.multi-selection",
   "canvas.text-editing",
+  "canvas.dragging",
   "layers",
   "inspector",
   "library",

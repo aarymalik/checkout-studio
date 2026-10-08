@@ -22,6 +22,7 @@ import {
   boundsOf,
   useAutoScroll,
   useDrag,
+  indicatorTarget,
   useResize,
   useScope,
   useViewport,
@@ -125,6 +126,17 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
    * activated it, so a binding there could never have fired.
    */
   useScope("canvas.selection", selected.length > 0)
+
+  /*
+   * And the canvas with something in the hand, which is modal.
+   *
+   * Deeper than `canvas.selection`, so while a node is being carried ↵ drops it
+   * rather than stepping into it and Escape puts it back rather than clearing
+   * the selection. Neither binding knows about the other; the scope decides.
+   */
+  const keyboardDrag = useEditorStore((state) => state.drag.keyboard)
+
+  useScope("canvas.dragging", keyboardDrag !== null)
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [marquee, setMarquee] = useState<Rect | null>(null)
@@ -317,6 +329,32 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
   )
 
   const drag = useDrag({ rects, toCanvas: canvasPoint })
+
+  /**
+   * Where to draw "here", from whichever drag is in progress.
+   *
+   * One indicator, two gestures. A pointer drag resolves a node and a side; a
+   * keyboard drag knows a parent and an index and `indicatorTarget` turns that
+   * into the same pair — so the overlay draws one thing and does not need to
+   * know which hand it came from.
+   */
+  const dropIndicator = useMemo(() => {
+    const keyboard = keyboardDrag === null ? null : indicatorTarget(keyboardDrag)
+
+    if (keyboard !== null) {
+      const rect = rects.get(keyboard.overId)
+
+      return rect === undefined ? null : { rect, position: keyboard.position, refused: false }
+    }
+
+    if (drag.drop === null) return null
+
+    return {
+      rect: rects.get(drag.drop.overId) ?? frameBox,
+      position: drag.drop.position,
+      refused: drag.rejection !== null,
+    }
+  }, [keyboardDrag, drag.drop, drag.rejection, rects, frameBox])
 
   const autoScroll = useAutoScroll(surface)
 
@@ -528,19 +566,7 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
           marquee={marquee}
           resizable={resizable}
           surfaceHeight={surface.current?.clientHeight ?? 0}
-          drop={
-            drag.drop === null
-              ? null
-              : (() => {
-                  const target = rects.get(drag.drop.overId) ?? frameBox
-
-                  return {
-                    rect: target,
-                    position: drag.drop.position,
-                    refused: drag.rejection !== null,
-                  }
-                })()
-          }
+          drop={dropIndicator}
           onResizeStart={(handle, event) => {
             // The grip owns the gesture from here, so the surface beneath it
             // must not also start a marquee.

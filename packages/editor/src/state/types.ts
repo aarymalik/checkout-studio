@@ -119,6 +119,40 @@ export interface DragState {
   ids: readonly string[]
   overId: string | null
   position: "before" | "after" | "inside" | null
+  /**
+   * The keyboard's drag, which is modal rather than held.
+   *
+   * Separate from the fields above because a pointer drag is a gesture that
+   * ends when the button comes up, and this one waits: it stays until the user
+   * drops it or puts it back.
+   */
+  keyboard: KeyboardDrag | null
+}
+
+/**
+ * A node picked up by the keyboard, and where it would land.
+ *
+ * Declared here rather than in `src/dnd` because the store holds it, and the
+ * store must not import from the drag layer: `dnd/validity` reads
+ * `state/selectors`, so the edge back would be a cycle and
+ * `pnpm boundaries` would say so. The same arrangement as `Corruption`.
+ */
+export interface KeyboardDrag {
+  /** The node in the hand. */
+  id: string
+  /** Where it would land. The two values `move` takes. */
+  parentId: string
+  index: number
+  /**
+   * The document with the pending move applied.
+   *
+   * Carried so the next step is computed from where the node would be rather
+   * than from where it still is. Never shown and never persisted — the drop
+   * writes a single `move` to the real document instead.
+   */
+  provisional: CheckoutSchema
+  /** How far it has been moved, so "back where it started" is knowable. */
+  steps: number
 }
 
 export interface AssetsState {

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import type { ReactElement } from "react"
-import { labelFor, useEditorStore } from "@checkout-studio/editor"
+import { describeDrag, labelFor, useEditorStore } from "@checkout-studio/editor"
 import { siblings } from "@checkout-studio/schema"
 
 /**
@@ -28,8 +28,20 @@ import { siblings } from "@checkout-studio/schema"
 export function SelectionAnnouncer(): ReactElement {
   const document = useEditorStore((state) => state.document)
   const selected = useEditorStore((state) => state.selection.ids)
+  const drag = useEditorStore((state) => state.drag.keyboard)
 
   const message = useMemo(() => {
+    /*
+     * A node in the hand outranks the selection.
+     *
+     * "Each candidate position is announced", per docs/keyboard-shortcuts.md
+     * § Keyboard drag and drop — and while something is being carried, where it
+     * would land is the only thing the user is waiting to hear. Derived rather
+     * than pushed: the store holds the drag, so this says what the store holds
+     * and there is no second place keeping the same sentence.
+     */
+    if (drag !== null) return describeDrag(drag)
+
     if (selected.length === 0) return "Nothing selected"
 
     // A count rather than each name. Five names read in sequence tells nobody
@@ -55,7 +67,7 @@ export function SelectionAnnouncer(): ReactElement {
     const hidden = node.visibility.hidden ? ", hidden" : ""
 
     return `${labelFor(node)}${place}${locked}${hidden}`
-  }, [document, selected])
+  }, [document, selected, drag])
 
   return (
     <div role="status" aria-live="polite" className="sr-only">

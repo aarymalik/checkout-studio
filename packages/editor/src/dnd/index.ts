@@ -9,6 +9,12 @@
  * See docs/phases.md Phase 8.
  */
 
+export { createDndCommands, dndCommandDescriptors } from "./commands"
+export type { DndCommandOptions } from "./commands"
+
+export { describeDrag, indicatorTarget, pickUp, stepDrag } from "./keyboard"
+export type { DescribeOptions, DragStep, KeyboardDrag } from "./keyboard"
+
 export { useDrag } from "./hooks"
 export type { DragControls, UseDragOptions } from "./hooks"
 

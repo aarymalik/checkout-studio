@@ -1,12 +1,14 @@
 import type { ShortcutRegistration } from "../types"
 import { globalShortcuts } from "./global"
 import { arrangeShortcuts } from "./arrange"
+import { dndShortcuts } from "./dnd"
 import { editShortcuts } from "./edit"
 import { selectionShortcuts } from "./selection"
 import { shellShortcuts } from "./shell"
 import { viewportShortcuts } from "./viewport"
 
 export { arrangeShortcuts } from "./arrange"
+export { dndShortcuts } from "./dnd"
 export { editShortcuts } from "./edit"
 export { globalShortcuts } from "./global"
 export { selectionShortcuts } from "./selection"
@@ -30,4 +32,5 @@ export const defaultShortcuts: readonly ShortcutRegistration[] = [
   ...editShortcuts,
   ...arrangeShortcuts,
   ...selectionShortcuts,
+  ...dndShortcuts,
 ]
