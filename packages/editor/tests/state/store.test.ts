@@ -114,6 +114,8 @@ describe("drag", () => {
       // touch it: one waits to be dropped, the other ends when the button
       // comes up.
       keyboard: null,
+      // And nothing is being added: this gesture moves what exists.
+      inserting: null,
     })
   })
 
@@ -124,7 +126,13 @@ describe("drag", () => {
     store.getState().setDropTarget("footer", "before")
     store.getState().endDrag()
 
-    expect(state().drag).toEqual({ ids: [], overId: null, position: null, keyboard: null })
+    expect(state().drag).toEqual({
+      ids: [],
+      overId: null,
+      position: null,
+      keyboard: null,
+      inserting: null,
+    })
   })
 
   // Drag state is separate from the document: nothing has happened yet.

@@ -15,13 +15,13 @@ export type { DndCommandOptions } from "./commands"
 export { describeDrag, indicatorTarget, pickUp, stepDrag } from "./keyboard"
 export type { DescribeOptions, DragStep, KeyboardDrag } from "./keyboard"
 
-export { useDrag } from "./hooks"
-export type { DragControls, UseDragOptions } from "./hooks"
+export { useDrag, useInsertDrag } from "./hooks"
+export type { DragControls, InsertDragControls, UseDragOptions } from "./hooks"
 
 export { edgeBand, indexWithin, resolveDrop } from "./resolve"
 export type { Drop, DropPosition, ResolveOptions } from "./resolve"
 
-export { canDrop, dropRejection } from "./validity"
+export { canDrop, canInsert, dropRejection, insertRejection } from "./validity"
 export type { DropRules, Rejection, RejectionCode } from "./validity"
 
 export { indicatorFor } from "./indicator"

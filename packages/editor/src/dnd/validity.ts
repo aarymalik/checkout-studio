@@ -152,6 +152,64 @@ function explain(
   }
 }
 
+/**
+ * Why a new component may not be put into `parentId`, or null when it may.
+ *
+ * Separate from `dropRejection`, and not an empty-ids call to it, because the
+ * two ask different questions. Moving a node can make a cycle and can move
+ * something locked; inserting one can do neither — there is no node yet. What
+ * is left is the destination: whether it exists, whether it is locked, and
+ * whether it takes children at all.
+ *
+ * The last of those is the reason this function exists rather than reusing the
+ * other with no ids. `dropRejection` asks "does the parent accept children"
+ * inside its per-id loop, so with nothing being moved it never asks — and an
+ * insert into a heading would have been allowed by a check that looked like it
+ * covered it.
+ */
+export function insertRejection(
+  document: CheckoutSchema,
+  parentId: string,
+  rules: DropRules = {},
+): Rejection | null {
+  const parent = document.nodes[parentId]
+
+  if (parent === undefined) {
+    return {
+      code: "missing-parent",
+      message: "That place is no longer there.",
+      nodeIds: [parentId],
+    }
+  }
+
+  if (isLocked(document, parentId)) {
+    return {
+      code: "locked-destination",
+      message: `${name(document, parentId, rules)} is locked, so nothing can be added to it.`,
+      nodeIds: [parentId],
+    }
+  }
+
+  if (rules.canHaveChildren?.(parent) === false) {
+    return {
+      code: "rejects-children",
+      message: `${name(document, parentId, rules)} does not take components.`,
+      nodeIds: [parentId],
+    }
+  }
+
+  return null
+}
+
+/** Whether a new component may be put there, for the yes-or-no cases. */
+export function canInsert(
+  document: CheckoutSchema,
+  parentId: string,
+  rules: DropRules = {},
+): boolean {
+  return insertRejection(document, parentId, rules) === null
+}
+
 /** Whether a drop is allowed, for the cases that only need yes or no. */
 export function canDrop(
   document: CheckoutSchema,
