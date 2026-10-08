@@ -32,6 +32,17 @@ Each component defines:
 
 # Component Categories
 
+Declared by each component, not inferred. `ComponentDefinition.category` is a
+union of exactly these eight, so a typo is a type error rather than a ninth
+group appearing in the library panel with one component in it — and it is
+required, because a component nobody can find is a component nobody uses and a
+default would file the ones that forgot somewhere their absence goes unnoticed.
+
+The library panel is built from the registry and groups by this field in the
+order below, leaving out the categories nothing is in. That is what makes a
+plugin's components appear by being registered: there is no list anywhere to
+update.
+
 ```
 Layout
 

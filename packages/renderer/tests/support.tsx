@@ -47,6 +47,7 @@ export function definition(
   return {
     type,
     name: type.slice(type.indexOf(".") + 1),
+    category: "Utility",
     interactive: false,
     container: true,
     defaultProps: {},

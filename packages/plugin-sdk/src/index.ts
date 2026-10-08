@@ -10,9 +10,10 @@
  * See docs/plugin-api.md.
  */
 
-export { namespaceOf } from "./component"
+export { COMPONENT_CATEGORIES, namespaceOf } from "./component"
 export type {
   AssetUrls,
+  ComponentCategory,
   ComponentDefinition,
   ComponentRenderProps,
   ComponentThemeSlotRegistration,

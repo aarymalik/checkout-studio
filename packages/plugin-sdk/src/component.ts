@@ -76,11 +76,43 @@ export interface ComponentThemeSlotRegistration {
   toStyles?: (slot: Readonly<Record<string, unknown>>, node: Node) => StyleProperties
 }
 
+/**
+ * Where a component appears in the library panel.
+ *
+ * The canonical list, from docs/component-library.md § Component Categories.
+ * A union rather than a string so that a typo is a type error instead of a
+ * ninth group appearing in the panel with one component in it — the same
+ * reason breakpoints and style states are unions here.
+ */
+export type ComponentCategory =
+  "Layout" | "Typography" | "Media" | "Forms" | "Checkout" | "Marketing" | "Navigation" | "Utility"
+
+/** Every category, in the order the library panel shows them. */
+export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
+  "Layout",
+  "Typography",
+  "Media",
+  "Forms",
+  "Checkout",
+  "Marketing",
+  "Navigation",
+  "Utility",
+]
+
 export interface ComponentDefinition {
   /** `<namespace>.<kebab-name>`. The namespace must be the registering plugin's id. */
   type: string
   /** The display name. Used by the editor's error card and the layers panel. */
   name: string
+  /**
+   * Which group it appears under in the library panel.
+   *
+   * Required, because a component nobody can find is a component nobody uses,
+   * and a default would file the ones that forgot under a group where their
+   * absence from the right one goes unnoticed. The catalog in
+   * docs/component-library.md is the source of truth for which is which.
+   */
+  category: ComponentCategory
   /**
    * Whether this component ships JavaScript to a published page.
    *

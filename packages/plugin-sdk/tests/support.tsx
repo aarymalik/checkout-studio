@@ -41,6 +41,7 @@ export function definition(
   return {
     type,
     name: type,
+    category: "Utility",
     interactive: false,
     container: true,
     defaultProps: {},
