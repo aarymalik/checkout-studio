@@ -220,8 +220,8 @@ These apply to **every** phase, in addition to its specific criteria.
 | 4     | Studio Shell                    | **Complete** | 3A         |
 | 5     | Editor State Engine             | **Complete** | 2          |
 | 6     | Renderer Engine                 | **Complete** | 2, 5       |
-| 7     | Visual Canvas                   | Not Started  | 4, 6       |
-| 8     | Drag & Drop Engine              | Not Started  | 7          |
+| 7     | Visual Canvas                   | **Complete** | 4, 6       |
+| 8     | Drag & Drop Engine              | **Complete** | 7          |
 | 9     | Core Component Library          | Not Started  | 8          |
 | 10    | Form System                     | Not Started  | 9          |
 | 11    | Checkout Components             | Not Started  | 10         |
@@ -1664,6 +1664,27 @@ pnpm test:e2e --filter=studio -g "drag"
 ✓ 60 FPS sustained during drag
 ✓ One drag equals one undo step
 ```
+
+### As Built — Deviations
+
+**dnd-kit is used nowhere.** The reasoning is in the implementation steps above:
+its draggable model needs refs and listeners on each draggable element, and
+neither the canvas nor the layers panel turned out to want that. The canvas does
+not own the DOM of the nodes being moved — the renderer does, and
+architecture.md holds that the renderer must never depend on builder code. The
+panels do own their rows, but what they needed was a pointer gesture and a
+keymap, both of which this project already had, and adding a second keyboard
+model beside `canvas.dragging` would have meant two answers to "what does the
+down arrow do".
+
+**Telemetry is outstanding, here and in Phase 7.** The universal criteria ask
+for telemetry per observability.md, which specifies `editor_frame_duration_ms`,
+`editor_dropped_frames_total` and `editor_command_total`. The studio emits
+logs and no client metrics; `metricsSink` is in-memory with no transport, so
+there is nowhere for a client metric to go. Phase 7 added the canvas and
+emitted none either. Recorded rather than quietly carried forward a third time:
+a client telemetry transport is a piece of infrastructure, and which phase owns
+it is a decision, not an oversight to be fixed in passing.
 
 ---
 

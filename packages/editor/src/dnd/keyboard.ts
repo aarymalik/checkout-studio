@@ -1,7 +1,7 @@
 import { move as moveNode, type CheckoutSchema, type Node } from "@checkout-studio/schema"
 
 import { indent, moveDown, moveUp, outdent } from "../layers/reorder"
-import type { KeyboardDrag } from "../state/types"
+import type { KeyboardDrag, Rejection } from "../state/types"
 import type { DropPosition } from "./resolve"
 import { dropRejection, type DropRules } from "./validity"
 
@@ -70,7 +70,14 @@ export function pickUp(
   // node itself forbids moving it at all.
   if (dropRejection(document, [id], here.parentId, rules) !== null) return null
 
-  return { id, parentId: here.parentId, index: here.index, provisional: document, steps: 0 }
+  return {
+    id,
+    parentId: here.parentId,
+    index: here.index,
+    provisional: document,
+    steps: 0,
+    refusal: null,
+  }
 }
 
 const STEPS = { up: moveUp, down: moveDown, in: indent, out: outdent } as const
@@ -80,12 +87,36 @@ const STEPS = { up: moveUp, down: moveDown, in: indent, out: outdent } as const
  *
  * Unchanged rather than null at the ends, so a key pressed once too often is a
  * key that did nothing rather than one that dropped what was being carried.
+ *
+ * ## Two different kinds of nowhere
+ *
+ * The end of a list is not a refusal: there is no place, so there is nothing to
+ * explain. A locked container is — there is a place, and something decided it
+ * is closed. The second one is carried on the returned drag so the canvas can
+ * show it and the live region can read it; the first leaves `refusal` null,
+ * which also clears a previous one, because the position it describes is still
+ * where the node is and is still correct.
+ *
+ * Identity is the signal the caller acts on: the same object back means nothing
+ * moved and there is nothing new to say. So a refusal whose sentence the drag
+ * already holds returns the drag itself — pressing into the same locked
+ * container twice is one piece of news, not two.
  */
 export function stepDrag(drag: KeyboardDrag, step: DragStep, rules: DropRules = {}): KeyboardDrag {
   const candidate = STEPS[step](drag.provisional, drag.id)
 
-  if (candidate === null) return drag
-  if (dropRejection(drag.provisional, [drag.id], candidate.parentId, rules) !== null) return drag
+  if (candidate === null) return drag.refusal === null ? drag : { ...drag, refusal: null }
+
+  const refusal: Rejection | null = dropRejection(
+    drag.provisional,
+    [drag.id],
+    candidate.parentId,
+    rules,
+  )
+
+  if (refusal !== null) {
+    return drag.refusal?.message === refusal.message ? drag : { ...drag, refusal }
+  }
 
   /*
    * Accepted, because `dropRejection` has just said so.
@@ -111,6 +142,7 @@ export function stepDrag(drag: KeyboardDrag, step: DragStep, rules: DropRules = 
     index: landed.index,
     provisional: applied.document,
     steps: drag.steps + 1,
+    refusal: null,
   }
 }
 
@@ -178,6 +210,16 @@ export function describeDrag(drag: KeyboardDrag, options: DescribeOptions = {}):
 
     return options.nameOf?.(node) ?? node.metadata.name ?? id
   }
+
+  /*
+   * The refusal alone, not the refusal and then the position.
+   *
+   * Nothing moved, so the position is the sentence the user heard on the
+   * previous keystroke and the reason is the only new information. Reading both
+   * would put the news behind something already known — and a live region is
+   * read start to finish.
+   */
+  if (drag.refusal !== null) return drag.refusal.message
 
   const target = indicatorTarget(drag)
   const moving = name(drag.id)

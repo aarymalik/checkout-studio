@@ -136,7 +136,9 @@ describe("stepping", () => {
 
     const stuck = stepDrag(drag, "in", { canHaveChildren: () => false })
 
-    expect(stuck).toBe(drag)
+    expect(stuck.parentId).toBe(drag.parentId)
+    expect(stuck.index).toBe(drag.index)
+    expect(stuck.steps).toBe(0)
   })
 
   it("hands the caller's rules to the engine, not just to the check", () => {
@@ -176,6 +178,66 @@ describe("stepping", () => {
     }
 
     expect(seen.size).toBeGreaterThan(3)
+  })
+
+  it("records why a refused step went nowhere", () => {
+    const drag = pickUp(tree(), "last")
+
+    if (drag === null) throw new Error("It should have lifted.")
+
+    // `locked` is the sibling above, so stepping in aims at it.
+    const refused = stepDrag(drag, "in", { canHaveChildren: () => true })
+
+    expect(refused.refusal?.code).toBe("locked-destination")
+    expect(refused.refusal?.message).toBe("Footer is locked, so nothing can be moved into it.")
+  })
+
+  it("returns the same drag for the same refusal twice", () => {
+    const drag = pickUp(tree(), "last")
+
+    if (drag === null) throw new Error("It should have lifted.")
+
+    const rules = { canHaveChildren: () => true }
+    const once = stepDrag(drag, "in", rules)
+
+    /*
+     * Identity is how the step command decides whether to write, and the same
+     * sentence a second time is not news. Pressing into the same locked
+     * container twice should be one announcement, not an announcement and then
+     * a re-render that says nothing.
+     */
+    expect(stepDrag(once, "in", rules)).toBe(once)
+  })
+
+  it("forgets the refusal once a step succeeds", () => {
+    const drag = pickUp(tree(), "last")
+
+    if (drag === null) throw new Error("It should have lifted.")
+
+    const refused = stepDrag(drag, "in", { canHaveChildren: () => true })
+
+    expect(refused.refusal).not.toBeNull()
+    expect(stepDrag(refused, "up").refusal).toBeNull()
+  })
+
+  it("forgets the refusal at the end of a list, where there is nothing to explain", () => {
+    const drag = pickUp(tree(), "last")
+
+    if (drag === null) throw new Error("It should have lifted.")
+
+    const refused = stepDrag(drag, "in", { canHaveChildren: () => true })
+
+    /*
+     * The end of a row is not a refusal: there is no place, so there is
+     * nothing to say about it — and the position the drag still describes is
+     * correct, so leaving a stale reason attached would announce a rule the
+     * user did not just hit.
+     */
+    const ends = stepDrag(refused, "down")
+
+    expect(ends.refusal).toBeNull()
+    expect(ends.parentId).toBe(refused.parentId)
+    expect(ends.index).toBe(refused.index)
   })
 
   it("never writes to the document it was given", () => {
@@ -296,6 +358,23 @@ describe("what is announced", () => {
     if (drag === null) throw new Error("It should have lifted.")
 
     expect(describeDrag({ ...drag, parentId: "ghost" })).toBe("Last, nowhere to put it")
+  })
+
+  it("reads the refusal instead of the position, which has not changed", () => {
+    const drag = pickUp(tree(), "last")
+
+    if (drag === null) throw new Error("It should have lifted.")
+
+    const refused = stepDrag(drag, "in", { canHaveChildren: () => true })
+
+    /*
+     * Phase 8's third exit criterion, on the channel that needs it most. A
+     * refused step leaves the position alone, so the live region would be
+     * handed the sentence it already holds — and a live region given its own
+     * text announces nothing. An arrow into a locked container was
+     * indistinguishable from an arrow that is not bound.
+     */
+    expect(describeDrag(refused)).toBe("Footer is locked, so nothing can be moved into it.")
   })
 
   it("describes a position before a sibling", () => {

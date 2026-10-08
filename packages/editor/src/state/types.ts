@@ -147,12 +147,48 @@ export interface DragState {
  * `state/selectors`, so the edge back would be a cycle and
  * `pnpm boundaries` would say so. The same arrangement as `Corruption`.
  */
+export type RejectionCode =
+  /** The schema refused: into itself, into its own descendant, no such node. */
+  | "cycle"
+  | "missing-node"
+  | "missing-parent"
+  | "root-immovable"
+  | "rejects-children"
+  /** The node being dragged is locked, or sits inside something locked. */
+  | "locked-source"
+  /** The destination is locked, or sits inside something locked. */
+  | "locked-destination"
+
+/**
+ * Why something may not be dropped where it was aimed.
+ *
+ * Built in `src/dnd/validity`, which re-exports both of these — declared here
+ * for the same reason `KeyboardDrag` is, and because `KeyboardDrag` carries
+ * one. A refusal the store does not hold is a refusal nothing can render.
+ */
+export interface Rejection {
+  code: RejectionCode
+  /** Shown to the user, so it says what is wrong rather than naming a rule. */
+  message: string
+  /** The nodes the message is about, for highlighting them. */
+  nodeIds: readonly string[]
+}
+
 export interface KeyboardDrag {
   /** The node in the hand. */
   id: string
   /** Where it would land. The two values `move` takes. */
   parentId: string
   index: number
+  /**
+   * Why the last step went nowhere, or null when it went somewhere.
+   *
+   * A refused step leaves the position alone, so without this the refusal is
+   * invisible and — because the live region would be handed the sentence it
+   * already holds — inaudible too. Pressing an arrow into a locked container
+   * was indistinguishable from pressing a key that is not bound.
+   */
+  refusal: Rejection | null
   /**
    * The document with the pending move applied.
    *

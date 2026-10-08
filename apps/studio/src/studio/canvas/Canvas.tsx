@@ -28,9 +28,9 @@ import {
   useScope,
   useViewport,
 } from "@checkout-studio/editor"
-import type { Rect } from "@checkout-studio/editor"
+import type { Rect, Rejection } from "@checkout-studio/editor"
 import { CheckoutRenderer } from "@checkout-studio/renderer"
-import type { CheckoutTheme } from "@checkout-studio/schema"
+import type { CheckoutTheme, Node } from "@checkout-studio/schema"
 import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
 import { siblings } from "@checkout-studio/schema"
 
@@ -329,17 +329,32 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
     [localPoint, store],
   )
 
-  const drag = useDrag({ rects, toCanvas: canvasPoint })
+  /**
+   * The two rules the drag engine has no opinion about.
+   *
+   * Which components take children belongs to the registry, and what to call
+   * one belongs to the layers panel's naming — `labelFor`, so a refusal, a
+   * hover label and a layers row cannot call the same node three things.
+   *
+   * Both drags get both. `useDrag` was built with neither, which meant a node
+   * moved on the canvas could be dropped into a component that holds nothing,
+   * and that the sentence explaining a refusal had no name to use.
+   */
+  const rules = useMemo(
+    () => ({
+      canHaveChildren: (node: Node) => registry.get(node.type)?.container ?? true,
+      nameOf: labelFor,
+    }),
+    [registry],
+  )
+
+  const drag = useDrag({ rects, toCanvas: canvasPoint, ...rules })
   /*
    * The library's drag, resolved here for the same reason the canvas resolves
    * its own: this is the only thing that knows where anything is. What it needs
    * from the library is the type, which travels through the store.
    */
-  const inserting = useInsertDrag({
-    rects,
-    toCanvas: canvasPoint,
-    canHaveChildren: (node) => registry.get(node.type)?.container ?? true,
-  })
+  const inserting = useInsertDrag({ rects, toCanvas: canvasPoint, ...rules })
 
   /**
    * Where to draw "here", from whichever drag is in progress.
@@ -377,6 +392,44 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
       position: drag.drop.position,
       refused: drag.rejection !== null,
     }
+  }, [
+    inserting.type,
+    inserting.drop,
+    inserting.rejection,
+    keyboardDrag,
+    drag.drop,
+    drag.rejection,
+    rects,
+    frameBox,
+  ])
+
+  /**
+   * Why the drop was refused, and which box to say it next to.
+   *
+   * Phase 8's third exit criterion. The reasons have always been written — the
+   * drag layer builds a sentence per rule and names the node it is about — and
+   * until now nothing read one, so the whole of "that is locked" reached the
+   * user as the indicator turning red.
+   *
+   * The two gestures anchor it differently, and have to. A pointer is on the
+   * refused spot, so the sentence belongs there, on the red indicator. A
+   * refused keyboard step leaves the position alone, so the sentence belongs
+   * on the node in hand: the indicator is still showing somewhere the node may
+   * legitimately go, and labelling that red would be a lie about it.
+   */
+  const dropRefusal = useMemo(() => {
+    const at = (id: string | undefined, rejection: Rejection | null) => {
+      if (rejection === null) return null
+
+      const rect = (id === undefined ? undefined : rects.get(id)) ?? frameBox
+
+      return { rect, message: rejection.message }
+    }
+
+    if (inserting.type !== null) return at(inserting.drop?.overId, inserting.rejection)
+    if (keyboardDrag !== null) return at(keyboardDrag.id, keyboardDrag.refusal)
+
+    return at(drag.drop?.overId, drag.rejection)
   }, [
     inserting.type,
     inserting.drop,
@@ -599,6 +652,7 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
           resizable={resizable}
           surfaceHeight={surface.current?.clientHeight ?? 0}
           drop={dropIndicator}
+          refusal={dropRefusal}
           onResizeStart={(handle, event) => {
             // The grip owns the gesture from here, so the surface beneath it
             // must not also start a marquee.

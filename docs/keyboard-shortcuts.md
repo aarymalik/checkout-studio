@@ -995,6 +995,16 @@ to the selection while one is held. "Last, after Footer, in Page" names the
 neighbour and the container, because a position is only meaningful relative to
 something the user already knows about — and reading an index would say nothing.
 
+A refused step is announced too, and getting that right took a second attempt.
+A refused step leaves the position alone, so the live region was being handed
+the sentence it already held — and a live region given its own text announces
+nothing. An arrow into a locked container was, to a screen reader, identical to
+an arrow that is not bound. The reason is now carried on the drag itself, so
+what is read is "Footer is locked, so nothing can be moved into it" rather than
+the position for a second time. The same refusal twice stays one announcement,
+an accepted step clears it, and so does reaching the end of a row — where there
+is no destination and so nothing to explain.
+
 A drop back where the node started writes nothing. An entry there would be one
 that undoes to the same thing.
 
@@ -1002,7 +1012,7 @@ that undoes to the same thing.
 
 ```
 
-The mode is implemented with dnd-kit's keyboard sensor, rebound from its defaults (`Space` / `Enter`), which are already taken by pan and `↵`.
+The specification above called for dnd-kit's keyboard sensor, rebound from its defaults (`Space` / `Enter`). It is built without one: the canvas does not own the DOM of the nodes being moved — the renderer does — so there is no element for a sensor to attach to. See [phases.md](./phases.md) Phase 8 for the reasoning.
 
 This satisfies the requirement in [testing.md](./testing.md) that drag and drop be keyboard-testable.
 

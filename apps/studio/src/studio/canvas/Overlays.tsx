@@ -64,6 +64,16 @@ export interface OverlaysProps {
   surfaceHeight?: number
   /** Where a drag would land, drawn so the drop is never a surprise. */
   drop?: { rect: Rect; position: DropPosition; refused: boolean } | null
+  /**
+   * Why the drop was refused, anchored to the node the reason is about.
+   *
+   * Separate from `drop` because the two are not always the same place. A
+   * pointer sits on the refused spot, so the sentence lands on the red
+   * indicator. A refused keyboard step does not move, so the indicator stays
+   * where it legitimately is and the sentence is attached to the node in hand
+   * instead — drawing that position red would call a valid place invalid.
+   */
+  refusal?: { rect: Rect; message: string } | null
 }
 
 export function Overlays({
@@ -77,6 +87,7 @@ export function Overlays({
   resizable = true,
   surfaceHeight = 0,
   drop = null,
+  refusal = null,
   onResizeStart,
 }: OverlaysProps): ReactElement {
   const primary = selected[0]
@@ -161,6 +172,22 @@ export function Overlays({
           would be the guessing this is here to remove.
         */}
         {drop === null ? null : <DropIndicator {...drop} transform={transform} />}
+
+        {/*
+          And why not, in words.
+
+          Phase 8's third exit criterion is that every rejection explains
+          itself. The messages were written and tested long before anything
+          read them, which meant a refused drag turned red and left the user to
+          work out which of seven rules they had hit.
+        */}
+        {refusal === null
+          ? null
+          : (() => {
+              const screen = rectToScreen(refusal.rect, transform)
+
+              return <Label text={refusal.message} x={screen.x} y={screen.y} tone="danger" />
+            })()}
 
         {marquee === null ? null : (
           <div
@@ -304,12 +331,27 @@ function Line({ guide, transform }: { guide: Guide; transform: Transform }): Rea
  * Above the node, and below it when there is no room above — a label clipped by
  * the top of the viewport tells the user nothing.
  */
-function Label({ text, x, y }: { text: string; x: number; y: number }): ReactElement {
+function Label({
+  text,
+  x,
+  y,
+  tone = "primary",
+}: {
+  text: string
+  x: number
+  y: number
+  tone?: "primary" | "danger"
+}): ReactElement {
   const above = y > 24
 
   return (
     <div
-      className="absolute whitespace-nowrap rounded-sm bg-primary px-2 py-1 text-tiny text-primary-foreground"
+      className={cn(
+        "absolute whitespace-nowrap rounded-sm px-2 py-1 text-tiny",
+        tone === "danger"
+          ? "bg-danger text-danger-foreground"
+          : "bg-primary text-primary-foreground",
+      )}
       style={{ left: x, top: above ? y - 22 : y + 2 }}
     >
       {text}
