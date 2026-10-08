@@ -17,5 +17,8 @@ export type { Window, WindowOptions } from "./window"
 export { searchLayers } from "./search"
 export type { SearchResult } from "./search"
 
+export { moveForRowDrop, rowAt, rowDropAt } from "./drop"
+export type { RowDrop, RowDropOptions, RowDropPosition } from "./drop"
+
 export { indent, moveDown, moveUp, outdent, rowAfter } from "./reorder"
 export type { Move } from "./reorder"
