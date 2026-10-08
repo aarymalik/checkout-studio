@@ -513,6 +513,16 @@ list has no "between" to render into.
 Nothing is written until the pointer comes up, so Escape cancels and there is
 nothing to undo.
 
+**Auto-expand on hover.** A drag resting on a collapsed container opens it after
+half a second. Without that a collapsed container can only be dropped _beside_,
+never _into_: its children are not on screen, so there is no row to aim at and
+no way to reach them without putting the drag down first.
+
+Resting, not crossing. A panel that unfolded every container the pointer passed
+over would rearrange itself under the drag, which is the one thing a drag cannot
+survive. And it stays open afterwards — closing it again would undo something
+the user watched happen, and they can close it themselves.
+
 ## Virtualization
 
 The panel renders the rows in view plus a margin, and replaces the rest with

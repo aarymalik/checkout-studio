@@ -22,6 +22,7 @@ import {
   moveUp,
   outdent,
   rowAfter,
+  rowAt,
   rowDropAt,
   scrollToRow,
   searchLayers,
@@ -38,6 +39,16 @@ import { EmptyState, ScrollArea, SearchInput, cn } from "@checkout-studio/ui"
 
 /** Below this the pointer wobbled while clicking, and nothing is dragged. */
 const DRAG_THRESHOLD = 4
+
+/**
+ * How long a drag must rest on a collapsed container before it opens.
+ *
+ * Long enough that crossing one on the way somewhere else does not open it —
+ * a panel that unfolded every container the pointer passed over would rearrange
+ * itself under the drag, which is the one thing a drag cannot survive. Short
+ * enough that resting there reads as asking.
+ */
+const EXPAND_DELAY_MS = 500
 
 /**
  * The Layers panel.
@@ -287,6 +298,55 @@ export function LayersPanel(): ReactElement {
 
   latest.current = { rows, document, canEdit }
 
+  /**
+   * Opening a collapsed container the drag is resting on.
+   *
+   * docs/phases.md Phase 8 step 5. Without it a collapsed container can only
+   * be dropped *beside*, never *into* — its children are not on screen, so
+   * there is no row to aim at and no way to reach them without putting the
+   * drag down first.
+   *
+   * It opens and stays open. Closing it again on the way out would undo
+   * something the user watched happen, and they can close it themselves.
+   */
+  const expanding = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null)
+
+  const considerExpanding = useCallback((row: LayerRow | null) => {
+    const pending = expanding.current
+
+    if (pending !== null && pending.id === row?.id) return
+
+    if (pending !== null) {
+      clearTimeout(pending.timer)
+      expanding.current = null
+    }
+
+    // Only a container that is closed and has something in it to reach.
+    if (row === null || !row.hasChildren || row.expanded) return
+
+    expanding.current = {
+      id: row.id,
+      timer: setTimeout(() => {
+        expanding.current = null
+        setCollapsed((current) => {
+          const next = new Set(current)
+
+          next.delete(row.id)
+
+          return next
+        })
+      }, EXPAND_DELAY_MS),
+    }
+  }, [])
+
+  /** Stop waiting, without closing anything already opened. */
+  const stopExpanding = useCallback(() => {
+    if (expanding.current === null) return
+
+    clearTimeout(expanding.current.timer)
+    expanding.current = null
+  }, [])
+
   const beginDrag = useCallback(
     (id: string, event: ReactPointerEvent) => {
       if (!canEdit || event.button !== 0) return
@@ -318,6 +378,8 @@ export function LayersPanel(): ReactElement {
       const y = event.clientY - bounds.top + surface.scrollTop
       const resolved = rowDropAt(current.rows, y)
 
+      considerExpanding(rowAt(current.rows, y))
+
       /*
        * Refused drops show nothing rather than a line that lies.
        *
@@ -340,6 +402,7 @@ export function LayersPanel(): ReactElement {
       armed.current = null
       setDragging(null)
       setDrop(null)
+      stopExpanding()
 
       if (start === null || landing === null || !latest.current.canEdit) return
 
@@ -356,6 +419,7 @@ export function LayersPanel(): ReactElement {
       armed.current = null
       setDragging(null)
       setDrop(null)
+      stopExpanding()
     }
 
     window.addEventListener("pointermove", move)
@@ -367,7 +431,23 @@ export function LayersPanel(): ReactElement {
       window.removeEventListener("pointerup", up)
       window.removeEventListener("keydown", cancel)
     }
-  }, [viewport, dragging, drop, store])
+  }, [viewport, dragging, drop, store, considerExpanding])
+
+  /*
+   * The pending expansion is cleared on unmount, and only on unmount.
+   *
+   * It was cleared in the gesture effect's cleanup, which looked tidier and did
+   * not work: that effect depends on `dragging`, which changes on the first
+   * move of every drag — so it tore down, cleared the timer it had just set,
+   * and no container ever opened. The same shape as the auto-scroll bug in
+   * Phase 7, where the effect called `track(null)` in its own cleanup and
+   * panned by exactly nothing.
+   *
+   * A timer that fires after the panel is gone opens a container nobody is
+   * looking at, so it still needs clearing — just not by something that runs
+   * mid-gesture.
+   */
+  useEffect(() => stopExpanding, [stopExpanding])
 
   const endRename = useCallback(
     (name: string | null) => {
