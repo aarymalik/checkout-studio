@@ -21,6 +21,28 @@ export type {
 } from "./component"
 
 export {
+  CONTROL_KINDS,
+  PROPERTY_GROUPS,
+  controlKind,
+  defineProperties,
+  propertyCondition,
+  propertyDefinition,
+  propertyDefinitions,
+  propertyGroup,
+  propertyOption,
+  propertyTarget,
+} from "./properties"
+export type {
+  ControlKind,
+  PropertyCondition,
+  PropertyDefinition,
+  PropertyDefinitionInput,
+  PropertyGroup,
+  PropertyOption,
+  PropertyTarget,
+} from "./properties"
+
+export {
   isCompatible,
   pluginCategory,
   pluginCompatibility,

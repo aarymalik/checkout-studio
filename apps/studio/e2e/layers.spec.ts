@@ -5,6 +5,19 @@ import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
 /**
+ * A layer row, by the name on it.
+ *
+ * Scoped to the tree, which it did not need to be until Phase 9. A node's name
+ * now appears twice on screen — once here and once in the canvas breadcrumb,
+ * which exists because the canvas mounts and something is selected — so an
+ * unscoped query resolves to two elements and Playwright refuses it. The
+ * duplication is correct: both are places a user reads the name.
+ */
+function layerRow(page: Page, name: string) {
+  return page.getByRole("tree", { name: "Layers" }).getByRole("button", { name, exact: true })
+}
+
+/**
  * The Layers panel, in a real browser.
  *
  * What jsdom cannot answer: whether the panel survives server rendering and
@@ -122,7 +135,7 @@ test("selects a node, and the store is what says so", async ({ context, page }) 
   await signIn(context)
   await openOwnLayers(page)
 
-  await page.getByRole("button", { name: "Title", exact: true }).click()
+  await layerRow(page, "Title").click()
 
   const rows = page.locator('[role="tree"][aria-label="Layers"] [role="treeitem"]')
 
@@ -145,7 +158,7 @@ test("renames a node, and the name survives a reload", async ({ context, page })
 
   const id = await openOwnLayers(page)
 
-  await page.getByRole("button", { name: "Body", exact: true }).click()
+  await layerRow(page, "Body").click()
   await page.keyboard.press("F2")
 
   const field = page.getByRole("textbox", { name: "Rename Body" })
@@ -158,8 +171,8 @@ test("renames a node, and the name survives a reload", async ({ context, page })
   await field.fill("Order summary")
   await field.press("Enter")
 
-  await expect(page.getByRole("button", { name: "Order summary", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Body", exact: true })).toBeHidden()
+  await expect(layerRow(page, "Order summary")).toBeVisible()
+  await expect(layerRow(page, "Body")).toBeHidden()
 
   // Focus goes back to the tree, or the next keystroke goes nowhere.
   await expect(page.getByRole("tree", { name: "Layers" })).toBeFocused()
@@ -170,7 +183,7 @@ test("renames a node, and the name survives a reload", async ({ context, page })
 
   await openLayers(page, id)
 
-  await expect(page.getByRole("button", { name: "Order summary", exact: true })).toBeVisible()
+  await expect(layerRow(page, "Order summary")).toBeVisible()
 })
 
 test("reorders with the keyboard, and the order survives a reload", async ({ context, page }) => {
@@ -187,7 +200,7 @@ test("reorders with the keyboard, and the order survives a reload", async ({ con
 
   expect(await order()).toEqual(["Header", "Body"])
 
-  await page.getByRole("button", { name: "Header", exact: true }).click()
+  await layerRow(page, "Header").click()
   await page.keyboard.press("Alt+ArrowDown")
 
   // Past Body, which is the only way to reorder without a pointer until drag
@@ -207,8 +220,8 @@ test("searches, keeping the ancestors of a match", async ({ context, page }) => 
 
   await page.getByRole("searchbox", { name: "Search layers" }).fill("title")
 
-  await expect(page.getByRole("button", { name: "Title", exact: true })).toBeVisible()
+  await expect(layerRow(page, "Title")).toBeVisible()
   // Without the chain above it, a result is a row with no context.
-  await expect(page.getByRole("button", { name: "Header", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Body", exact: true })).toBeHidden()
+  await expect(layerRow(page, "Header")).toBeVisible()
+  await expect(layerRow(page, "Body")).toBeHidden()
 })

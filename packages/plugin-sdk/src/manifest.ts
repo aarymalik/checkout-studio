@@ -15,7 +15,7 @@ import { PERMISSION_IDS, permission } from "./permissions"
 const semver = z.string().regex(/^\d+\.\d+\.\d+$/, "Expected major.minor.patch")
 
 /**
- * A plugin id doubles as the namespace of every component it registers: the
+ * A plugin id is normally the namespace of every component it registers: the
  * `checkout` plugin owns `checkout.*` and nothing else. That is what stops one
  * plugin quietly replacing another's components.
  */
@@ -46,6 +46,23 @@ export const pluginCompatibility = z
 export const pluginManifest = z
   .object({
     id: pluginId,
+    /**
+     * The component namespace this plugin writes into. Defaults to its id.
+     *
+     * Declared rather than derived because the catalog in
+     * docs/component-library.md says the `core` namespace is shared by the
+     * `core-*` plugins, and three packages cannot each derive `core` from
+     * `core-layout`, `core-content` and `core-embed`. The engine's own root
+     * node type is `core.page`, so `core` was never one plugin's to begin
+     * with.
+     *
+     * What this does not weaken: a duplicate type id is still refused, so a
+     * plugin cannot replace a component another one registered. What it does
+     * weaken is the claim — a plugin now says which namespace it owns instead
+     * of the host deciding, so the rule protects against a mistake rather than
+     * against intent.
+     */
+    namespace: pluginId.optional(),
     name: z.string().min(1).max(200),
     version: semver,
     description: z.string().min(1).max(500),

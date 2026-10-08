@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react"
 import { KeyboardProvider, CommandRegistry, KeymapRegistry } from "@checkout-studio/editor"
 import { defaultTheme } from "@checkout-studio/schema"
+import { emptyRegistry } from "@checkout-studio/plugin-sdk"
+import { manifest } from "@checkout-studio/plugin-core-layout"
 import { describe, expect, it } from "vitest"
 import type { ReactNode } from "react"
 
@@ -42,17 +44,44 @@ describe("CanvasArea", () => {
   })
 
   it("says once that there are no components, rather than once per node", () => {
-    // The registry this build ships is empty until Phase 9. A document is still
-    // a perfectly good document; there is nothing that knows how to draw it.
-    render(wrap(<CanvasArea theme={defaultTheme} />))
+    // Driven by an empty registry rather than by the build's own, which now
+    // has the core plugins in it. A document is still a perfectly good
+    // document; there is nothing that knows how to draw it.
+    render(wrap(<CanvasArea theme={defaultTheme} registry={emptyRegistry()} plugins={[]} />))
 
     expect(screen.getByText("No components yet")).toBeInTheDocument()
     expect(screen.queryByText(/not installed/)).toBeNull()
   })
 
   it("explains what does work, so it reads as unfinished rather than broken", () => {
-    render(wrap(<CanvasArea theme={defaultTheme} />))
+    render(wrap(<CanvasArea theme={defaultTheme} registry={emptyRegistry()} plugins={[]} />))
 
     expect(screen.getByText(/Pages, the canvas and the keyboard all work/)).toBeInTheDocument()
+  })
+
+  it("names the plugin that failed, rather than leaving a blank canvas", () => {
+    /*
+     * The likely cause now that components come from plugins, and the only one
+     * anybody can act on. The host records a reason per plugin precisely so
+     * this does not have to guess — and a canvas that knows why it is empty
+     * and does not say is the worst version of this state.
+     */
+    render(
+      wrap(
+        <CanvasArea
+          theme={defaultTheme}
+          registry={emptyRegistry()}
+          plugins={[
+            {
+              manifest: manifest,
+              state: "failed",
+              problem: { code: "activation-failed", message: "Section threw on activate." },
+            },
+          ]}
+        />,
+      ),
+    )
+
+    expect(screen.getByText(/Core Layout: Section threw on activate\./)).toBeInTheDocument()
   })
 })

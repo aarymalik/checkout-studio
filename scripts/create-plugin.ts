@@ -32,16 +32,29 @@ export function createPlugin(options: Omit<CreatePackageOptions, "kind">): strin
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 
   writeFileSync(join(dir, "src", "index.ts"), `export { manifest } from "./manifest"\n`)
+  /*
+   * Parsed, not merely typed, and complete.
+   *
+   * The previous template declared `{ id, name, version, components: [] }`,
+   * which has never satisfied `pluginManifest`: `components` is not a field and
+   * four required ones were missing. A generated package that does not compile
+   * is a scaffold nobody uses twice, and the first real plugin found this by
+   * not using it.
+   */
   writeFileSync(
     join(dir, "src", "manifest.ts"),
-    `import type { PluginManifest } from "${SCOPE}/plugin-sdk"
+    `import { pluginManifest, type PluginManifest } from "${SCOPE}/plugin-sdk"
 
-export const manifest: PluginManifest = {
+export const manifest: PluginManifest = pluginManifest.parse({
   id: "${options.name}",
   name: "${options.name}",
-  version: "0.0.0",
-  components: [],
-}
+  version: "0.1.0",
+  description: ${JSON.stringify(options.description)},
+  author: "Checkout Studio",
+  category: "components",
+  compatibility: { minEngineVersion: "0.1.0", schemaVersion: "1.0.0" },
+  permissions: [],
+})
 `,
   )
   writeFileSync(

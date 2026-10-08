@@ -14,7 +14,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "coverage": "turbo test:coverage --filter=@checkout-studio/schema --filter=@checkout-studio/editor --filter=@checkout-studio/renderer --filter=@checkout-studio/plugin-sdk",
+    "coverage": "turbo test:coverage --filter=@checkout-studio/schema --filter=@checkout-studio/editor --filter=@checkout-studio/renderer --filter=@checkout-studio/plugin-sdk --filter=@checkout-studio/plugin-core-layout",
     "test:e2e": "turbo test:e2e",
     "test:visual": "turbo test:visual",
     "check": "turbo lint typecheck test build && pnpm coverage && pnpm typecheck:scripts && pnpm boundaries && pnpm tokens:check && pnpm renderer:deps && pnpm renderer:bundle",

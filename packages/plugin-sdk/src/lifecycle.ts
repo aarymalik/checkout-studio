@@ -115,53 +115,121 @@ export class PluginHost {
     const builder = new RegistryBuilder()
 
     for (const plugin of this.plugins) {
-      const { manifest } = plugin
+      const prepared = this.prepare(plugin)
 
-      const compatibility = isCompatible(manifest, this.options.versions)
-      if (!compatibility.compatible) {
-        this.states.set(manifest.id, {
-          manifest,
-          state: "disabled",
-          problem: { code: "incompatible", message: compatibility.message },
-        })
-        continue
-      }
-
-      const granted = this.options.granted?.[manifest.id] ?? []
-      const missing = withheld(manifest.permissions, granted)
-      if (missing.length > 0) {
-        this.states.set(manifest.id, {
-          manifest,
-          state: "disabled",
-          problem: {
-            code: "permission-withheld",
-            message: `${manifest.name} needs permission to: ${missing.join(", ")}.`,
-          },
-        })
-        continue
-      }
-
-      const scope = new RegistryBuilder(manifest.id)
-      const api = createPluginApi(manifest, createGrant(granted), scope)
+      if (prepared === null) continue
 
       try {
-        await plugin.activate(api)
-        merge(builder, scope)
+        await plugin.activate(prepared.api)
+        this.activated(plugin, builder, prepared.scope)
       } catch (error) {
-        this.states.set(manifest.id, {
-          manifest,
-          state: "failed",
-          problem: problemFrom(error),
-        })
-        continue
+        this.failed(plugin, error)
       }
-
-      this.states.set(manifest.id, { manifest, state: "active" })
     }
 
     this.registry = builder.build()
 
     return this.registry
+  }
+
+  /**
+   * The same, without awaiting.
+   *
+   * An application builds its registry in one module that both the server and
+   * the client graph import — docs/renderer.md § SSR, because a component
+   * registered on one side and not the other is a hydration mismatch with an
+   * unhelpful error. That module cannot await: a top-level await in a client
+   * module graph is a bundler problem, and a registry that arrives a tick after
+   * the first render is a page of unsupported placeholders.
+   *
+   * A plugin whose `activate` returns a promise is recorded as failed rather
+   * than half-activated. Every first-party component plugin registers
+   * synchronously, because registering a component is pushing it into a map.
+   */
+  startSync(): RendererRegistry {
+    const builder = new RegistryBuilder()
+
+    for (const plugin of this.plugins) {
+      const prepared = this.prepare(plugin)
+
+      if (prepared === null) continue
+
+      try {
+        const result = plugin.activate(prepared.api)
+
+        if (result instanceof Promise) {
+          // Settled deliberately. An unhandled rejection from a plugin this
+          // host has already given up on would surface as a crash somewhere
+          // with nothing to do with plugins.
+          void result.catch(() => undefined)
+
+          throw new Error(
+            `${plugin.manifest.name} activates asynchronously and cannot be started synchronously.`,
+          )
+        }
+
+        this.activated(plugin, builder, prepared.scope)
+      } catch (error) {
+        this.failed(plugin, error)
+      }
+    }
+
+    this.registry = builder.build()
+
+    return this.registry
+  }
+
+  /**
+   * Everything decided before a plugin runs: whether it may, and what it gets.
+   *
+   * Null means it may not, and the reason has been recorded.
+   */
+  private prepare(plugin: Plugin): { scope: RegistryBuilder; api: PluginApi } | null {
+    const { manifest } = plugin
+
+    const compatibility = isCompatible(manifest, this.options.versions)
+    if (!compatibility.compatible) {
+      this.states.set(manifest.id, {
+        manifest,
+        state: "disabled",
+        problem: { code: "incompatible", message: compatibility.message },
+      })
+
+      return null
+    }
+
+    const granted = this.options.granted?.[manifest.id] ?? []
+    const missing = withheld(manifest.permissions, granted)
+    if (missing.length > 0) {
+      this.states.set(manifest.id, {
+        manifest,
+        state: "disabled",
+        problem: {
+          code: "permission-withheld",
+          message: `${manifest.name} needs permission to: ${missing.join(", ")}.`,
+        },
+      })
+
+      return null
+    }
+
+    const scope = new RegistryBuilder(manifest.namespace ?? manifest.id)
+
+    return { scope, api: createPluginApi(manifest, createGrant(granted), scope) }
+  }
+
+  /** Its scope joins the shared registry, now that it finished without throwing. */
+  private activated(plugin: Plugin, builder: RegistryBuilder, scope: RegistryBuilder): void {
+    merge(builder, scope)
+    this.states.set(plugin.manifest.id, { manifest: plugin.manifest, state: "active" })
+  }
+
+  private failed(plugin: Plugin, error: unknown): void {
+    this.states.set(plugin.manifest.id, {
+      manifest: plugin.manifest,
+      state: "failed",
+      problem: problemFrom(error),
+    })
   }
 
   /**

@@ -6,6 +6,19 @@ import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
 /**
+ * A layer row, by the name on it.
+ *
+ * Scoped to the tree, which it did not need to be until Phase 9. A node's name
+ * now appears twice on screen — once here and once in the canvas breadcrumb,
+ * which exists because the canvas mounts and something is selected — so an
+ * unscoped query resolves to two elements and Playwright refuses it. The
+ * duplication is correct: both are places a user reads the name.
+ */
+function layerRow(page: Page, name: string) {
+  return page.getByRole("tree", { name: "Layers" }).getByRole("button", { name, exact: true })
+}
+
+/**
  * Choosing which document survives, end to end.
  *
  * The conflict is produced the way one actually happens: the draft moves on
@@ -111,7 +124,7 @@ function namesIn(schema: unknown): readonly string[] {
 }
 
 async function rename(page: Page, from: string, to: string): Promise<void> {
-  await page.getByRole("button", { name: from, exact: true }).click()
+  await layerRow(page, from).click()
   await page.keyboard.press("F2")
 
   const field = page.getByRole("textbox", { name: `Rename ${from}` })
@@ -181,10 +194,10 @@ test("using theirs loads theirs and keeps mine restorable", async ({ context, pa
   await page.getByRole("button", { name: "Use theirs" }).click()
 
   // Their document is now the one in the editor.
-  await expect(page.getByRole("button", { name: "Theirs", exact: true })).toBeVisible({
+  await expect(layerRow(page, "Theirs")).toBeVisible({
     timeout: 20_000,
   })
-  await expect(page.getByRole("button", { name: "Mine", exact: true })).toBeHidden()
+  await expect(layerRow(page, "Mine")).toBeHidden()
 
   const kept = await recoveryRevisions(pageId)
 

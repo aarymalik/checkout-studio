@@ -1,8 +1,11 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {
+  CommandRegistry,
   DEBOUNCE_MS,
   EditorProvider,
+  KeyboardProvider,
+  KeymapRegistry,
   useEditorStoreApi,
   type EditorStoreApi,
 } from "@checkout-studio/editor"
@@ -105,12 +108,21 @@ describe("ConflictPrompt", () => {
       )
     }
 
+    const commands = new CommandRegistry()
+
+    /*
+     * Inside a keyboard provider, because the prompt declares an overlay scope.
+     * It has to: the canvas binds `Escape` to clearing the selection, and
+     * without an overlay scope the prompt and the canvas both answer to it.
+     */
     render(
-      <EditorProvider document={document} baseVersion={1}>
-        <Autosave document={document}>
-          <Capture />
-        </Autosave>
-      </EditorProvider>,
+      <KeyboardProvider commands={commands} keymap={new KeymapRegistry(commands)} platform="mac">
+        <EditorProvider document={document} baseVersion={1}>
+          <Autosave document={document}>
+            <Capture />
+          </Autosave>
+        </EditorProvider>
+      </KeyboardProvider>,
     )
   }
 

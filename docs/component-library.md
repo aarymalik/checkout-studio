@@ -115,6 +115,15 @@ Type ids take the form `<namespace>.<kebab-name>`. The `core` namespace is share
 | `marketing.reviews`          | Reviews                                          | Marketing  | `marketing`    | 11    |
 | `marketing.progress-bar`     | Progress Bar                                     | Marketing  | `marketing`    | 11    |
 
+| `core.page` | Page | Layout | `core-layout` | 9 |
+
+`core.page` is `ROOT_TYPE` in packages/schema: every document this product
+creates has a root node of that type, and the renderer renders the root as an
+ordinary node. It was missing from this table for the whole of Phases 5 to 8,
+during which every page — canvas and published alike — resolved its root to the
+unsupported fallback. It is not insertable: a user does not add the page they
+are already inside.
+
 Registered by the engine itself, not by a plugin:
 
 | Type id                | Purpose                                                                                           |
@@ -123,6 +132,41 @@ Registered by the engine itself, not by a plugin:
 | `core.symbol-instance` | Places a project symbol. See [schema.md](./schema.md).                                            |
 
 Names used informally elsewhere map to this table: "Product" → `checkout.product-card`, "Shipping" → `checkout.shipping-selector`, "Taxes" → `checkout.tax-summary`, "Logos" → `marketing.logo-wall`, "Radio" → `core.radio-group`, "Phone" and "Email" → `core.input` variants.
+
+---
+
+# How a component is written
+
+**As built**, with Section as the reference — docs/phases.md Phase 9 step 1.
+
+Three files per component, always:
+
+```
+definition.ts   what the engine knows: type, category, defaults, whether it holds children
+Renderer.tsx    what the browser gets
+properties.ts   what the inspector offers, as data
+```
+
+No component ships an inspector panel. `properties.ts` is a list of
+descriptions validated against the schema in plugin-sdk, and Phase 12 generates
+the panel from it. Each definition names a `key` and a `target` of `"prop"` or
+`"style"`, which is not a filing decision: only a style is stored per breakpoint
+and per state, so only a style can be responsive. Everything the catalog calls
+editable on a Section is a style; Heading's text will be a prop.
+
+Defaults are **not** repeated in a property definition. They live in
+`defaultProps` and `defaultStyles`, where the cascade reads them, so the two
+cannot drift.
+
+Default styles reference theme tokens rather than literals — `{spacing.9}`
+compiles to `var(--ck-space-9)` — so a theme that changes its spacing scale
+moves every section on every page without a document being rewritten.
+
+A plugin ships three entry points, and the split is the budget: `./renderer`
+holds definitions and renderers, `./editor` holds property definitions, and
+nothing in the renderer's module graph imports the second. A customer paying on
+a checkout has no use for the fact that Section's overflow control is a select
+with four options.
 
 ---
 

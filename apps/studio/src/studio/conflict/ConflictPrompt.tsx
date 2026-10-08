@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import type { ReactElement, ReactNode } from "react"
-import { describeConflict, useEditorStoreApi } from "@checkout-studio/editor"
+import { describeConflict, useEditorStoreApi, useScope } from "@checkout-studio/editor"
 import type { ConflictSummary } from "@checkout-studio/editor"
 import { parseDocument } from "@checkout-studio/schema"
 import type { CheckoutSchema } from "@checkout-studio/schema"
@@ -165,6 +165,22 @@ export function ConflictPrompt(): ReactNode {
     },
     [autosave, store],
   )
+
+  /*
+   * An overlay scope, so the rest of the editor stops listening.
+   *
+   * Missing until the canvas became real, and invisible for exactly as long:
+   * `Escape` dismissed this prompt only because nothing else was bound to it.
+   * Once `core-layout` gave the canvas something to draw, the canvas's own
+   * `Escape` — clear the selection — was live too, and pressing it while
+   * looking at a conflict cleared a selection behind the dialog instead of
+   * putting the dialog aside.
+   *
+   * `resolveActiveScopes` drops every non-overlay scope while an overlay is
+   * open, which is the mechanism; declaring the scope is how a dialog opts
+   * into it. The shortcut reference already did.
+   */
+  useScope("overlay.dialog", open && autosave !== null)
 
   if (autosave === null) return null
 

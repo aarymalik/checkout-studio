@@ -366,3 +366,147 @@ describe("the plugin host", () => {
     expect(host.current()).toBe(registry)
   })
 })
+
+describe("starting synchronously", () => {
+  /**
+   * An application builds its registry in one module that both the server and
+   * the client graph import — docs/renderer.md § SSR. That module cannot await:
+   * a top-level await in a client graph is a bundler problem, and a registry
+   * that arrives a tick after the first render is a page of unsupported
+   * placeholders.
+   */
+  it("returns the registry without a promise", () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({}, (api) => {
+        api.registerComponent(definition("core.button"))
+      }),
+    )
+
+    expect(host.startSync().types()).toEqual(["core.button"])
+    expect(host.records()[0]?.state).toBe("active")
+  })
+
+  it("refuses a plugin that activates asynchronously rather than half-activating it", () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({}, async (api) => {
+        await Promise.resolve()
+        api.registerComponent(definition("core.button"))
+      }),
+    )
+
+    const registry = host.startSync()
+
+    // Recorded as failed, not left to register a component into a scope that
+    // has already been thrown away.
+    expect(registry.types()).toEqual([])
+    expect(host.records()[0]?.state).toBe("failed")
+    expect(host.records()[0]?.problem?.message).toMatch(/activates asynchronously/)
+  })
+
+  it("does not leave an unhandled rejection behind when it refuses one", async () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(plugin({}, () => Promise.reject(new Error("boom"))))
+    host.startSync()
+
+    // An unhandled rejection from a plugin the host has already given up on
+    // would surface as a crash with nothing to do with plugins.
+    await Promise.resolve()
+
+    expect(host.records()[0]?.state).toBe("failed")
+  })
+
+  it("applies the same compatibility and permission rules as the async path", () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ compatibility: { minEngineVersion: "9.0.0", schemaVersion: "1.0.0" } }, () => {
+        throw new Error("should never run")
+      }),
+    )
+
+    host.startSync()
+
+    expect(host.records()[0]?.state).toBe("disabled")
+    expect(host.records()[0]?.problem?.code).toBe("incompatible")
+  })
+
+  it("isolates one plugin's failure from another's registrations", () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "good" }, (api) => {
+        api.registerComponent(definition("good.button"))
+      }),
+    )
+    host.register(
+      plugin({ id: "bad" }, () => {
+        throw new Error("no")
+      }),
+    )
+
+    expect(host.startSync().types()).toEqual(["good.button"])
+    expect(host.records().map((record) => record.state)).toEqual(["active", "failed"])
+  })
+})
+
+describe("the namespace a plugin writes into", () => {
+  it("is its id by default", () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "shop" }, (api) => {
+        api.registerComponent(definition("core.button"))
+      }),
+    )
+
+    host.startSync()
+
+    // A plugin owning its own namespace is what stops one quietly replacing
+    // another's components.
+    expect(host.records()[0]?.problem?.code).toBe("registration-conflict")
+  })
+
+  it("is what it declares, when it declares one", () => {
+    /*
+     * docs/component-library.md holds that the `core` namespace is shared by
+     * the `core-*` plugins, and three packages cannot each derive `core` from
+     * their own id. The engine's own root type is `core.page`, so `core` was
+     * never one plugin's to own.
+     */
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "core-layout", namespace: "core" }, (api) => {
+        api.registerComponent(definition("core.section"))
+      }),
+    )
+
+    expect(host.startSync().types()).toEqual(["core.section"])
+  })
+
+  it("still refuses a second plugin claiming a type the first registered", () => {
+    // What the declaration does not weaken: a duplicate id is still a conflict,
+    // so declaring `core` lets a plugin add to it and never replace within it.
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "core-layout", namespace: "core" }, (api) => {
+        api.registerComponent(definition("core.section"))
+      }),
+    )
+    host.register(
+      plugin({ id: "core-content", namespace: "core" }, (api) => {
+        api.registerComponent(definition("core.section"))
+      }),
+    )
+
+    expect(host.startSync().types()).toEqual(["core.section"])
+    expect(host.records().map((record) => record.state)).toEqual(["active", "failed"])
+    expect(host.records()[1]?.problem?.code).toBe("registration-conflict")
+  })
+})

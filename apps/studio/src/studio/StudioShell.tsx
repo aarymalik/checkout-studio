@@ -65,7 +65,16 @@ export function StudioShell({
   panels?: SidebarPanels
   page?: OpenPage | null
 }) {
-  function frame(panelsForTabs: SidebarPanels, saveStatus?: ReactNode) {
+  /**
+   * @param overlays dialogs that belong inside the keyboard provider.
+   *
+   * They used to sit outside it, which was invisible until the canvas had
+   * something to draw: a dialog declares an overlay scope so the rest of the
+   * editor stops listening, and `useScope` needs the provider. Before
+   * `core-layout` existed the canvas bound nothing, so nothing competed for
+   * `Escape` and the omission cost nothing.
+   */
+  function frame(panelsForTabs: SidebarPanels, saveStatus?: ReactNode, overlays?: ReactNode) {
     return (
       <StudioProviders initialLayout={initialLayout} userKeymap={userKeymap} platform={platform}>
         <Frame
@@ -74,6 +83,7 @@ export function StudioShell({
           theme={page?.theme ?? null}
           saveStatus={saveStatus}
         />
+        {overlays}
       </StudioProviders>
     )
   }
@@ -100,18 +110,21 @@ export function StudioShell({
             and nothing else, and outside the provider it would throw rather
             than render the empty state the caller intended.
           */}
+          {/*
+            Both prompts are asked rather than assumed, and both are passed in
+            rather than rendered beside: they read the session for who holds the
+            page and autosave for the document the server last agreed to — so
+            they have to be inside those — and they declare an overlay scope, so
+            they have to be inside the keyboard provider too.
+          */}
           {frame(
             { components: <ComponentLibrary />, layers: <LayersPanel />, ...panels },
             <EditorStatus />,
+            <>
+              <TakeoverPrompt />
+              <ConflictPrompt />
+            </>,
           )}
-
-          {/*
-            Both are asked rather than assumed, and both sit here so they are
-            inside everything they read: the session for who holds the page, and
-            autosave for the document the server last agreed to.
-          */}
-          <TakeoverPrompt />
-          <ConflictPrompt />
         </EditSessionProvider>
       </Autosave>
     </EditorProvider>
