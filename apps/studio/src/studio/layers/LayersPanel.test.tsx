@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { EditorProvider } from "@checkout-studio/editor"
 import type { CheckoutSchema, Node } from "@checkout-studio/schema"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { LayersPanel } from "./LayersPanel"
 
@@ -468,6 +468,119 @@ describe("drag reorder", () => {
 
     // The same rule the canvas drag applies, through the same function.
     expect(rowNamed("Box")).toHaveAttribute("aria-level", "1")
+  })
+
+  it("opens a collapsed container the drag rests on", () => {
+    vi.useFakeTimers()
+
+    try {
+      mount(
+        documentOf("page", [
+          { id: "page", type: "core.page", children: ["box", "b"] },
+          { id: "box", type: "core.container", name: "Box", children: ["inner"] },
+          { id: "inner", type: "core.button", name: "Inner" },
+          { id: "b", type: "core.button", name: "Second" },
+        ]),
+      )
+
+      // Collapse Box, so its child is not on screen to aim at.
+      fireEvent.click(screen.getByRole("button", { name: "Collapse Box" }))
+      expect(screen.queryByRole("button", { name: "Inner" })).not.toBeInTheDocument()
+
+      const row = rowNamed("Second")
+
+      fireEvent.pointerDown(row, { button: 0, clientY: at(1, 0.5) })
+      fireEvent.pointerMove(window, { clientY: at(0, 0.5) })
+
+      /*
+       * Without this a collapsed container can only be dropped beside, never
+       * into: its children are not on screen, so there is no row to aim at and
+       * no way to reach them without putting the drag down first.
+       */
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+
+      expect(screen.getByRole("button", { name: "Inner" })).toBeInTheDocument()
+
+      fireEvent.pointerUp(window)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("does not open one the drag merely crosses", () => {
+    vi.useFakeTimers()
+
+    try {
+      mount(
+        documentOf("page", [
+          { id: "page", type: "core.page", children: ["box", "b"] },
+          { id: "box", type: "core.container", name: "Box", children: ["inner"] },
+          { id: "inner", type: "core.button", name: "Inner" },
+          { id: "b", type: "core.button", name: "Second" },
+        ]),
+      )
+
+      fireEvent.click(screen.getByRole("button", { name: "Collapse Box" }))
+
+      const row = rowNamed("Second")
+
+      fireEvent.pointerDown(row, { button: 0, clientY: at(1, 0.5) })
+      fireEvent.pointerMove(window, { clientY: at(0, 0.5) })
+
+      // Moved on before the delay elapsed.
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      fireEvent.pointerMove(window, { clientY: at(1, 0.9) })
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+
+      /*
+       * A panel that unfolded every container the pointer passed over would
+       * rearrange itself under the drag, which is the one thing a drag cannot
+       * survive.
+       */
+      expect(screen.queryByRole("button", { name: "Inner" })).not.toBeInTheDocument()
+
+      fireEvent.pointerUp(window)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("leaves it open after the drag ends", () => {
+    vi.useFakeTimers()
+
+    try {
+      mount(
+        documentOf("page", [
+          { id: "page", type: "core.page", children: ["box", "b"] },
+          { id: "box", type: "core.container", name: "Box", children: ["inner"] },
+          { id: "inner", type: "core.button", name: "Inner" },
+          { id: "b", type: "core.button", name: "Second" },
+        ]),
+      )
+
+      fireEvent.click(screen.getByRole("button", { name: "Collapse Box" }))
+
+      const row = rowNamed("Second")
+
+      fireEvent.pointerDown(row, { button: 0, clientY: at(1, 0.5) })
+      fireEvent.pointerMove(window, { clientY: at(0, 0.5) })
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+      fireEvent.pointerUp(window)
+
+      // Closing it again would undo something the user watched happen, and
+      // they can close it themselves.
+      expect(screen.getByRole("button", { name: "Inner" })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("will not move a locked row", () => {
