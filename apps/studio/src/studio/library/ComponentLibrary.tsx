@@ -138,6 +138,19 @@ export function ComponentLibrary({
                       type="button"
                       disabled={!canEdit}
                       onClick={() => insert(entry)}
+                      /*
+                       * Dragging starts here and is resolved by the canvas,
+                       * which is the only thing that knows where anything is.
+                       * The store carries the type between them, so neither
+                       * panel imports the other.
+                       *
+                       * Pressing still inserts: a list you can only drag from
+                       * is a list some people cannot use, and the click
+                       * handler above is untouched by this.
+                       */
+                      onPointerDown={() => {
+                        if (canEdit) store.getState().setInserting(entry.type)
+                      }}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-tight px-2 py-1 text-left text-small",
                         "transition-colors duration-fast ease-standard",

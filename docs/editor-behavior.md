@@ -249,6 +249,27 @@ Sections
 
 Insert after
 
+**Dragging out of the library.** The gesture starts in the library panel, which
+writes the component's type to the store, and is resolved by the canvas, which
+is the only thing that knows where anything is. Neither panel imports the
+other.
+
+A separate hook from the one that moves a node, rather than a mode inside it:
+one moves something that exists and one creates something that does not. They
+share the arithmetic and nothing else, and conflating them would mean every
+line of either reading "unless we are doing the other one".
+
+Whether a new component may go somewhere is also a different question, and has
+its own rule. Moving can make a cycle and can move something locked; inserting
+can do neither. What is left is the destination — whether it exists, whether it
+is locked, and whether it takes children at all. That last one is why it is not
+the move rule called with nothing being moved: the move rule asks it inside its
+per-node loop, so with no node it never asks, and an insert into a heading
+would have been allowed by a check that looked like it covered it.
+
+Pressing an entry still inserts it. A list you can only drag from is a list some
+people cannot use.
+
 **As built — the rules, ahead of the sensors.** Where a drop lands is decided by
 arithmetic in `packages/editor/src/dnd`, with no library and no React, because
 the rule for a nested container is a product decision rather than a property of

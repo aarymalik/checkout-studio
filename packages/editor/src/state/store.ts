@@ -113,6 +113,8 @@ export interface EditorActions {
   setDropTarget: (overId: string | null, position: DragPosition | null) => void
   endDrag: () => void
   setKeyboardDrag: (keyboard: KeyboardDrag | null) => void
+  /** Start or stop dragging a new component of `type` out of the library. */
+  setInserting: (type: string | null) => void
 
   // ── Persistence ───────────────────────────────────────────────────────────
   markSaving: () => void
@@ -205,7 +207,7 @@ function initialState(document: CheckoutSchema, baseVersion: number, at: number)
        */
       canEdit: recovery.corruption === null,
     },
-    drag: { ids: [], overId: null, position: null, keyboard: null },
+    drag: { ids: [], overId: null, position: null, keyboard: null, inserting: null },
     assets: { used: [] },
     publishing: { publishedRevisionId: null, publishedAt: null },
     recovery,
@@ -777,10 +779,16 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
       setKeyboardDrag: (keyboard) =>
         set((state) => ({ ...state, drag: { ...state.drag, keyboard } })),
 
+      setInserting: (type) =>
+        set((state) => ({
+          ...state,
+          drag: { ...state.drag, inserting: type, overId: null, position: null },
+        })),
+
       endDrag: () =>
         set((state) => ({
           ...state,
-          drag: { ...state.drag, ids: [], overId: null, position: null },
+          drag: { ...state.drag, ids: [], overId: null, position: null, inserting: null },
         })),
 
       // ── Persistence ────────────────────────────────────────────────────────

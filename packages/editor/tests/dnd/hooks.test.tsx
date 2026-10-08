@@ -2,7 +2,7 @@ import { act, fireEvent, renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import type { ReactNode } from "react"
 
-import { useDrag } from "../../src/dnd/hooks"
+import { useDrag, useInsertDrag } from "../../src/dnd/hooks"
 import type { NodeRects } from "../../src/canvas/hit"
 import { EditorProvider, useEditorStoreApi } from "../../src/state/context"
 import type { EditorStoreApi } from "../../src/state/store"
@@ -449,5 +449,172 @@ describe("unmounted", () => {
       window.addEventListener = realAdd
       window.removeEventListener = realRemove
     }
+  })
+})
+
+describe("dragging a new component out of the library", () => {
+  /**
+   * The gesture starts in the library panel, which writes the type to the
+   * store, and is resolved here because the canvas is the only thing that
+   * knows where anything is. These drive both ends through the store, which is
+   * the only channel between them.
+   */
+  function insertHarness() {
+    let store: EditorStoreApi | null = null
+
+    function Capture(): null {
+      store = useEditorStoreApi()
+
+      return null
+    }
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <EditorProvider document={tree()} baseVersion={1}>
+        <Capture />
+        {children}
+      </EditorProvider>
+    )
+
+    const { result } = renderHook(() => useInsertDrag({ rects: RECTS, toCanvas }), { wrapper })
+
+    if (store === null) throw new Error("The provider did not mount.")
+
+    return { result, store: store as EditorStoreApi }
+  }
+
+  const countOf = (store: EditorStoreApi): number =>
+    Object.keys(store.getState().document.nodes).length
+
+  it("does nothing until the library says what is being dragged", () => {
+    const { result } = insertHarness()
+
+    moveTo(200)
+
+    expect(result.current.type).toBeNull()
+    expect(result.current.drop).toBeNull()
+  })
+
+  it("resolves where it would land, and inserts there on release", () => {
+    const { result, store } = insertHarness()
+    const before = countOf(store)
+
+    act(() => store.getState().setInserting("core.text"))
+    moveTo(200)
+
+    expect(result.current.type).toBe("core.text")
+    expect(result.current.drop?.parentId).toBe("box")
+
+    release()
+
+    expect(countOf(store)).toBe(before + 1)
+    expect(store.getState().document.nodes["box"]?.children).toHaveLength(1)
+  })
+
+  it("clears the gesture when it is done", () => {
+    const { result, store } = insertHarness()
+
+    act(() => store.getState().setInserting("core.text"))
+    moveTo(200)
+    release()
+
+    expect(store.getState().drag.inserting).toBeNull()
+    expect(result.current.drop).toBeNull()
+  })
+
+  it("refuses a locked destination and adds nothing", () => {
+    const { result, store } = insertHarness()
+
+    act(() => store.getState().setLocked(["box"], true))
+    act(() => store.getState().setInserting("core.text"))
+    moveTo(200)
+
+    expect(result.current.rejection?.code).toBe("locked-destination")
+
+    const before = countOf(store)
+
+    release()
+
+    expect(countOf(store)).toBe(before)
+  })
+
+  it("refuses a destination that takes no children", () => {
+    let store: EditorStoreApi | null = null
+
+    function Capture(): null {
+      store = useEditorStoreApi()
+
+      return null
+    }
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <EditorProvider document={tree()} baseVersion={1}>
+        <Capture />
+        {children}
+      </EditorProvider>
+    )
+    const { result } = renderHook(
+      () => useInsertDrag({ rects: RECTS, toCanvas, canHaveChildren: () => false }),
+      { wrapper },
+    )
+
+    if (store === null) throw new Error("The provider did not mount.")
+
+    const api = store as EditorStoreApi
+
+    act(() => api.getState().setInserting("core.text"))
+    moveTo(200)
+
+    expect(result.current.rejection?.code).toBe("rejects-children")
+  })
+
+  it("adds nothing when it is dropped off the page", () => {
+    const { result, store } = insertHarness()
+
+    act(() => store.getState().setInserting("core.text"))
+    moveTo(900)
+
+    expect(result.current.drop).toBeNull()
+
+    const before = countOf(store)
+
+    release()
+
+    expect(countOf(store)).toBe(before)
+  })
+
+  it("is not cancelled by other keys", () => {
+    const { result, store } = insertHarness()
+
+    act(() => store.getState().setInserting("core.text"))
+    moveTo(200)
+
+    act(() => {
+      fireEvent.keyDown(window, { key: "a" })
+    })
+
+    // Typing while carrying something should not put it down.
+    expect(result.current.type).toBe("core.text")
+    expect(store.getState().drag.inserting).toBe("core.text")
+
+    release()
+  })
+
+  it("cancels on Escape, adding nothing", () => {
+    const { store } = insertHarness()
+    const before = countOf(store)
+
+    act(() => store.getState().setInserting("core.text"))
+    moveTo(200)
+
+    act(() => {
+      fireEvent.keyDown(window, { key: "Escape" })
+    })
+
+    expect(store.getState().drag.inserting).toBeNull()
+
+    release()
+
+    // Nothing was written, so cancelling is the absence of a change.
+    expect(countOf(store)).toBe(before)
   })
 })

@@ -127,6 +127,16 @@ export interface DragState {
    * drops it or puts it back.
    */
   keyboard: KeyboardDrag | null
+  /**
+   * The component type being dragged out of the library, if one is.
+   *
+   * A type rather than an id, because there is no node yet — that is the whole
+   * difference between inserting and moving. It lives here because the gesture
+   * starts in the library panel and is resolved by the canvas, which is the
+   * only thing that knows where anything is; the store is how the two speak
+   * without either importing the other.
+   */
+  inserting: string | null
 }
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { canDrop, dropRejection } from "../../src/dnd/validity"
+import { canDrop, canInsert, dropRejection, insertRejection } from "../../src/dnd/validity"
 import { documentOf } from "../documents"
 
 /**
@@ -172,6 +172,52 @@ describe("naming things", () => {
     expect(dropRejection(document, ["bare"], "page")?.message).toBe(
       "bare is locked, so it cannot be moved.",
     )
+  })
+})
+
+describe("adding a new component", () => {
+  /**
+   * A different question from moving one, which is why it is a different
+   * function. There is no node yet, so no cycle and no locked source — what is
+   * left is the destination.
+   */
+  it("is allowed into something that takes children", () => {
+    expect(canInsert(tree(), "section")).toBe(true)
+  })
+
+  it("is refused by a locked destination", () => {
+    const rejection = insertRejection(tree(), "locked")
+
+    expect(rejection?.code).toBe("locked-destination")
+    // "added to", not "moved into": nothing is being moved.
+    expect(rejection?.message).toBe("Footer is locked, so nothing can be added to it.")
+  })
+
+  it("is refused by anything inside a locked destination", () => {
+    expect(insertRejection(tree(), "inner")?.code).toBe("locked-destination")
+  })
+
+  it("is refused by something that takes no children", () => {
+    /*
+     * The reason this function exists rather than calling `dropRejection` with
+     * no ids: that asks this question inside its per-id loop, so with nothing
+     * being moved it never asks — and an insert into a heading would have been
+     * allowed by a check that looked like it covered it.
+     */
+    const rejection = insertRejection(tree(), "leaf", {
+      canHaveChildren: (node) => node.type !== "core.text",
+    })
+
+    expect(rejection?.code).toBe("rejects-children")
+    expect(rejection?.message).toBe("Note does not take components.")
+  })
+
+  it("is refused by a destination that is not there", () => {
+    expect(insertRejection(tree(), "ghost")?.code).toBe("missing-parent")
+  })
+
+  it("is allowed when the caller has no opinion about children", () => {
+    expect(canInsert(tree(), "leaf")).toBe(true)
   })
 })
 

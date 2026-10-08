@@ -7,7 +7,7 @@ import { useEditorStore, useEditorStoreApi } from "../state/context"
 import type { NodeRects } from "../canvas/hit"
 import type { Point } from "../canvas/transform"
 import { resolveDrop, type Drop } from "./resolve"
-import { dropRejection, type DropRules, type Rejection } from "./validity"
+import { dropRejection, insertRejection, type DropRules, type Rejection } from "./validity"
 
 /**
  * Dragging a node on the canvas.
@@ -221,4 +221,107 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
   }, [store, dragging, drop, rejection, cancel])
 
   return { dragging, origin, drop, rejection, begin }
+}
+
+export interface InsertDragControls {
+  /** The component type being dragged out of the library, or null. */
+  type: string | null
+  /** Where it would land, or null when nowhere would take it. */
+  drop: Drop | null
+  /** Why it would be refused, or null when it would be accepted. */
+  rejection: Rejection | null
+}
+
+/**
+ * Dragging a new component out of the library and onto the canvas.
+ *
+ * A separate hook from `useDrag` rather than a mode inside it, because the two
+ * do different things: one moves a node that exists and one creates a node that
+ * does not. They share the arithmetic — `resolveDrop` answers both — and
+ * nothing else. Conflating them would mean every line of either reading "unless
+ * we are doing the other one".
+ *
+ * The gesture starts in the library panel, which writes the type to the store,
+ * and is resolved here because the canvas is the only thing that knows where
+ * anything is. Neither panel imports the other.
+ *
+ * See docs/phases.md Phase 8 § Drag from the component library to the canvas.
+ */
+export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): InsertDragControls {
+  const store = useEditorStoreApi()
+  const type = useEditorStore((state) => state.drag.inserting)
+  const [drop, setDrop] = useState<Drop | null>(null)
+  const [rejection, setRejection] = useState<Rejection | null>(null)
+
+  const latest = useRef({ rects, toCanvas, rules })
+
+  latest.current = { rects, toCanvas, rules }
+
+  useEffect(() => {
+    if (type === null) {
+      setDrop(null)
+      setRejection(null)
+      return
+    }
+
+    const { rects: boxes, toCanvas: project, rules: current } = latest.current
+
+    const move = (event: PointerEvent): void => {
+      const document = store.getState().document
+      const resolved = resolveDrop(document, boxes, project(event), current)
+
+      setDrop(resolved)
+
+      if (resolved === null) {
+        setRejection(null)
+        store.getState().setDropTarget(null, null)
+        return
+      }
+
+      /*
+       * Asked on every move, for the reason the move gesture asks: a drag that
+       * looks fine and then refuses has taught the user nothing. A heading does
+       * not take components, and they should see that before they let go.
+       */
+      const refusal = insertRejection(document, resolved.parentId, current)
+
+      setRejection(refusal)
+      store.getState().setDropTarget(resolved.overId, refusal === null ? resolved.position : null)
+    }
+
+    const up = (): void => {
+      const landing = drop
+      const refused = rejection !== null
+
+      store.getState().endDrag()
+      setDrop(null)
+      setRejection(null)
+
+      if (landing === null || refused) return
+
+      store.getState().insertNew(type, landing.parentId, landing.index)
+    }
+
+    const cancel = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return
+
+      // Nothing has been written, so there is nothing to undo.
+      event.preventDefault()
+      store.getState().endDrag()
+      setDrop(null)
+      setRejection(null)
+    }
+
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("keydown", cancel)
+
+    return () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("keydown", cancel)
+    }
+  }, [type, store, drop, rejection])
+
+  return { type, drop, rejection }
 }

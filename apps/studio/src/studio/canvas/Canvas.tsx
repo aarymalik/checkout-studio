@@ -22,6 +22,7 @@ import {
   boundsOf,
   useAutoScroll,
   useDrag,
+  useInsertDrag,
   indicatorTarget,
   useResize,
   useScope,
@@ -329,6 +330,16 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
   )
 
   const drag = useDrag({ rects, toCanvas: canvasPoint })
+  /*
+   * The library's drag, resolved here for the same reason the canvas resolves
+   * its own: this is the only thing that knows where anything is. What it needs
+   * from the library is the type, which travels through the store.
+   */
+  const inserting = useInsertDrag({
+    rects,
+    toCanvas: canvasPoint,
+    canHaveChildren: (node) => registry.get(node.type)?.container ?? true,
+  })
 
   /**
    * Where to draw "here", from whichever drag is in progress.
@@ -339,6 +350,18 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
    * know which hand it came from.
    */
   const dropIndicator = useMemo(() => {
+    // A drag out of the library outranks the others: it is the one the user
+    // started most recently, and only one gesture can be in progress.
+    if (inserting.type !== null) {
+      if (inserting.drop === null) return null
+
+      return {
+        rect: rects.get(inserting.drop.overId) ?? frameBox,
+        position: inserting.drop.position,
+        refused: inserting.rejection !== null,
+      }
+    }
+
     const keyboard = keyboardDrag === null ? null : indicatorTarget(keyboardDrag)
 
     if (keyboard !== null) {
@@ -354,7 +377,16 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
       position: drag.drop.position,
       refused: drag.rejection !== null,
     }
-  }, [keyboardDrag, drag.drop, drag.rejection, rects, frameBox])
+  }, [
+    inserting.type,
+    inserting.drop,
+    inserting.rejection,
+    keyboardDrag,
+    drag.drop,
+    drag.rejection,
+    rects,
+    frameBox,
+  ])
 
   const autoScroll = useAutoScroll(surface)
 
