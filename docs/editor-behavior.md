@@ -306,6 +306,36 @@ A lock is reported before a cycle. Told "this is locked" a user knows what to do
 next; told "that would make a loop" about a locked node, they would unlock it
 and then hit the loop.
 
+**As built — every rejection explains itself, on two channels.** Each rule
+builds a sentence naming the node it is about: "Footer is locked, so nothing can
+be moved into it", "Note does not take components". The name comes from
+`labelFor`, the same function the layers panel and the hover label use, so a
+row, a label and a refusal cannot call one node three things — and a node nobody
+has renamed reads as "Section" rather than as `nod_8f2a`.
+
+Those sentences existed, tested, for the whole of Phase 8 and nothing read one.
+A refused drag reached the user as the indicator turning red, which says that
+something is wrong and not which of seven rules was hit. The gap was found by
+reading the exit criteria back against the code rather than against the plan:
+`grep` for the message field outside the tests returned nothing.
+
+Where the sentence is drawn depends on the gesture, and has to:
+
+- A **pointer** sits on the refused spot, so the sentence is drawn there, on the
+  red indicator.
+- A refused **keyboard** step does not move. The indicator stays where the node
+  legitimately is, so the sentence is attached to the node in hand instead —
+  painting the current position red would be a lie about a valid place.
+
+The keyboard path also needed the refusal carried on the drag itself, because a
+live region handed the text it already holds announces nothing. Before this, an
+arrow into a locked container was indistinguishable from an arrow that is not
+bound: the position was unchanged, so the sentence was unchanged, so a screen
+reader said nothing at all. The same refusal twice is still one announcement —
+it is one piece of news — and an accepted step clears it. Reaching the end of a
+row clears it too: there is no destination, so there is nothing to explain, and
+leaving a stale reason attached would read as a rule the user did not just hit.
+
 ---
 
 # Drag Preview

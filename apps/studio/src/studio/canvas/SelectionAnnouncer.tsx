@@ -39,8 +39,12 @@ export function SelectionAnnouncer(): ReactElement {
      * would land is the only thing the user is waiting to hear. Derived rather
      * than pushed: the store holds the drag, so this says what the store holds
      * and there is no second place keeping the same sentence.
+     *
+     * `labelFor` for the same reason the selection below uses it: without it
+     * this read "after Footer, in page_hhhh", naming the container by its id —
+     * and an id is not a thing the user has ever seen.
      */
-    if (drag !== null) return describeDrag(drag)
+    if (drag !== null) return describeDrag(drag, { nameOf: labelFor })
 
     if (selected.length === 0) return "Nothing selected"
 

@@ -1,6 +1,7 @@
 import { moveRefusal, type CheckoutSchema, type Node } from "@checkout-studio/schema"
 
 import { isLocked } from "../state/selectors"
+import type { Rejection, RejectionCode } from "../state/types"
 
 /**
  * Whether something may be dropped where the pointer is, and why not.
@@ -23,25 +24,15 @@ import { isLocked } from "../state/selectors"
  * See docs/editor-behavior.md § Lock and docs/phases.md Phase 8 § Validity.
  */
 
-export type RejectionCode =
-  /** The schema refused: into itself, into its own descendant, no such node. */
-  | "cycle"
-  | "missing-node"
-  | "missing-parent"
-  | "root-immovable"
-  | "rejects-children"
-  /** The node being dragged is locked, or sits inside something locked. */
-  | "locked-source"
-  /** The destination is locked, or sits inside something locked. */
-  | "locked-destination"
-
-export interface Rejection {
-  code: RejectionCode
-  /** Shown to the user, so it says what is wrong rather than naming a rule. */
-  message: string
-  /** The nodes the message is about, for highlighting them. */
-  nodeIds: readonly string[]
-}
+/*
+ * Declared in `../state/types` and re-exported here, where the rest of the drag
+ * layer reads it from.
+ *
+ * It lives there because `KeyboardDrag` carries one and the store holds that —
+ * and the store must not import from this module, which reads
+ * `state/selectors`. `pnpm boundaries` would say so.
+ */
+export type { Rejection, RejectionCode } from "../state/types"
 
 export interface DropRules {
   /**

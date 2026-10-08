@@ -11,6 +11,7 @@ import {
   createCommandSource,
   createArrangeCommands,
   createDndCommands,
+  labelFor,
   createSelectionCommands,
   createEditCommands,
   createShellCommands,
@@ -34,6 +35,7 @@ import { PaletteScope } from "./palette-context"
 import { createAppCommands, type AppCommandActions } from "./commands"
 import { nextRegion } from "./regions"
 import { send } from "@/lib/api-client"
+import { registry } from "@/studio/registry"
 
 /**
  * Everything the shell needs to exist, assembled once.
@@ -190,7 +192,20 @@ function build({
     ...createEditCommands({ store: viewportStore }),
     ...createArrangeCommands({ store: viewportStore }),
     ...createSelectionCommands({ store: viewportStore }),
-    ...createDndCommands({ store: viewportStore }),
+    /*
+     * The keyboard drag gets the same two rules the pointer drag does.
+     *
+     * Without them it would step a node into a component that holds nothing,
+     * and the sentence explaining a refusal would have no name to use —
+     * "nod_8f2a is locked" rather than "Footer is locked". `labelFor` is the
+     * layers panel's naming, so a row, a hover label and a refusal all call a
+     * node the same thing.
+     */
+    ...createDndCommands({
+      store: viewportStore,
+      canHaveChildren: (node) => registry.get(node.type)?.container ?? true,
+      nameOf: labelFor,
+    }),
   ])
 
   // Their changes applied to what the product ships: remapped keys replaced,

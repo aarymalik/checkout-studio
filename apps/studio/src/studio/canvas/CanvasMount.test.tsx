@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {
   CommandRegistry,
@@ -8,6 +8,7 @@ import {
   KeymapRegistry,
   createArrangeCommands,
   createDndCommands,
+  labelFor,
   createEditCommands,
   createSelectionCommands,
   createViewportCommands,
@@ -31,7 +32,9 @@ import { fixtureRegistry } from "./fixtures"
 // The registry this build ships is empty, so the canvas never mounts. The
 // fixtures are what docs/phases.md Phase 7 calls for: components registered
 // from the test suite, so the canvas around them can be tested at all.
-vi.mock("@/studio/registry", () => ({ registry: fixtureRegistry() }))
+const fixtures = fixtureRegistry()
+
+vi.mock("@/studio/registry", () => ({ registry: fixtures }))
 
 const { CanvasArea } = await import("./CanvasArea")
 
@@ -92,7 +95,17 @@ function mount(options: { theme?: typeof defaultTheme | null } = {}): {
         ...createEditCommands({ store: () => store }),
         ...createArrangeCommands({ store: () => store }),
         ...createSelectionCommands({ store: () => store }),
-        ...createDndCommands({ store: () => store }),
+        /*
+         * With the rules the application passes, which is the point of
+         * building the harness out of the real commands: without
+         * `canHaveChildren` a keyboard drag steps into a component that holds
+         * nothing, and without `nameOf` a refusal has no name to use.
+         */
+        ...createDndCommands({
+          store: () => store,
+          canHaveChildren: (node) => fixtures.get(node.type)?.container ?? true,
+          nameOf: labelFor,
+        }),
       ])
       keymap.registerAll(resolveShortcuts(defaultShortcuts, DEFAULT_KEYMAP))
     }
@@ -460,6 +473,99 @@ describe("moving a node with the keyboard", () => {
     // key that moved something from one that did nothing.
     await waitFor(() => {
       expect(screen.getByRole("status").textContent).not.toBe(before)
+    })
+  })
+
+  it("says why, when a step is refused", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    /*
+     * The fixture's own section, renamed and locked, with the lifted node
+     * below it — so stepping *in* aims at the sibling above, which is the one
+     * step that aims at a container whether or not it already holds anything.
+     */
+    act(() => {
+      const state = harness.store().getState()
+
+      state.rename("section", "Footer")
+      state.setLocked(["section"], true)
+      state.insertNew("core.section", state.document.root)
+    })
+
+    // Two renders, deliberately: `canvas.dragging` is a scope the canvas
+    // enters once the store holds a drag, so the arrow is not bound until
+    // React has seen the pick-up.
+    act(() => {
+      fireEvent.keyDown(window, { code: "KeyM", key: "m" })
+    })
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "ArrowRight", key: "ArrowRight" })
+    })
+
+    /*
+     * Phase 8's third exit criterion, on both channels. A refused step leaves
+     * the position alone, so a red indicator would be the only signal and the
+     * live region would be handed the sentence it already holds — which a live
+     * region does not announce. The arrow was indistinguishable from a key
+     * that is not bound.
+     */
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Footer is locked, so nothing can be moved into it.",
+      )
+    })
+
+    /*
+     * And on the canvas, for everybody who is not using a screen reader. The
+     * drawn layer is queried on purpose: the sentence is in the live region
+     * too, and finding it once anywhere would pass with the visible half
+     * missing.
+     */
+    const drawn = window.document.querySelector("[data-canvas-overlays]")
+
+    if (drawn === null) throw new Error("The overlay layer did not render.")
+
+    expect(
+      within(drawn as HTMLElement).getByText("Footer is locked, so nothing can be moved into it."),
+    ).toBeInTheDocument()
+  })
+
+  it("names the component in the refusal rather than its id", async () => {
+    const harness = mount()
+
+    render(harness.element)
+
+    act(() => {
+      const state = harness.store().getState()
+
+      // Left unnamed, so the only name available is the one derived from the
+      // type.
+      state.setLocked(["section"], true)
+      state.insertNew("core.section", state.document.root)
+    })
+
+    // Two renders, deliberately: `canvas.dragging` is a scope the canvas
+    // enters once the store holds a drag, so the arrow is not bound until
+    // React has seen the pick-up.
+    act(() => {
+      fireEvent.keyDown(window, { code: "KeyM", key: "m" })
+    })
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "ArrowRight", key: "ArrowRight" })
+    })
+
+    /*
+     * `labelFor` humanises the type, which is what the layers panel and the
+     * hover label already use — so a refusal cannot call a node something the
+     * rest of the editor does not. Before this, every sentence the drag layer
+     * built named a node the user had never seen: "nod_8f2a is locked".
+     */
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).toMatch(/^Section is locked/)
     })
   })
 

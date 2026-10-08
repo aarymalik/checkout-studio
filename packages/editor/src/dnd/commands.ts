@@ -168,8 +168,9 @@ export function createDndCommands(options: DndCommandOptions): readonly Command[
 
       const next = stepDrag(holding.drag, step, rules)
 
-      // Unchanged means there was nowhere to go. Announcing the same position
-      // again would read as though something had happened.
+      // Unchanged means nothing moved and there is nothing new to say — the
+      // end of a list, or the same refusal a second time. Writing it would
+      // re-announce a sentence the user has already heard.
       if (next === holding.drag) return
 
       holding.api.getState().setKeyboardDrag(next)
