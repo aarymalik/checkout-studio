@@ -678,6 +678,23 @@ Quick actions
 
 # Inline Toolbar
 
+**As built — the toolbar owns its pointer.** It is drawn inside the canvas's
+gesture surface, so a press on one of its buttons also reached the surface's own
+`onPointerDown`: a button is not a node, so the canvas started a marquee, and
+the empty marquee cleared the selection on release. The click then ran against
+nothing selected and every command declined — a row of buttons that looked
+enabled and did nothing at all.
+
+Every command, not one: Delete, Duplicate, Hide, Lock and both Moves. It was
+found by somebody using the application, because the toolbar had unit tests
+from Phase 7 and no end-to-end test: mounted on its own there is no canvas
+beneath it to lose the selection to, so every part worked and the assembly did
+not.
+
+The resize grips already stop propagation, with the same reasoning, and the
+breadcrumb avoids it by being rendered outside the surface entirely. The
+toolbar was the one control inside it with neither.
+
 Appears above selection, and below it when there is no room above.
 
 Contains
@@ -910,6 +927,16 @@ Remain in Layers
 Not rendered
 
 Can be restored
+
+**As built — hiding is one-way on the canvas.** "Not rendered" means a hidden
+node has no box, and the inline selection toolbar is positioned from the
+selection's box, so the toolbar leaves with it. Hide is therefore a plain action
+there rather than a toggle: a button carrying `aria-pressed` and a "Show" label
+that can never appear is a control claiming to do something it cannot. The way
+back is the layers panel, which is where a hidden node still is.
+
+Lock is a toggle, and the difference is exactly this: a locked node still
+renders, so the toolbar keeps its box and the way back is on it.
 
 ---
 

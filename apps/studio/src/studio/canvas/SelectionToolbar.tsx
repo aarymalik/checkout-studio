@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { ReactElement } from "react"
-import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Lock, LockOpen, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronUp, Copy, EyeOff, Lock, LockOpen, Trash2 } from "lucide-react"
 import type { ComponentType } from "react"
 import { isTextEntry, useEditorStore, useKeyboard } from "@checkout-studio/editor"
 import type { Rect } from "@checkout-studio/editor"
@@ -63,14 +63,20 @@ const ACTIONS: readonly Action[] = [
     activeIcon: Lock,
     toggle: true,
   },
-  {
-    commandId: "arrange.hide",
-    label: "Hide",
-    activeLabel: "Show",
-    icon: Eye,
-    activeIcon: EyeOff,
-    toggle: true,
-  },
+  /*
+   * Hide is one-way here, and not a toggle.
+   *
+   * docs/editor-behavior.md § Hide: a hidden component remains in Layers, is
+   * **not rendered**, and can be restored. Not rendered means it has no box,
+   * so the toolbar — which is positioned from the selection's box — is gone
+   * the moment the press lands. A button advertising `aria-pressed` and a
+   * "Show" label that can never appear is a control claiming to do something
+   * it cannot, and the `activeLabel` and `activeIcon` behind it were
+   * unreachable code.
+   *
+   * Restoring is the layers panel's, which is where a hidden node still is.
+   */
+  { commandId: "arrange.hide", label: "Hide", icon: EyeOff },
   { commandId: "edit.delete", label: "Delete", icon: Trash2 },
 ]
 
@@ -160,6 +166,21 @@ export function SelectionToolbar({
       aria-label="Selection"
       aria-orientation="horizontal"
       onKeyDown={onKeyDown}
+      /*
+       * The toolbar owns its pointer, and has to say so.
+       *
+       * It is drawn inside the canvas's gesture surface, so without this a
+       * press on Delete also reached the surface's own `onPointerDown`: the
+       * button is not a node, so the canvas started a marquee, and the empty
+       * marquee cleared the selection on release. The click then ran against
+       * nothing selected, and every command declined — a row of buttons that
+       * looked enabled and did nothing.
+       *
+       * The resize grips already do this, with the same reasoning in the same
+       * words, and the breadcrumb avoids it by being rendered outside the
+       * surface entirely. This was the one control inside it that had neither.
+       */
+      onPointerDown={(event) => event.stopPropagation()}
       className="pointer-events-auto absolute flex items-center gap-1 rounded-control border border-border bg-surface p-1 shadow-popover"
       style={{ left: rect.x, top }}
     >
@@ -168,7 +189,14 @@ export function SelectionToolbar({
         const active = command?.isActive?.(context()) ?? false
         const enabled = command?.isAvailable(context()) ?? false
         const Icon = (active ? action.activeIcon : action.icon) ?? action.icon
-        const label = (active ? action.activeLabel : action.label) ?? command?.title ?? ""
+        /*
+         * An action with no `activeLabel` keeps its own label when it is
+         * active. The first version fell through to the command's title
+         * instead, which is how Hide stopped being called Hide the moment it
+         * had hidden something: `arrange.hide`'s title is "Hide / show".
+         */
+        const label =
+          (active ? (action.activeLabel ?? action.label) : action.label) ?? command?.title ?? ""
         const binding = keymap.bindingFor(action.commandId)
 
         return (

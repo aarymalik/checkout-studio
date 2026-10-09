@@ -235,14 +235,27 @@ describe("the toggles", () => {
     expect(mounted.store().getState().document.nodes["second"]?.metadata.locked).toBe(true)
   })
 
-  it("hides and shows", async () => {
+  it("hides, one way, because a hidden node has no box to hold a toolbar", async () => {
     const user = userEvent.setup()
     const mounted = selected()
 
     await user.click(screen.getByRole("button", { name: "Hide" }))
 
-    expect(screen.getByRole("button", { name: "Show" })).toHaveAttribute("aria-pressed", "true")
     expect(mounted.store().getState().document.nodes["second"]?.visibility.hidden).toBe(true)
+
+    /*
+     * Not a toggle. docs/editor-behavior.md § Hide: a hidden component remains
+     * in Layers and is not rendered — so in the product the toolbar vanishes
+     * with the box it was positioned from, and a "Show" state could never
+     * appear.
+     *
+     * The previous version of this test asserted that it did, and passed: this
+     * harness hands the toolbar a fixed rect, so it never loses the node. It
+     * was asserting behaviour the application cannot produce — the same shape
+     * as the plugin test harness that handed components empty props.
+     */
+    expect(screen.queryByRole("button", { name: "Show" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Hide" })).not.toHaveAttribute("aria-pressed")
   })
 })
 
