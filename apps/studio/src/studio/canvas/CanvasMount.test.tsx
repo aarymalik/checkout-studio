@@ -573,6 +573,74 @@ describe("moving a node with the keyboard", () => {
     })
   })
 
+  it("says what is in your hand, and how to put it down", async () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    /*
+     * The defect this closes: keyboard drag was built, announced and
+     * invisible. The announcement is a live region, so a sighted keyboard user
+     * got nothing — the node did not change and the only mark on screen was
+     * the drop indicator, which for an only child is an outline around the
+     * whole page. Somebody using the product read that as the key having done
+     * nothing.
+     */
+    await waitFor(() => {
+      expect(screen.getByText(/Moving Section/)).toBeInTheDocument()
+    })
+
+    // And how to get out, because a modal gesture has to say so.
+    expect(screen.getByText("drop")).toBeInTheDocument()
+    expect(screen.getByText("cancel")).toBeInTheDocument()
+  })
+
+  it("names the keys from the keymap, because they are remappable", async () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    // A user who moved Drop to another key should be told that key. Written
+    // here would be a label that lies the moment somebody remaps it.
+    await waitFor(() => {
+      expect(screen.getByText("↵")).toBeInTheDocument()
+    })
+  })
+
+  it("takes the hint away when the drag ends", async () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Moving Section/)).toBeInTheDocument()
+    })
+
+    act(() => {
+      fireEvent.keyDown(window, { code: "Escape", key: "Escape" })
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Moving Section/)).toBeNull()
+    })
+  })
+
+  it("is hidden from a screen reader, which already hears all of it", async () => {
+    const harness = mount()
+
+    render(harness.element)
+    lifted(harness)
+
+    // The live region says the same thing better. Reading both would announce
+    // the position twice.
+    await waitFor(() => {
+      expect(screen.getByText(/Moving Section/).closest("[aria-hidden]")).not.toBeNull()
+    })
+  })
+
   it("drops on Enter as one history entry", () => {
     const harness = mount()
 

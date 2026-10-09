@@ -35,6 +35,7 @@ import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
 import { siblings } from "@checkout-studio/schema"
 
 import { Breadcrumb } from "./Breadcrumb"
+import { CarryHint } from "./CarryHint"
 import { DragPreview } from "./DragPreview"
 import { Overlays } from "./Overlays"
 import { SelectionAnnouncer } from "./SelectionAnnouncer"
@@ -660,6 +661,7 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
           transform={viewport.transform}
           rects={rects}
           selected={selected}
+          carrying={keyboardDrag?.id ?? null}
           hovered={hovered}
           labelFor={nameOf}
           guides={resize.guides}
@@ -703,6 +705,15 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
         Outside the gesture surface, so clicking a breadcrumb does not also
         reach the canvas-background handler and clear what it just selected.
       */}
+      {/*
+        Above the breadcrumb row, centred, and only while something is in the
+        hand. A modal gesture that does not say it is one is a gesture nobody
+        knows they are in — see CarryHint.
+      */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center px-2">
+        <CarryHint />
+      </div>
+
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-3 px-2 pb-2">
         <div className="pointer-events-auto min-w-0 flex-1">
           <Breadcrumb />

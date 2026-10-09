@@ -62,6 +62,15 @@ export interface OverlaysProps {
   resizable?: boolean
   /** How tall the surface is, so the toolbar can flip below the selection. */
   surfaceHeight?: number
+  /**
+   * The node held by a keyboard drag, if one is held.
+   *
+   * Drawn dashed rather than solid: it is selected, but it is not settled. A
+   * keyboard drag used to leave the node looking exactly as it had a moment
+   * before, so the only sign the mode was on was an indicator somewhere else
+   * on the page.
+   */
+  carrying?: string | null
   /** Where a drag would land, drawn so the drop is never a surprise. */
   drop?: { rect: Rect; position: DropPosition; refused: boolean } | null
   /**
@@ -84,6 +93,7 @@ export function Overlays({
   labelFor,
   guides,
   marquee,
+  carrying = null,
   resizable = true,
   surfaceHeight = 0,
   drop = null,
@@ -157,7 +167,12 @@ export function Overlays({
           return (
             <div
               key={id}
-              className="absolute border-2 border-primary"
+              className={cn(
+                "absolute border-2 border-primary",
+                // Dashed while it is in the air, because it is selected and
+                // not settled.
+                id === carrying && "border-dashed",
+              )}
               style={{ left: screen.x, top: screen.y, width: screen.width, height: screen.height }}
             />
           )

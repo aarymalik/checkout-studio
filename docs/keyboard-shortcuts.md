@@ -995,6 +995,32 @@ to the selection while one is held. "Last, after Footer, in Page" names the
 neighbour and the container, because a position is only meaningful relative to
 something the user already knows about — and reading an index would say nothing.
 
+**As built — the mode is visible, after it was not.**
+
+The specification above says each candidate position is announced, and it is —
+to a screen reader. For a sighted keyboard user there was nothing at all: the
+node did not change, and the only mark on the page was the drop indicator,
+which for a node that is its parent's only child is an outline around the whole
+page. Somebody using the product pressed `M`, saw a border appear around the
+canvas, and reported that nothing had happened. They were looking at the
+feature.
+
+Two things now say otherwise. The carried node's outline is **dashed** rather
+than solid — it is selected, and it is not settled. And a hint appears above
+the breadcrumb naming what is in the hand and the keys that end the gesture:
+
+```
+Moving Hero   ↑/↓ place   ↵ drop   Esc cancel
+```
+
+The keys come from the keymap rather than being written into the hint, because
+they are remappable: somebody who moved Drop to another key is told that key.
+The hint is `aria-hidden`, because everything in it is already in the live
+region and reading both would announce the position twice.
+
+It also happens to be the only place the mode is discoverable. `M` was in the
+shortcut reference and nowhere somebody looking at a canvas would find it.
+
 A refused step is announced too, and getting that right took a second attempt.
 A refused step leaves the position alone, so the live region was being handed
 the sentence it already held — and a live region given its own text announces
