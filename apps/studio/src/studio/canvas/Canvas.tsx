@@ -577,7 +577,22 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
         ref={surface}
         className="absolute inset-0"
         style={{
-          cursor: panning ? "grab" : "default",
+          /*
+           * What the pointer is doing, as a cursor.
+           *
+           * docs/ui-guidelines.md § Dragging: "cursor changes appropriately".
+           * It did not — a node dragged across the canvas kept the default
+           * arrow, so the only feedback that a drag was in progress was the
+           * preview, and somebody using it reported the drag as having no
+           * icon.
+           *
+           * `grabbing` covers both gestures that carry something: moving a
+           * node, and dragging a new one out of the library. Panning keeps
+           * `grab`, which is the hand that *can* take hold — it is set while
+           * the space key is held, before any movement.
+           */
+          cursor:
+            drag.dragging || inserting.type !== null ? "grabbing" : panning ? "grab" : "default",
           paddingTop: showRulers ? RULER_SIZE : 0,
           paddingLeft: showRulers ? RULER_SIZE : 0,
         }}

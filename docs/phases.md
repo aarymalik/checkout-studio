@@ -221,7 +221,7 @@ These apply to **every** phase, in addition to its specific criteria.
 | 5     | Editor State Engine             | **Complete** | 2          |
 | 6     | Renderer Engine                 | **Complete** | 2, 5       |
 | 7     | Visual Canvas                   | **Complete** | 4, 6       |
-| 8     | Drag & Drop Engine              | **Complete** | 7          |
+| 8     | Drag & Drop Engine              | Needs work   | 7          |
 | 9     | Core Component Library          | In Progress  | 8          |
 | 10    | Form System                     | Not Started  | 9          |
 | 11    | Checkout Components             | Not Started  | 10         |
@@ -1664,6 +1664,32 @@ pnpm test:e2e --filter=studio -g "drag"
 ✓ 60 FPS sustained during drag
 ✓ One drag equals one undo step
 ```
+
+### Known broken — two exit criteria are false in a browser
+
+Found while writing the first end-to-end drag tests, in Phase 9. A canvas node
+drag shows its preview, follows the pointer, and **resolves no drop**: nothing
+is drawn before release and the release writes nothing. So "drop position is
+always shown before release" and "one drag equals one undo step" do not hold
+for the gesture people use most.
+
+The cause is one thing. `localPoint` measures from the gesture surface's border
+box, while the transformed frame inside it is `absolute left-0 top-0` — which
+positions against the surface's _padding_ box, and the surface carries
+`paddingTop`/`paddingLeft` of `RULER_SIZE` whenever the rulers are shown. Every
+pointer position is 20px out from where the frame is, in both axes, and the
+overlay layer is offset by the same amount, which is why a selection outline
+does not sit on its selection either.
+
+Nothing in jsdom could have caught it: there is no layout there, so every rect
+in the Phase 8 integration tests is a stub and the padding does not exist. The
+tests were not wrong; they could not have been right.
+
+Recorded as two `test.fail` reproductions in `apps/studio/e2e/drag.spec.ts`,
+which turn into failures the day it is fixed. The fix is to stop putting padding
+on the gesture surface and give the rulers a layer of their own — it touches
+selection, resize, drop resolution and the alignment guides at once, so it is
+worth measuring rather than correcting by 20px in four places.
 
 ### As Built — Deviations
 

@@ -154,6 +154,9 @@ export function DragPreview({
     <div
       ref={element}
       aria-hidden
+      // A handle for the end-to-end tests, which are the only place a real
+      // drag happens: jsdom has no layout, so every rect there is a stub.
+      data-drag-preview
       /*
        * Fixed, so it is positioned against the viewport rather than against a
        * canvas that is itself panning underneath — and above everything,
