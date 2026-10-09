@@ -226,6 +226,14 @@ test("picks a node up with the keyboard and announces where it would land", asyn
 
   await expect(announcer).toHaveText(/Hero, (before|after|into)/)
 
+  /*
+   * And something to look at. The announcement is a live region, so without
+   * this a sighted keyboard user has no sign the mode is on at all — which is
+   * how it was reported: "nothing happens".
+   */
+  await expect(page.getByText(/Moving Hero/)).toBeVisible()
+  await expect(page.getByText("cancel")).toBeVisible()
+
   await page.keyboard.press("ArrowDown")
 
   // Each candidate position is announced, which is what makes the mode usable
@@ -233,4 +241,6 @@ test("picks a node up with the keyboard and announces where it would land", asyn
   await expect(announcer).not.toHaveText(/nowhere/)
 
   await page.keyboard.press("Escape")
+
+  await expect(page.getByText(/Moving Hero/)).toBeHidden()
 })
