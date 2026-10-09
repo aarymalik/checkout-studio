@@ -1,6 +1,8 @@
 "use client"
 
 import { useMemo } from "react"
+import Link from "next/link"
+
 import { Dialog, DialogContent } from "@checkout-studio/ui"
 import { paletteKeys, useKeyboard, useScope } from "@checkout-studio/editor"
 import type { ScopeId } from "@checkout-studio/editor"
@@ -99,6 +101,26 @@ export function ShortcutReference() {
               </dl>
             </section>
           ))}
+
+          {/*
+            Where to change them.
+            
+            Every key on this list is remappable and the screen that does it
+            was reachable only by typing its URL — so somebody looking at a
+            shortcut they disliked had no way to find out it could be moved.
+            A reference that lists keys is the one place a person is thinking
+            about them.
+          */}
+          <p className="text-caption text-foreground-subtle">
+            Any of these can be changed in{" "}
+            <Link
+              href="/settings/keyboard"
+              className="text-foreground underline underline-offset-2 hover:text-primary"
+            >
+              keyboard settings
+            </Link>
+            .
+          </p>
 
           <section className="flex flex-col gap-2">
             <h3 className="text-caption font-medium tracking-wide text-foreground-muted uppercase">

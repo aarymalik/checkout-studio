@@ -12,6 +12,8 @@ import {
 
 import { useOverlays } from "./overlays"
 import { ViewportControls } from "./ViewportControls"
+import Link from "next/link"
+
 import { Logo } from "@/components/brand/Logo"
 
 /**
@@ -76,7 +78,27 @@ export function Toolbar({ projectName }: { projectName: string }) {
       aria-label="Toolbar"
       className="flex h-toolbar shrink-0 items-center gap-3 border-b border-border bg-surface px-4"
     >
-      <Logo className="size-6 shrink-0" />
+      {/*
+        The way out.
+        
+        There was none: the canvas was reachable from the dashboard and the
+        dashboard was reachable from nowhere, so somebody who opened a page
+        used the browser's back button or edited the URL. The mark is the
+        obvious place for it — it is where every other product in this
+        category puts the way home — and it is a link rather than a button so
+        it behaves like one: middle click, open in a new tab, a visible target
+        on hover.
+      */}
+      <Link
+        href="/dashboard"
+        aria-label="All projects"
+        className={cn(
+          "shrink-0 rounded-tight p-1 transition-colors duration-fast ease-standard",
+          "hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-focus-ring",
+        )}
+      >
+        <Logo className="size-6" />
+      </Link>
 
       <h1 className="min-w-0 truncate text-body font-medium text-foreground">{projectName}</h1>
 

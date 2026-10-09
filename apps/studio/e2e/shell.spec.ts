@@ -224,3 +224,76 @@ test.describe("the editor", () => {
     await expect(page.getByRole("main", { name: "Canvas" })).toBeFocused()
   })
 })
+
+test("gets back to the projects list from the canvas", async ({ page, context }) => {
+  await context.addCookies(session)
+  await page.goto(`/projects/${account.projectId}`)
+  await waitForHydration(page)
+
+  // There was no way out: the canvas was reachable from the dashboard and the
+  // dashboard from nowhere.
+  await page.getByRole("link", { name: "All projects" }).click()
+
+  await expect(page).toHaveURL(/\/dashboard$/)
+})
+
+test("offers a way to change a shortcut from the reference that lists it", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies(session)
+  await page.goto(`/projects/${account.projectId}`)
+  await waitForHydration(page)
+
+  const reference = page.getByRole("dialog", { name: "Keyboard shortcuts" })
+
+  // Retried, like every other shortcut in this file: the binding is live once
+  // the shell has registered it, and the keystroke can arrive first.
+  await pressUntil(page, `${MOD}+Slash`, reference)
+
+  await expect(reference).toBeVisible()
+
+  /*
+   * Every key on that list is remappable and the screen that does it was
+   * reachable only by typing its URL. A reference that lists keys is the one
+   * place a person is thinking about them.
+   */
+  await expect(reference.getByRole("link", { name: "keyboard settings" })).toHaveAttribute(
+    "href",
+    "/settings/keyboard",
+  )
+})
+
+test("scrolls a dialog taller than the window", async ({ page, context }) => {
+  await context.addCookies(session)
+  await page.setViewportSize({ width: 1280, height: 600 })
+  await page.goto(`/projects/${account.projectId}`)
+  await waitForHydration(page)
+
+  const reference = page.getByRole("dialog", { name: "Keyboard shortcuts" })
+
+  // Retried, like every other shortcut in this file: the binding is live once
+  // the shell has registered it, and the keystroke can arrive first.
+  await pressUntil(page, `${MOD}+Slash`, reference)
+
+  await expect(reference).toBeVisible()
+
+  /*
+   * A `fixed` dialog with no height overflows both ends of the window and
+   * neither can be reached — the top is clipped off screen and the bottom is
+   * below the fold, with nothing to scroll. Forty shortcuts, of which about
+   * twenty-five were readable and the rest never.
+   */
+  const body = reference.locator("div.overflow-y-auto").first()
+
+  await expect(body).toBeVisible()
+
+  const scrollable = await body.evaluate((node) => node.scrollHeight > node.clientHeight + 1)
+
+  expect(scrollable).toBe(true)
+
+  // And the way out stays on screen while it scrolls.
+  await body.evaluate((node) => node.scrollTo(0, node.scrollHeight))
+
+  await expect(reference.getByRole("button", { name: "Close" })).toBeInViewport()
+})

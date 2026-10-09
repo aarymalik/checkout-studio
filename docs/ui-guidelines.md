@@ -339,6 +339,33 @@ Always near cursor.
 
 ---
 
+# Dialogs
+
+**As built.** A dialog is bounded at 90% of the window and its body scrolls
+inside that. Without the bound a dialog taller than the window overflowed both
+ends of it and neither could be reached: it is `fixed`, so the clipped top was
+off screen and the bottom below the fold with nothing to scroll. The shortcut
+reference is where it showed — forty shortcuts, of which about twenty-five
+could be read and the rest never.
+
+The header and the close button stay put while the body scrolls, so the way out
+does not leave with the first screenful.
+
+The body's gutter can be turned off for a dialog whose content is meant to
+reach the edges, and the header keeps its padding either way. The command
+palette used to switch the padding off for the whole dialog to get an
+edge-to-edge search field, which took the title to the corner with it.
+
+**One focus ring, in the `base` layer.** The ring in reset.css was unlayered,
+and unlayered CSS beats every cascade layer whatever the source order — so it
+won against `outline-none` and against every `focus-visible:ring-*` a component
+asked for. The palette's search field drew a hard rectangle around itself
+despite asking for a hairline, and anything that had replaced the ring with its
+own was quietly drawing both. Only that rule is layered; the rest of the reset
+still beats the utilities, the reduced-motion stop most of all.
+
+---
+
 # Inspector
 
 Properties grouped.

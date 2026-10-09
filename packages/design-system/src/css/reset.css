@@ -39,9 +39,25 @@ body {
  * gets one. The offset keeps the ring legible against the control it surrounds
  * rather than blending into its edge.
  */
-:focus-visible {
-  outline: 2px solid var(--cs-color-focus-ring);
-  outline-offset: 2px;
+/*
+ * In `base`, so a component can replace it.
+ *
+ * This file is imported after Tailwind and was unlayered, and unlayered CSS
+ * beats every cascade layer no matter the source order — so this rule won
+ * against `outline-none` and against every `focus-visible:ring-*` a component
+ * asked for. The command palette's search field is where it showed: a field
+ * styled with a bottom hairline and no outline drew a hard 2px rectangle
+ * around itself anyway, and anything that had replaced the ring with its own
+ * was quietly drawing both.
+ *
+ * Only this rule is layered. The rest of the reset still wants to beat the
+ * utilities — the reduced-motion stop below most of all.
+ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--cs-color-focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 /*

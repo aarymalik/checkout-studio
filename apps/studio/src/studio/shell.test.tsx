@@ -466,6 +466,22 @@ describe("StudioShell", () => {
     })
   })
 
+  describe("getting out", () => {
+    it("has a way back to the projects list", () => {
+      /*
+       * There was none. The canvas was reachable from the dashboard and the
+       * dashboard from nowhere, so somebody who opened a page used the
+       * browser's back button or edited the URL.
+       */
+      renderShell()
+
+      expect(screen.getByRole("link", { name: "All projects" })).toHaveAttribute(
+        "href",
+        "/dashboard",
+      )
+    })
+  })
+
   describe("telemetry", () => {
     /**
      * Phases 7 and 8 shipped emitting no client metrics at all, which

@@ -131,7 +131,7 @@ export function CommandPalette({
         title="Command palette"
         description="Search for a command, a page or a component."
         size="md"
-        className="gap-0 p-0"
+        padded={false}
         // The field owns the keyboard. Radix would otherwise move focus to the
         // first focusable element, which is the close button.
         onOpenAutoFocus={(event) => {
@@ -172,7 +172,15 @@ export function CommandPalette({
             }
           }}
           className={cn(
-            "h-control-lg w-full border-b border-border bg-transparent px-4",
+            /*
+             * A hairline under it, not a box around it.
+             *
+             * It reads as the top of the list rather than as a field dropped
+             * into a dialog, which is what a palette is. It also used to draw
+             * a hard 2px rectangle regardless of this: the global
+             * `:focus-visible` outline was unlayered and beat `outline-none`.
+             */
+            "h-control-lg w-full border-y border-border bg-transparent px-4",
             "text-body-lg text-foreground placeholder:text-foreground-subtle",
             "outline-none",
           )}
