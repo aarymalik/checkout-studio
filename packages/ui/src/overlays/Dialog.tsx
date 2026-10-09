@@ -45,6 +45,15 @@ export interface DialogContentProps extends Omit<
    */
   dismissOnClickOutside?: boolean
   size?: "sm" | "md" | "lg"
+  /**
+   * Whether the body carries the dialog's gutter. On by default.
+   *
+   * Off for a dialog whose content is meant to reach the edges — the command
+   * palette's search field and its result rows. The header keeps its padding
+   * either way, because a title flush against the corner is not a design
+   * decision anybody made.
+   */
+  padded?: boolean
   children?: ReactNode
 }
 
@@ -60,6 +69,7 @@ export function DialogContent({
   description,
   dismissOnClickOutside = true,
   size = "md",
+  padded = true,
   children,
   ...props
 }: DialogContentProps) {
@@ -89,15 +99,37 @@ export function DialogContent({
           // screen without expressing its width as arithmetic on a raw length.
           "fixed inset-x-4 top-1/2 z-50 mx-auto -translate-y-1/2",
           SIZES[size],
-          "flex flex-col gap-4",
-          "rounded-modal border border-border bg-surface-raised p-6 shadow-dialog",
+          /*
+           * Bounded, and scrollable past the bound.
+           *
+           * Without a height a dialog taller than the window overflows both
+           * ends of it and neither can be reached: the top is clipped off
+           * screen and the bottom is below the fold, with nothing to scroll
+           * because the element is `fixed`. The shortcut reference is the
+           * dialog that found this — forty shortcuts, of which a user could
+           * read about twenty-five and no others, ever.
+           *
+           * design-system-ignore: a viewport-relative ceiling is not a spacing
+           * step. The gutter either side of it is `inset-x-4`, which is.
+           */
+          "max-h-[90dvh] overflow-hidden",
+          "flex flex-col",
+          "rounded-modal border border-border bg-surface-raised shadow-dialog",
           "transition-opacity duration-normal ease-standard",
           "outline-none",
           className,
         )}
         {...props}
       >
-        <div className="flex flex-col gap-1">
+        {/*
+          The header keeps its padding whatever the body does.
+
+          The command palette asked for an edge-to-edge search field and got it
+          by setting `p-0` on the whole dialog, which took the title and the
+          description to the edge with it — a heading flush against the corner
+          with the close button sitting on top of the line below it.
+        */}
+        <div className="flex shrink-0 flex-col gap-1 px-6 pt-6 pb-4">
           <RadixDialog.Title className="text-h3 font-semibold text-foreground">
             {title}
           </RadixDialog.Title>
@@ -109,11 +141,24 @@ export function DialogContent({
           )}
         </div>
 
-        {children}
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto",
+            padded && "px-6 pb-6",
+          )}
+        >
+          {children}
+        </div>
 
         <RadixDialog.Close
           aria-label="Close"
           className={cn(
+            /*
+             * Absolute against the dialog, which no longer scrolls as a whole
+             * — the body inside it does. A close button inside the scroller
+             * would leave with the first screenful, and Escape would be the
+             * only way out of a long dialog.
+             */
             "absolute top-4 right-4 inline-flex size-8 items-center justify-center",
             "rounded-tight text-foreground-muted",
             "transition-colors duration-fast ease-standard outline-none",
