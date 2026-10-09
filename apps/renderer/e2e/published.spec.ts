@@ -47,17 +47,17 @@ test("serves a published checkout", async ({ page }) => {
   expect(primary.trim()).toBe(defaultTheme.colors.primary)
 
   /*
-   * The page and the section are real components now; the text is not.
+   * Every node is a real component now, and the words are on the page.
    *
-   * `core-layout` registers `core.page` and `core.section`. `core.text` comes
-   * with `core-content`, so exactly one node still falls back — and the
-   * fallback keeps its space and says nothing to a customer, which is the
-   * behaviour that matters on a page somebody is paying on.
+   * `core-layout` registers the page and the section; `core-content` registers
+   * the text. So nothing falls back — and the assertion worth making is not
+   * that the markup is there but that a customer can read it: this is the
+   * first published checkout in this product with content on it.
    */
   await expect(page.locator(".checkout-root main")).toBeVisible()
   await expect(page.locator(".checkout-root main > section")).toBeVisible()
-  await expect(page.locator("[data-ck-unsupported]")).toHaveCount(1)
-  await expect(page.locator('[data-ck-unsupported="core.text"]')).toBeEmpty()
+  await expect(page.getByText("Pay now")).toBeVisible()
+  await expect(page.locator("[data-ck-unsupported]")).toHaveCount(0)
 
   // Zero hydration mismatches. React reports one as a recoverable error.
   expect(errors.filter((text) => /hydrat|did not match/i.test(text))).toEqual([])

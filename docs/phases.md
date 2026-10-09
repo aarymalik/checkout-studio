@@ -1851,10 +1851,22 @@ Container is the first real use of `themeSlot` — stage 1 of the cascade — fo
 its maximum width, because there is no spacing token for a content width and a
 literal would be a number outliving the decision that produced it.
 
-Still to do: `core-content`, `core-embed`, visual regression, and the
-2,000-real-node performance run. The pointer-drag e2e flows wait for a second
-namespace to drag between; the press-to-insert path is covered end to end now
-that the library has something in it.
+**Step 3 is under way: `core-content`.** Heading, Text and Badge — the first
+components in this product with words in them, and the first plugin to register
+a document validator. Image, Video, Icon, Button and Link follow.
+
+Three recorded deviations, all in component-library.md: Animation is not a
+component property because a node's animations are the engine's; rich
+formatting, lists and inline links on Text are not built because the schema has
+no representation for inline marks; and a Badge takes no icon because that
+would make it a container.
+
+A published checkout now renders content a customer can read, which the
+renderer app's e2e asserts by reading it.
+
+Still to do: the five remaining content components, `core-embed`, visual
+regression, and the 2,000-real-node performance run. The pointer-drag e2e flows
+wait for the drag to have two namespaces to move between.
 
 ### Exit Criteria
 
