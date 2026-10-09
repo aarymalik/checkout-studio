@@ -1838,8 +1838,23 @@ tests that had been skipped since Phase 7 now run, and the published checkout
 renders a real `<main>` and `<section>`. The flows that need two components —
 drag a Section, then a Heading inside it — wait for `core-content`.
 
-Still to do: the remaining five layout components, `core-content`,
-`core-embed`, visual regression, and the 2,000-real-node performance run.
+**Step 2 is done: the layout components.** Container, Grid, Stack, Columns,
+Spacer and Divider, following Section's pattern. `core-layout` registers eight
+components; seven are insertable and the page root is not.
+
+Two recorded deviations from the catalog, both in component-library.md:
+Columns' "Responsive Collapse" is the column count being responsive rather than
+a control of its own, and Columns overlaps Grid by more than the catalog
+implies.
+
+Container is the first real use of `themeSlot` — stage 1 of the cascade — for
+its maximum width, because there is no spacing token for a content width and a
+literal would be a number outliving the decision that produced it.
+
+Still to do: `core-content`, `core-embed`, visual regression, and the
+2,000-real-node performance run. The pointer-drag e2e flows wait for a second
+namespace to drag between; the press-to-insert path is covered end to end now
+that the library has something in it.
 
 ### Exit Criteria
 

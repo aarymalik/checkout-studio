@@ -168,6 +168,25 @@ nothing in the renderer's module graph imports the second. A customer paying on
 a checkout has no use for the fact that Section's overflow control is a select
 with four options.
 
+**Shared property definitions.** Six layout components list Padding and the
+catalog means the same control each time, so the common ones are written once in
+`src/components/common.ts` and each component composes the list the catalog
+gives it. Six copies would be six chances for one to drift into offering only
+`px`, and nobody would notice until a user could not type a percentage.
+
+**Responsiveness is not a component feature.** A component never sees a
+resolved style — it is handed a class — so "a row that becomes a column on a
+phone" is the user setting Direction at the mobile breakpoint and the cascade
+doing the rest. That is why a property that has to vary by breakpoint must be a
+style and not a prop: the document stores per-breakpoint overrides for styles
+only, and the property schema refuses a prop that claims otherwise.
+
+**Where a number that is not a token lives.** A Container's maximum width has no
+spacing token to reference — that scale tops out at 96 — and 1120px here with
+960px on the next page is not a choice anybody made. So it goes in the theme,
+through `themeSlot`: stage 1 of the cascade, overridable per node by stage 3.
+Container is its first real use.
+
 ---
 
 # Layout Components
@@ -277,6 +296,16 @@ Editable
 - Width
 - Gap
 - Responsive Collapse
+
+**As built.** Three of the four are controls. "Responsive Collapse" is not: the
+column count is responsive, so collapsing is setting it to one at the mobile
+breakpoint. A separate switch would be a second way to say the same thing, and
+the two would disagree the first time somebody used both.
+
+Columns and Grid overlap, and the overlap is worth saying out loud. Grid is
+two-dimensional — a count of columns that children flow into row by row, with
+the flow itself editable. Columns is one row of equal columns, which is what a
+page is made of when a product sits beside its description.
 
 ---
 

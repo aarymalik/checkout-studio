@@ -29,7 +29,19 @@ describe("activation", () => {
     const { host, registry } = started()
 
     expect(host.records().map((record) => record.state)).toEqual(["active"])
-    expect([...registry.types()]).toEqual(["core.page", "core.section"])
+
+    // In registration order, and the page first: it is every document's root
+    // and the one a missing registration is most visible in.
+    expect([...registry.types()]).toEqual([
+      "core.page",
+      "core.section",
+      "core.container",
+      "core.grid",
+      "core.stack",
+      "core.columns",
+      "core.spacer",
+      "core.divider",
+    ])
   })
 
   it("registers into the core namespace it declares, not its own id", () => {
