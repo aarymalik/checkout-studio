@@ -1,6 +1,7 @@
 import { CURRENT_VERSION } from "@checkout-studio/schema"
 import { PluginHost } from "@checkout-studio/plugin-sdk"
 import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
+import { coreContent } from "@checkout-studio/plugin-core-content/renderer"
 import { coreLayout } from "@checkout-studio/plugin-core-layout/renderer"
 
 /**
@@ -25,6 +26,8 @@ const ENGINE_VERSION = "0.1.0"
 
 export const host = new PluginHost({
   versions: { engine: ENGINE_VERSION, schema: CURRENT_VERSION },
-}).register(coreLayout)
+})
+  .register(coreLayout)
+  .register(coreContent)
 
 export const registry: RendererRegistry = host.startSync()

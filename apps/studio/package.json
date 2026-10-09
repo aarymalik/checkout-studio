@@ -24,6 +24,7 @@
     "@checkout-studio/editor": "workspace:*",
     "@checkout-studio/hooks": "workspace:*",
     "@checkout-studio/observability": "workspace:*",
+    "@checkout-studio/plugin-core-content": "workspace:*",
     "@checkout-studio/plugin-core-layout": "workspace:*",
     "@checkout-studio/plugin-sdk": "workspace:*",
     "@checkout-studio/renderer": "workspace:*",

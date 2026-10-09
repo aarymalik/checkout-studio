@@ -86,6 +86,19 @@ export const CONTROL_KINDS = [
   "columns",
   /** An asset reference, resolved by the engine before the renderer sees it. */
   "asset",
+  /** A single line. */
+  "text",
+  /** A bare number, with no unit to pick. A line height is `1.6`, not `1.6px`. */
+  "number",
+  /**
+   * A CSS gradient.
+   *
+   * Its own kind rather than a text field, because the value is three
+   * declarations once it reaches the page — a background image, a clip, and a
+   * transparent colour — and the control is the only honest place to hide
+   * that. A user picking two colours is not writing `linear-gradient`.
+   */
+  "gradient",
 ] as const
 
 export const controlKind = z.enum(CONTROL_KINDS)

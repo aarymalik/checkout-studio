@@ -379,6 +379,29 @@ Shadow
 
 Animation
 
+**As built.** Nine of the ten, plus the level.
+
+**Animation is not a component property.** A node's animations live on the node
+— `node.animations` in the schema — and belong to the engine's animation
+editor, which every component gets without declaring it. A property here would
+be a second place to set the same thing.
+
+**The level is not the size.** They are separate controls on purpose: an `h2`
+that needs to look small is a style change, not a demotion. The level decides
+the element, because the element is the meaning — a screen reader user
+navigates a page by its headings.
+
+A level that is not one of 1–6 is read as 2 rather than rendered. A document can
+hold anything a previous version wrote or a careless import produced, and `h7`
+is not an element: React renders an unknown tag, the browser treats it as an
+inline span, and the heading is visibly a heading and structurally not.
+
+**Heading order is checked at the page level**, not here — no heading can
+answer it alone. A skipped level and a page with no level-1 heading are both
+warnings, and neither blocks a publish: a heading order is a judgement about
+content, and refusing to publish over one would be the editor overruling
+somebody who can see their own page.
+
 ---
 
 ## Text
@@ -399,6 +422,19 @@ Links
 
 Rich formatting
 
+**As built.** Everything from Heading is here, minus the level — a paragraph has
+no place in the outline — and minus the gradient, which is a thing for a title
+rather than for body copy.
+
+Lists, links and rich formatting are **not built**. They need a representation
+for inline marks and the schema has none: `PropValue` could hold one, but what
+shape it takes decides what the inline editor in Phase 12 can do, and inventing
+it from a renderer's side would be deciding that by accident.
+
+A typed line break is a line break: the default styles set `white-space:
+pre-wrap`, because without it a paragraph written over three lines renders as
+one and nothing on screen explains why.
+
 ---
 
 ## Badge
@@ -418,6 +454,16 @@ Background
 Radius
 
 Icon
+
+**As built.** Four of the five. Icon is not a control: it would need the icon
+set, which belongs to `core.icon`, and a badge holding a component would be a
+container — which a badge is not. A Stack with an Icon and a Badge in it does
+this already.
+
+Its colours default to `primary` and `primaryForeground`, which is the one pair
+a theme guarantees is readable together. A badge that picked `foreground` on
+`primary` would be dark grey on indigo, and whether that was legible would
+depend on the brand.
 
 ---
 
