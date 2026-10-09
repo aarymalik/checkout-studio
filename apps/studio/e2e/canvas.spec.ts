@@ -180,6 +180,46 @@ test("selects a node by clicking it, and clears on the background", async ({ con
   await expect(breadcrumb).toBeHidden()
 })
 
+test("inserts a real component from the library onto the canvas", async ({ context, page }) => {
+  await signIn(context)
+  await page.goto(`/projects/${account.projectId}?page=${pageId}`)
+  await waitForHydration(page)
+
+  const library = page.getByRole("region", { name: "Components" })
+
+  /*
+   * The library is built from the registry, so this is the first test that can
+   * exist: until `core-layout` there was nothing registered to list, and the
+   * panel's own empty state was all it could ever show.
+   *
+   * Pressing rather than dragging. docs/editor-behavior.md: "a list you can
+   * only drag from is a list some people cannot use", so pressing inserts —
+   * and it is the path a keyboard user takes. The pointer drag is covered by
+   * integration tests in packages/editor and gets its own e2e when there is a
+   * second namespace to drag between.
+   */
+  await expect(library.getByRole("heading", { name: "Layout" })).toBeVisible()
+  // Named by what the row says: the component's name and its type id, because
+  // the catalog names components by the id and somebody who has read the docs
+  // searches for it.
+  await library.getByRole("button", { name: "Container core.container" }).click()
+
+  // In the layers panel, which reads the document: the insert reached the store
+  // rather than only the panel it was pressed in. The sidebar shows one tab at
+  // a time, and the library and the layers are two of them.
+  await page.getByRole("tab", { name: "Layers" }).click()
+
+  await expect(
+    page
+      .getByRole("tree", { name: "Layers" })
+      .getByRole("button", { name: "Container", exact: true }),
+  ).toBeVisible()
+
+  // And on the canvas, drawn by the component's own renderer rather than by a
+  // placeholder standing in for it.
+  await expect(page.locator("[data-canvas-frame] [data-ck-unsupported]")).toHaveCount(0)
+})
+
 test("has a page to open only while one exists", async ({ context, page }) => {
   await signIn(context)
 

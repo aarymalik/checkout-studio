@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@checkout-studio/plugin-sdk": "workspace:*",
-    "@checkout-studio/schema": "workspace:*"
+    "@checkout-studio/schema": "workspace:*",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@checkout-studio/config": "workspace:*",

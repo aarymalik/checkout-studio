@@ -70,6 +70,20 @@ export const CONTROL_KINDS = [
   "shadow",
   /** One of a fixed list. Requires `options`. */
   "select",
+  /**
+   * A column count, stored as the CSS it means.
+   *
+   * `3` is written as `repeat(3, minmax(0, 1fr))`, and the control reads it
+   * back. A count rather than the track list because that is what somebody
+   * laying out a page is thinking about — and a style rather than a prop
+   * because a grid has to be able to become one column on a phone, and the
+   * document stores per-breakpoint overrides for styles only.
+   *
+   * `minmax(0, 1fr)` rather than `1fr`: a bare `1fr` floors at the content's
+   * minimum size, so one long unbroken string makes its column wider than its
+   * share and pushes the rest off the page.
+   */
+  "columns",
   /** An asset reference, resolved by the engine before the renderer sees it. */
   "asset",
 ] as const

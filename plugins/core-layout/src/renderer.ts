@@ -1,8 +1,14 @@
 import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { manifest } from "./manifest"
+import { columns } from "./components/columns/definition"
+import { container } from "./components/container/definition"
+import { divider } from "./components/divider/definition"
+import { grid } from "./components/grid/definition"
 import { page } from "./components/page/definition"
 import { section } from "./components/section/definition"
+import { spacer } from "./components/spacer/definition"
+import { stack } from "./components/stack/definition"
 
 /**
  * The renderer half: component definitions and nothing else.
@@ -21,9 +27,17 @@ import { section } from "./components/section/definition"
 export const coreLayout: Plugin = {
   manifest,
   activate(api: PluginApi) {
+    // The page first, because it is every document's root and the one a
+    // missing registration is most visible in.
     api.registerComponent(page)
     api.registerComponent(section)
+    api.registerComponent(container)
+    api.registerComponent(grid)
+    api.registerComponent(stack)
+    api.registerComponent(columns)
+    api.registerComponent(spacer)
+    api.registerComponent(divider)
   },
 }
 
-export { page, section }
+export { columns, container, divider, grid, page, section, spacer, stack }
