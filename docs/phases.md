@@ -1872,9 +1872,19 @@ component whose name is a prop cannot be tree-shaken, so the set is eight
 inline paths rather than a library; and custom SVG upload needs a sanitiser,
 which belongs with Phase 14's asset handling.
 
-Still to do: Button and Link — the first `interactive: true` components, and
-the first that will move the published bundle off 6.8 KB — then `core-embed`,
-visual regression, and the 2,000-real-node performance run.
+Button and Link followed, and they are **not** interactive after all. A button
+that navigates is an anchor, one that acts is a `<button type="button">`,
+disabled and busy are attributes, the spinner is CSS, and the analytics event
+is a data attribute one delegated listener will read in Phase 18. The
+prediction that they would be the first to move the published bundle was
+wrong, and the bundle is still 6.8 KB of 60 across sixteen components. The
+first component that needs a client is the payment element in Phase 13.
+
+Both check their destination before it reaches an `href` — see
+component-library.md § Destinations are checked.
+
+Still to do: `core-embed`, visual regression, and the 2,000-real-node
+performance run.
 
 ### Exit Criteria
 

@@ -90,6 +90,14 @@ export const CONTROL_KINDS = [
   "text",
   /** On or off. */
   "toggle",
+  /**
+   * A destination: a page in this project, or an address.
+   *
+   * Its own kind rather than a text field, because the control has to offer
+   * the project's own pages as well as somewhere to type — and because what
+   * is typed has to be checked before it reaches an `href`.
+   */
+  "url",
   /** A bare number, with no unit to pick. A line height is `1.6`, not `1.6px`. */
   "number",
   /**

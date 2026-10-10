@@ -1063,6 +1063,34 @@ Link
 
 Analytics Event
 
+**As built.** Fourteen of the sixteen are controls. Hover and Pressed are the
+other two, and they are not: the document stores a state layer per style —
+stage 5 of the cascade — so every style marked `states: true` already has
+hover, focus, active and disabled. Four more controls would be a second way to
+write the same thing, and the two would disagree the first time somebody used
+both.
+
+**It is a link when it goes somewhere and a button when it does something.** An
+anchor styled as a button is still a link: it navigates, it opens in a new tab,
+a browser shows where it goes. Scripting that onto a `<button>` would take all
+of it away for nothing. The real button carries `type="button"`, which Phase
+9's criteria ask for by name — without it a button inside a form submits that
+form, and the first anybody knows is a half-filled checkout posting itself.
+
+Disabled works two ways because an anchor has no `disabled`: a link loses its
+`href`, which is what actually stops it, and carries `aria-disabled` so it is
+announced the same way. Loading sets `aria-busy` and keeps the label in the
+accessible name — a spinner that replaced the words would leave a screen
+reader user with a button that had silently become nameless halfway through a
+purchase.
+
+**`interactive: false`, which was not the expected answer.** Navigating is an
+anchor, acting is a button, disabled and busy are attributes, the spinner is
+CSS, and the analytics event is a `data-ck-event` attribute that one delegated
+listener will read once Phase 18 exists. None of it is JavaScript this
+component puts on a page. The first component that genuinely needs a client is
+the payment element in Phase 13.
+
 ---
 
 ## Link
@@ -1080,6 +1108,40 @@ Underline
 Color
 
 Hover
+
+**As built.** Five controls; Hover is the state layer, as on Button.
+
+Underlined by default and it stays that way unless somebody decides otherwise.
+Colour alone does not tell a link from text for everybody reading the page —
+WCAG 1.4.1 — and roughly one man in twelve cannot rely on the difference
+between the two colours a brand picks.
+
+An `<a>` when it has a destination and a `<span>` when it does not. An anchor
+with no `href` is not focusable, not announced as a link and not clickable, so
+rendering one would be a thing that looks like a link and is not.
+
+## Destinations are checked
+
+Both components put a URL through one guard before it reaches an `href`.
+
+A document is untrusted input: it arrives from the database, from an import,
+from a template, and in a workspace from another person. `href="javascript:…"`
+runs when somebody clicks it, and docs/security.md already strips those from
+HTML and Code blocks for the same reason.
+
+Four schemes are allowed — `http`, `https`, `mailto`, `tel` — along with
+relative paths, fragments and queries. `data:` is not: a `data:text/html` link
+opens a page the author wrote in an origin the browser treats as ours.
+
+Protocol-relative URLs are refused too, and not because of their scheme.
+`//evil.example` resolves to `https://evil.example`, which is allowed when
+written out — the problem is that it does not look like it. Somebody typing a
+path has typed a path, and a doubled slash silently meaning another site is a
+trap with no upside.
+
+`target="_blank"` always carries `rel="noopener noreferrer"`. Without
+`noopener` the opened page can reach back through `window.opener` and navigate
+the one that opened it, and the page it would be replacing is a checkout.
 
 ---
 
