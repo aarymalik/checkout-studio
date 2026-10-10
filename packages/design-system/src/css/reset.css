@@ -51,9 +51,7 @@ body {
  * `outline-none` as a bug. It is the point — Button says so three lines above
  * its own `outline-none`, in a file I had not read. Layering it meant the
  * utility won and **no ring was drawn anywhere**: twenty-three controls, none
- * of which provides its own, all of them silently unfocusable to look at. A
- * visual case that photographs a focused button is what found it, which is
- * the same gap I had flagged and not closed.
+ * of which provides its own, all of them silently unfocusable to look at.
  *
  * The offset is a variable so a control can pull the ring inside its own box
  * without fighting the cascade. A full-bleed field — the command palette's
@@ -61,6 +59,30 @@ body {
  * it, which is what somebody reported as a border that did not look good.
  * Setting `--cs-focus-ring-offset: -2px` there keeps one ring and moves it in.
  */
+
+/*
+ * The colour is declared on everything, not only on what is focused.
+ *
+ * `transition-colors` — which every control in the product uses, because it is
+ * how a hover reads as a change rather than a jump — animates `outline-color`
+ * along with the rest. Declaring the colour only under `:focus-visible` makes
+ * focus a change of colour, from the initial `currentColor`, so the first
+ * 150ms of every ring is the control's own text colour. On a primary button
+ * that is white, against a white page: for the length of the transition there
+ * is no ring at all, exactly when a keyboard user needs to see where they are.
+ *
+ * Setting it unconditionally leaves nothing to animate. `:focus-visible` then
+ * only turns the ring on, which is not a property `transition-colors` covers.
+ *
+ * `:where()` so this carries no specificity of its own, and unlayered for the
+ * reason above — which together mean a component cannot override the ring's
+ * colour with a utility. One ring for the whole product is the intent; a
+ * component that needs its own has to say so here.
+ */
+:where(*) {
+  outline-color: var(--cs-color-focus-ring);
+}
+
 :focus-visible {
   outline: 2px solid var(--cs-color-focus-ring);
   outline-offset: var(--cs-focus-ring-offset, 2px);
