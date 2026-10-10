@@ -156,7 +156,12 @@ export function CommandPalette({
            * the dialog, so outside means across its rounded corners — a hard
            * rectangle, which is what somebody reported. A negative offset
            * keeps the same ring and puts it within the field's own bounds.
+           *
+           * It is the ring's own width negated rather than a distance between
+           * things: it has to track `outline-width` in reset.css, and a
+           * spacing step would be the wrong number the moment either changed.
            */
+          // design-system-ignore: the focus ring's width, negated.
           style={{ "--cs-focus-ring-offset": "-2px" } as CSSProperties}
           value={input}
           placeholder={placeholder}
