@@ -1864,9 +1864,17 @@ would make it a container.
 A published checkout now renders content a customer can read, which the
 renderer app's e2e asserts by reading it.
 
-Still to do: the five remaining content components, `core-embed`, visual
-regression, and the 2,000-real-node performance run. The pointer-drag e2e flows
-wait for the drag to have two namespaces to move between.
+Image, Video and Icon followed. Three more recorded deviations, all in
+component-library.md and all forced by something outside the component: a
+published checkout's CSP rejects unknown sources, so Video is self-hosted only
+and an embed would render a blank rectangle to a paying customer; an icon
+component whose name is a prop cannot be tree-shaken, so the set is eight
+inline paths rather than a library; and custom SVG upload needs a sanitiser,
+which belongs with Phase 14's asset handling.
+
+Still to do: Button and Link — the first `interactive: true` components, and
+the first that will move the published bundle off 6.8 KB — then `core-embed`,
+visual regression, and the 2,000-real-node performance run.
 
 ### Exit Criteria
 

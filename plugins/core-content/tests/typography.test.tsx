@@ -43,8 +43,19 @@ describe("what every component in this plugin holds to", () => {
     expect(definitions().every((definition) => !definition.container)).toBe(true)
   })
 
-  it("is filed under Typography", () => {
-    expect(definitions().every((definition) => definition.category === "Typography")).toBe(true)
+  it("is filed under the category the catalog gives it", () => {
+    // Not all Typography any more: Image, Video and Icon are Media. The
+    // catalog is the source of which is which.
+    const byType = new Map(
+      definitions().map((definition) => [definition.type, definition.category]),
+    )
+
+    expect(byType.get("core.heading")).toBe("Typography")
+    expect(byType.get("core.text")).toBe("Typography")
+    expect(byType.get("core.badge")).toBe("Typography")
+    expect(byType.get("core.image")).toBe("Media")
+    expect(byType.get("core.video")).toBe("Media")
+    expect(byType.get("core.icon")).toBe("Media")
   })
 
   it("has property definitions, and they parse", () => {
@@ -71,7 +82,9 @@ describe("what every component in this plugin holds to", () => {
   it("reads a bound number as text, because a price is one", () => {
     // Props arrive resolved, so a `$var` bound to a quantity is a number by the
     // time a component sees it. Refusing it would render nothing with no error.
-    for (const definition of definitions()) {
+    //
+    // The three that hold words. An image has no text to bind.
+    for (const definition of definitions().filter((entry) => entry.category === "Typography")) {
       const { container } = renderComponent(definition, { props: { text: 42 } })
 
       // Scoped to this render. `cleanup` runs between tests, not inside one, so

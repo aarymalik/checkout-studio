@@ -31,6 +31,16 @@ export const level: PropertyDefinitionInput = {
   help: "Where this sits in the page's outline. A screen reader navigates by it.",
 }
 
+export const width: PropertyDefinitionInput = {
+  key: "width",
+  target: "style",
+  label: "Width",
+  group: "Layout",
+  control: "dimension",
+  units: ["%", "px", "rem", "auto"],
+  responsive: true,
+}
+
 export const fontFamily: PropertyDefinitionInput = {
   key: "fontFamily",
   target: "style",
