@@ -9,6 +9,15 @@ import { CASES } from "../src/app/design/cases"
  * library exports appears in that list, which is what makes this matrix
  * complete rather than merely long.
  */
+
+/**
+ * How much of the page around a focused control the crop keeps.
+ *
+ * Enough for the ring and its offset — which together reach 4px — and enough
+ * either side of it to show that the ring ends where it should.
+ */
+const RING_ROOM = 8
+
 for (const testCase of CASES) {
   for (const colorScheme of ["light", "dark"] as const) {
     test(`${testCase.id} — ${colorScheme}`, async ({ page }) => {
@@ -38,7 +47,7 @@ for (const testCase of CASES) {
       /*
        * Next's development indicator is not part of the design system, and it
        * moves and restyles between framework releases — a Next upgrade would
-       * otherwise fail all 38 screenshots at once.
+       * otherwise fail every screenshot in the suite at once.
        *
        * Removed rather than masked or hidden. It renders inside a shadow root,
        * so the host element has no box and Playwright's `mask` silently covers
@@ -50,20 +59,46 @@ for (const testCase of CASES) {
         document.querySelector("nextjs-portal")?.remove()
       })
 
+      await expect(page).toHaveScreenshot(`${testCase.id}-${colorScheme}.png`, {
+        fullPage: true,
+      })
+
       if (testCase.focus !== undefined) {
+        const control = page.locator(testCase.focus).first()
+
         /*
          * By the keyboard, because `:focus-visible` is the rule being
          * photographed and a programmatic `focus()` does not always satisfy
          * it. Tab from the document rather than clicking, which is what a
          * keyboard user does and what the ring exists for.
          */
-        await page.locator(testCase.focus).first().press("Tab")
+        await control.press("Tab")
         await page.keyboard.press("Shift+Tab")
-      }
 
-      await expect(page).toHaveScreenshot(`${testCase.id}-${colorScheme}.png`, {
-        fullPage: true,
-      })
+        const box = await control.boundingBox()
+        if (box === null) throw new Error(`${testCase.focus} has no box to photograph`)
+
+        /*
+         * Cropped to the control, and that is what makes this a test.
+         *
+         * The full-page shot above cannot see a focus ring. Two pixels around
+         * an 83×40 button is about 540 of the page's 990,000, and
+         * `maxDiffPixelRatio` allows nearly 2,000 — so deleting the ring from
+         * the product passes it. Which I checked, by deleting it: both
+         * button-variants screenshots still passed, including the one that
+         * exists to watch the ring.
+         *
+         * Cropped, the same 540 pixels are a tenth of the picture.
+         */
+        await expect(page).toHaveScreenshot(`${testCase.id}-focus-${colorScheme}.png`, {
+          clip: {
+            x: box.x - RING_ROOM,
+            y: box.y - RING_ROOM,
+            width: box.width + RING_ROOM * 2,
+            height: box.height + RING_ROOM * 2,
+          },
+        })
+      }
     })
   }
 }

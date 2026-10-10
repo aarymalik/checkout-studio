@@ -29,6 +29,24 @@ describe("the component gallery", () => {
     expect(claimed.filter((type) => !registry.has(type))).toEqual([])
   })
 
+  it("claims only what its own document draws", () => {
+    /*
+     * `covers` is a declaration, and the test above reads it as if it were a
+     * fact: a case could claim every type in the registry and photograph a
+     * blank page, and the matrix would report itself complete.
+     *
+     * media-and-navigation claimed Image and Video and contains neither.
+     */
+    for (const testCase of COMPONENT_CASES) {
+      const drawn = new Set(Object.values(testCase.document().nodes).map((node) => node.type))
+
+      expect(
+        testCase.covers.filter((type) => !drawn.has(type)),
+        `${testCase.id} claims what it does not draw`,
+      ).toEqual([])
+    }
+  })
+
   it("gives every case a distinct id, because the id names its screenshot", () => {
     const ids = COMPONENT_CASES.map((testCase) => testCase.id)
 

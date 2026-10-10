@@ -26,6 +26,10 @@ export interface GalleryCase {
    * focus ring went unwatched: the rule that draws it lives in reset.css, it
    * was unlayered and beat every `outline-none` in the product, and not one of
    * thirty-eight screenshots could have shown that. Changing it moved nothing.
+   *
+   * The focused case is photographed twice — the whole page, and again cropped
+   * to this control, because a ring is too few pixels for a full-page
+   * comparison to notice. See the crop in visual/gallery.spec.ts.
    */
   focus?: string
 }

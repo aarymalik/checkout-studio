@@ -150,8 +150,10 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
       ),
   },
   {
-    id: "media-and-navigation",
-    covers: ["core.icon", "core.image", "core.video", "core.button", "core.link"],
+    // Named for what it holds: Image and Video are the case below, which is
+    // the only place they can be, since this phase has no source to give them.
+    id: "controls",
+    covers: ["core.icon", "core.button", "core.link"],
     document: () =>
       pageOf(
         [
