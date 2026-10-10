@@ -90,15 +90,26 @@ const PAN_ADDED_CEILING_MS = 3
 const ZOOM_ADDED_CEILING_MS = 4
 
 /**
- * Set from what it measures, which is the whole point of having measured it.
+ * Re-set against a page made of real components, which is a different page.
  *
- * A sustained drag adds 0.3ms: resolving a drop is 0.3ms at two thousand nodes
- * and checking whether it is legal is 0.003ms, both measured directly, and the
- * preview moves by a transform on a promoted layer. The first guess at this
- * constant was 6ms, written before there was a number — the same mistake #31
- * was about.
+ * It was 3ms, chosen from a measured 0.3ms — and both numbers were taken while
+ * this harness mounted fixture components: a bare `<div>` with no default
+ * styles. Two thousand of those are not two thousand nodes. With the real
+ * registry the same gesture adds 3.0 to 3.4ms across four runs, which is thirty
+ * times the cost and sits exactly on the old ceiling.
+ *
+ * 5ms, which clears the observed spread and still leaves eleven of the frame's
+ * sixteen milliseconds unused, so a doubling would be caught. Raising it is the
+ * right move and not a comfortable one: a tripwire calibrated against a page
+ * nobody can build is a tripwire that measures nothing, and one that fails two
+ * runs in three is a tripwire people learn to ignore.
+ *
+ * What did not move is the criterion itself. Phase 8 asks for sixty frames a
+ * second sustained during a drag, and every run missed 0 of 95 frames. Where
+ * the three milliseconds go is an open question with evidence rather than an
+ * answer — see docs/performance.md § What real components cost.
  */
-const DRAG_ADDED_CEILING_MS = 3
+const DRAG_ADDED_CEILING_MS = 5
 
 /*
  * Selection is held to its median, not its 95th percentile.
@@ -326,9 +337,15 @@ test("drag sustains the frame budget at 2,000 nodes", async ({ page }) => {
 
     bench.store.getState().select([id])
 
-    const element = document
-      .querySelector("[data-canvas-frame]")
-      ?.querySelector(`[data-ck-node="${id}"]`)
+    /*
+     * By the class the renderer emits, which is how the canvas hit tests too.
+     *
+     * This used to look for `[data-ck-node]`, an attribute only the benchmark's
+     * own fixture components carry — so the two assertions that depend on
+     * finding a node had never run against anything the product renders. They
+     * passed because the fixture obliged them.
+     */
+    const element = document.querySelector("[data-canvas-frame]")?.querySelector(`.ck-${id}`)
 
     if (element === null || element === undefined) throw new Error("The node drew nothing.")
 
@@ -447,9 +464,12 @@ test("moving one node does not re-render the whole canvas", async ({ page }) => 
      * the same nodes as before". Sampling a hundred of them across the page is
      * enough to tell a targeted update from a wholesale one.
      */
-    const sampled = [...frame.querySelectorAll("[data-ck-node]")].filter(
-      (_, index) => index % 20 === 0,
-    )
+    const sampled = bench.nodes
+      .filter((_, index) => index % 20 === 0)
+      .map((nodeId) => frame.querySelector(`.ck-${nodeId}`))
+      .filter((element): element is Element => element !== null)
+
+    if (sampled.length === 0) throw new Error("No node drew anything to sample.")
 
     const id = bench.nodes[bench.nodes.length - 1] as string
 

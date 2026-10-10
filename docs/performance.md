@@ -727,6 +727,67 @@ Optimize implementation instead.
 
 ---
 
+# What real components cost
+
+**As built, Phase 9.** Every canvas number this project has published was
+measured against a page the product cannot build.
+
+The benchmark harness mounted `fixtureRegistry()` — components whose renderer
+is a bare `<div>` with no default styles. Two thousand of those are not two
+thousand nodes: a real heading resolves six style properties through the
+cascade, half of them token references that become CSS variables, and a real
+button resolves fourteen and draws an inline SVG. Phase 7's exit criteria were
+signed off on the empty version, and Phase 8's "60 FPS sustained during drag at
+2,000 nodes" with it.
+
+Two of the six measurements could not have run against anything else. They
+located a node by `[data-ck-node]`, an attribute **only the fixture emits** —
+the renderer puts the node id in a class and the canvas hit tests by that. The
+fixture's own comment asserted the opposite, which is how it survived: a false
+statement about how the canvas works, written beside the thing that made it
+look true.
+
+## The numbers, fixtures against the real registry
+
+|                            | fixtures | real          |
+| -------------------------- | -------- | ------------- |
+| pan, added per frame       | 0.3ms    | 0.1ms         |
+| zoom, added per frame      | 1.6ms    | 2.5ms         |
+| drag, added per frame      | 0.1ms    | **3.0–3.4ms** |
+| selection to overlay, p95  | 6.1ms    | 6.3ms         |
+| layers panel rebuild       | 9.1ms    | 7.7ms         |
+| frames missed, any gesture | 0        | **0**         |
+
+Pan, selection and the layers panel are unchanged or better. Drag is thirty
+times more expensive.
+
+## What did not change
+
+Phase 8's criterion is sixty frames a second sustained during a drag, and that
+holds: **0 of 95 frames missed, on every run of four.** Three milliseconds of a
+sixteen-millisecond frame is not a dropped frame. What was violated is the
+ceiling this project set for itself on added work, and that ceiling had been
+calibrated against the empty page — so it was never measuring anything.
+
+It is 5ms now: clear of the observed 3.0–3.4 spread, and still eleven
+milliseconds short of the frame, so a doubling is caught. Raising a tripwire is
+uncomfortable and correct here. One calibrated against a page nobody can build
+measures nothing, and one that fails two runs in three is one people learn to
+scroll past.
+
+## What is not known
+
+Where the three milliseconds go. The candidates are a style recalculation over
+a document that now has real styles in it, and React reconciling the overlay
+layer per frame — but that is two guesses, and this document already carries
+the record of seven guesses about a drag frame of which six were wrong. It
+wants a profile, not a paragraph.
+
+Recorded rather than closed, because the measurement is worth having on its own:
+the benchmark now measures the product.
+
+---
+
 # Published Checkout Performance
 
 Prioritize

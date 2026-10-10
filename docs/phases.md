@@ -1883,8 +1883,23 @@ first component that needs a client is the payment element in Phase 13.
 Both check their destination before it reaches an `href` — see
 component-library.md § Destinations are checked.
 
-Still to do: `core-embed`, visual regression, and the 2,000-real-node
-performance run.
+**The 2,000-real-node run is done, and it found something.** The benchmark
+harness had been mounting fixture components — a bare `<div>` with no styles —
+so every canvas number in Phases 7 and 8 was measured against a page the
+product cannot build. Two of its six measurements located a node by an
+attribute only the fixture emits, so they could never have run against anything
+real.
+
+Against the shipped registry: pan, selection and the layers panel are unchanged
+or better, and a drag costs thirty times more — 3.0 to 3.4ms a frame against
+0.1. Phase 8's criterion still holds, because that is not a dropped frame and
+**0 of 95 were missed on every run**; the ceiling this project set for added
+work did not, and it had been calibrated against the empty page. Full record in
+performance.md § What real components cost, including the part that is not
+known.
+
+Still to do: `core-embed`, and visual regression over the sixteen new
+components.
 
 ### Exit Criteria
 
