@@ -1,9 +1,11 @@
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 
 import { badgeProperties } from "./components/badge/properties"
+import { buttonProperties } from "./components/button/properties"
 import { headingProperties } from "./components/heading/properties"
 import { iconProperties } from "./components/icon/properties"
 import { imageProperties } from "./components/image/properties"
+import { linkProperties } from "./components/link/properties"
 import { textProperties } from "./components/text/properties"
 import { videoProperties } from "./components/video/properties"
 
@@ -21,4 +23,6 @@ export const coreContentProperties: ReadonlyMap<string, readonly PropertyDefinit
   ["core.image", imageProperties],
   ["core.video", videoProperties],
   ["core.icon", iconProperties],
+  ["core.button", buttonProperties],
+  ["core.link", linkProperties],
 ])
