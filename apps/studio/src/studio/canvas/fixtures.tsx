@@ -27,8 +27,13 @@ import type { ReactElement } from "react"
  *
  * The children matter: a container that dropped them would render a one-node
  * page however deep the document, and the canvas tests need something nested to
- * measure. `data-ck-node` is what the canvas resolves a click to, so the
- * fixture carries it exactly as a real component must.
+ * measure.
+ *
+ * `data-ck-node` is **not** how the canvas resolves a click, whatever the
+ * comment here used to say. It hit tests by the `ck-<id>` class the renderer
+ * puts in `className`, and no real component carries this attribute. It stays
+ * only because the fixture's own tests look for it; the benchmark no longer
+ * does, having spent Phases 7 and 8 measuring a page only these could draw.
  */
 function Box({ node, className, children }: ComponentRenderProps): ReactElement {
   return (

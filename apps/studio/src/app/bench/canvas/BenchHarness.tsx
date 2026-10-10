@@ -23,8 +23,8 @@ import { defaultTheme } from "@checkout-studio/schema"
 import { TooltipProvider } from "@checkout-studio/ui"
 
 import { Canvas } from "@/studio/canvas/Canvas"
-import { fixtureRegistry } from "@/studio/canvas/fixtures"
 import { LayersPanel } from "@/studio/layers/LayersPanel"
+import { registry } from "@/studio/registry"
 
 import { benchDocument } from "./document"
 
@@ -43,6 +43,19 @@ import { benchDocument } from "./document"
  *
  * Exposed on `window` so the benchmark can act on the store directly rather
  * than through controls whose own cost it would then be measuring.
+ *
+ * ## The build's own registry, not fixtures
+ *
+ * It used to mount `fixtureRegistry()`, whose components are a bare `<div>`
+ * with no default styles — so every number this harness has ever produced was
+ * measured against two thousand empty divs. Phase 7's criteria were signed off
+ * on that, and Phase 8's "60 FPS sustained during drag at 2,000 nodes" with
+ * them.
+ *
+ * Phase 9 asks for "2,000 **real** nodes", and now there are some: a heading
+ * resolves six style properties through the cascade, half of them token
+ * references that become CSS variables, and a button resolves fourteen and
+ * draws an inline SVG. That is the page this measures now.
  */
 
 declare global {
@@ -53,8 +66,6 @@ declare global {
 
 export function BenchHarness({ count, panel }: { count: number; panel: boolean }): ReactElement {
   const document = useMemo(() => benchDocument(count), [count])
-  // Once: the renderer memoises component resolution on this object.
-  const registry = useMemo(fixtureRegistry, [])
 
   return (
     <EditorProvider document={document} baseVersion={1}>
