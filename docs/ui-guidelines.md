@@ -367,8 +367,14 @@ It was moved into `@layer base` once, on the reading that beating
 `outline-none` was a bug. It is the point. Layering it meant the utility won
 and **no ring was drawn anywhere** — twenty-three controls, none of which
 provides its own, every one of them silently unfocusable to look at. That
-shipped, and what found it was a visual case photographing a focused button,
-which is the coverage gap the same change had flagged and not closed.
+shipped.
+
+The visual case photographing a focused button was written to catch it and
+could not: two pixels around a button are about 540 of a full page's 990,000,
+and the suite's `maxDiffPixelRatio` allows nearly 2,000. The ring was in the
+baseline and could never be missed from it. The focused case is photographed
+twice now — the page, and again cropped to the control, where the same 540
+pixels are a tenth of the picture. Deleting the ring fails the crop.
 
 The offset is a variable, so a control can pull the ring inside its own box
 without fighting the cascade. The command palette's search field runs the full
@@ -376,17 +382,20 @@ width of the dialog, so a ring drawn outside it crosses the rounded corners as
 a hard rectangle — which is what was reported. `--cs-focus-ring-offset: -2px`
 keeps the one ring and moves it in.
 
-**Open: the ring is invisible on a primary button.** Measured on a focused
-one, `outline-style` is `solid` and `outline-width` is `2px`, but
-`outline-color` computes to `rgb(255, 255, 255)` — white, on a white page —
-while `--cs-color-focus-ring` resolves to `#4f46e5` on both the element and
-the root. Something later sets `outline-color` to `currentColor`, and on a
-primary button that is its white label.
+**The ring's colour is declared on everything, not only on what is focused.**
+`transition-colors` — which every control uses — animates `outline-color`
+along with the rest. While the colour was declared only under
+`:focus-visible`, focus _was_ a change of colour, from the initial
+`currentColor`: on a focused primary button `outline-color` read
+`rgb(255, 255, 255)` at the first frame and `rgb(79, 70, 229)` once it
+settled, so for 150ms there was no ring at all on a white page. Declaring the
+colour unconditionally leaves nothing to animate, and `:focus-visible` then
+only turns the ring on.
 
-Not chased further in the change that found it: that file had already been
-misread once the same day, and a third attempt without understanding the
-cascade would be a guess. Written down with the measurement rather than
-quietly left.
+No screenshot can watch this: the visual suite disables animations, which
+fast-forwards every transition to its end, so the one frame that matters is
+the one no picture holds. A test in the design system reads the stylesheet
+instead.
 
 ---
 
