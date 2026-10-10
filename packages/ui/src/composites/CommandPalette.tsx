@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useMemo, useRef, useState } from "react"
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import { Dialog, DialogContent } from "../overlays/Dialog"
 import { cn } from "../lib/cn"
 
@@ -148,6 +148,21 @@ export function CommandPalette({
           aria-autocomplete="list"
           autoComplete="off"
           spellCheck={false}
+          /*
+           * The one ring, pulled inside.
+           *
+           * Every control in the product gets its focus ring from the reset,
+           * drawn 2px outside the element. This field runs the full width of
+           * the dialog, so outside means across its rounded corners — a hard
+           * rectangle, which is what somebody reported. A negative offset
+           * keeps the same ring and puts it within the field's own bounds.
+           *
+           * It is the ring's own width negated rather than a distance between
+           * things: it has to track `outline-width` in reset.css, and a
+           * spacing step would be the wrong number the moment either changed.
+           */
+          // design-system-ignore: the focus ring's width, negated.
+          style={{ "--cs-focus-ring-offset": "-2px" } as CSSProperties}
           value={input}
           placeholder={placeholder}
           onChange={(event) => {
@@ -173,12 +188,9 @@ export function CommandPalette({
           }}
           className={cn(
             /*
-             * A hairline under it, not a box around it.
-             *
-             * It reads as the top of the list rather than as a field dropped
-             * into a dialog, which is what a palette is. It also used to draw
-             * a hard 2px rectangle regardless of this: the global
-             * `:focus-visible` outline was unlayered and beat `outline-none`.
+             * A hairline above and below, not a box around it: the field reads
+             * as the top of the list rather than as something dropped into a
+             * dialog, which is what a palette is.
              */
             "h-control-lg w-full border-y border-border bg-transparent px-4",
             "text-body-lg text-foreground placeholder:text-foreground-subtle",

@@ -622,6 +622,41 @@ Pages
 
 Templates
 
+## In practice
+
+`pnpm test:visual` runs `apps/studio/playwright.visual.config.ts` against the
+gallery at `/design`, which exists only outside production. Two suites:
+`gallery.spec.ts` photographs the interface components, `components.spec.ts`
+photographs the plugin components through the renderer, at three breakpoints.
+A unit test beside each case list asserts that every component the library
+exports, and every type the registry holds, appears in a case — so a new
+component cannot arrive unphotographed.
+
+## Baselines are per platform
+
+Text rasterises differently on macOS and Linux, so the path carries the
+platform: `visual/__screenshots__/{darwin,linux}/`. A local run writes and
+compares `darwin`; CI runs on Linux and compares `linux`, which means **a new
+case needs both**, and only one of them can be made on a developer's machine.
+
+When a Linux baseline is missing, Playwright writes it and fails the job. CI
+uploads what it wrote as the `visual-regression` artifact. The loop is: push,
+let the job fail, `gh run download <id> -n visual-regression`, look at the
+images, commit them.
+
+## What a screenshot cannot see
+
+`maxDiffPixelRatio` is 0.002, which on a full-page shot is nearly two thousand
+pixels. A focus ring is about five hundred — so a full-page comparison cannot
+see one at all, and deleting the ring from the product passes. A case that
+exists to watch something small has to photograph it small: `clip` the shot to
+the control, where the same five hundred pixels are a tenth of the picture.
+
+`animations: "disabled"` fast-forwards transitions to their end, so nothing a
+transition does on the way is ever in a baseline. A ring whose colour animates
+from the wrong value is invisible to this suite, and belongs in a test that
+reads computed style.
+
 ---
 
 # Performance Benchmarks

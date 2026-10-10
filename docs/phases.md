@@ -1898,8 +1898,20 @@ work did not, and it had been calibrated against the empty page. Full record in
 performance.md § What real components cost, including the part that is not
 known.
 
-Still to do: `core-embed`, and visual regression over the sixteen new
-components.
+**Visual regression is done, and it caught a regression of mine.** Sixteen
+components across five cases, three breakpoints and both colour schemes —
+thirty screenshots, with a test beside them asserting that every type the
+registry holds appears in a case, so `core-embed` cannot arrive unphotographed.
+
+It also found two things while being built. The first version passed
+`CheckoutRenderer` no colour mode, so all fifteen dark screenshots were a light
+checkout on dark chrome — a matrix that could never have caught a dark-mode
+regression and looked right at a glance. The second is the focus ring: the
+layered reset shipped in #51 removed it from every control in the product, and
+a case that photographs a focused button is what found it. Both recorded in
+ui-guidelines.md, along with one that is still open.
+
+Still to do: `core-embed`.
 
 ### Exit Criteria
 

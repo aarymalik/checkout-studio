@@ -356,13 +356,37 @@ reach the edges, and the header keeps its padding either way. The command
 palette used to switch the padding off for the whole dialog to get an
 edge-to-edge search field, which took the title to the corner with it.
 
-**One focus ring, in the `base` layer.** The ring in reset.css was unlayered,
-and unlayered CSS beats every cascade layer whatever the source order — so it
-won against `outline-none` and against every `focus-visible:ring-*` a component
-asked for. The palette's search field drew a hard rectangle around itself
-despite asking for a hairline, and anything that had replaced the ring with its
-own was quietly drawing both. Only that rule is layered; the rest of the reset
-still beats the utilities, the reduced-motion stop most of all.
+**One focus ring, unlayered, and that is the design.** reset.css is imported
+after Tailwind, so an unlayered rule in it beats every utility whatever the
+source order. That is what makes one ring for the whole product true: every
+control carries `outline-none` to remove the browser's own, and the reset puts
+ours back, and no component can drift. Button says so three lines above its own
+`outline-none`.
+
+It was moved into `@layer base` once, on the reading that beating
+`outline-none` was a bug. It is the point. Layering it meant the utility won
+and **no ring was drawn anywhere** — twenty-three controls, none of which
+provides its own, every one of them silently unfocusable to look at. That
+shipped, and what found it was a visual case photographing a focused button,
+which is the coverage gap the same change had flagged and not closed.
+
+The offset is a variable, so a control can pull the ring inside its own box
+without fighting the cascade. The command palette's search field runs the full
+width of the dialog, so a ring drawn outside it crosses the rounded corners as
+a hard rectangle — which is what was reported. `--cs-focus-ring-offset: -2px`
+keeps the one ring and moves it in.
+
+**Open: the ring is invisible on a primary button.** Measured on a focused
+one, `outline-style` is `solid` and `outline-width` is `2px`, but
+`outline-color` computes to `rgb(255, 255, 255)` — white, on a white page —
+while `--cs-color-focus-ring` resolves to `#4f46e5` on both the element and
+the root. Something later sets `outline-color` to `currentColor`, and on a
+primary button that is its white label.
+
+Not chased further in the change that found it: that file had already been
+misread once the same day, and a third attempt without understanding the
+cascade would be a guess. Written down with the measurement rather than
+quietly left.
 
 ---
 
