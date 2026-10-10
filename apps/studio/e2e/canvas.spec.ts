@@ -199,10 +199,9 @@ test("inserts a real component from the library onto the canvas", async ({ conte
    * second namespace to drag between.
    */
   await expect(library.getByRole("heading", { name: "Layout" })).toBeVisible()
-  // Named by what the row says: the component's name and its type id, because
-  // the catalog names components by the id and somebody who has read the docs
-  // searches for it.
-  await library.getByRole("button", { name: "Container core.container" }).click()
+  // Named by what the row says, which is the component's name and nothing
+  // else. It used to carry its type id as well; search still matches the id.
+  await library.getByRole("button", { name: "Container", exact: true }).click()
 
   // In the layers panel, which reads the document: the insert reached the store
   // rather than only the panel it was pressed in. The sidebar shows one tab at

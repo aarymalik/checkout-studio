@@ -126,12 +126,22 @@ describe("what it lists", () => {
     expect(screen.queryByRole("heading", { name: "Checkout" })).not.toBeInTheDocument()
   })
 
-  it("shows the type id beside the name, which is how the catalog names things", () => {
+  it("does not print the type id, which was repetition on every row", () => {
+    /*
+     * It was there so that somebody who had read the catalog could search for
+     * it. They still can — the search reads the id whether or not it is drawn
+     * — so all it did was say `core.heading` beside Heading, sixteen times
+     * down the panel.
+     *
+     * It earns its place again on the day two plugins register components
+     * with the same display name, and the fix then is to show it on the pair
+     * that collides.
+     */
     render(mount().element)
 
     const entry = screen.getByRole("button", { name: /heading/ })
 
-    expect(within(entry).getByText("core.heading")).toBeInTheDocument()
+    expect(within(entry).queryByText("core.heading")).toBeNull()
   })
 })
 
@@ -145,6 +155,30 @@ describe("searching", () => {
 
     expect(screen.getByRole("button", { name: /heading/ })).toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Marketing" })).not.toBeInTheDocument()
+  })
+
+  it("still finds a component by its type id, which the row no longer shows", async () => {
+    /*
+     * The rows used to print `core.section` beside Section, on the reasoning
+     * that somebody who had read the catalog would search for it. They still
+     * can — the search reads the id whether or not it is on screen — which is
+     * what made printing it on all sixteen rows pure repetition.
+     */
+    const user = userEvent.setup()
+
+    render(mount().element)
+
+    await user.type(screen.getByRole("searchbox", { name: "Search components" }), "core.sec")
+
+    expect(screen.getByRole("button", { name: "section" })).toBeInTheDocument()
+  })
+
+  it("shows a row's name and nothing else", async () => {
+    render(mount().element)
+
+    const row = screen.getByRole("button", { name: "section" })
+
+    expect(row).toHaveTextContent(/^section$/)
   })
 
   it("says so when nothing matches", async () => {
