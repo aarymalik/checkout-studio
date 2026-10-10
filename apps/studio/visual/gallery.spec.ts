@@ -50,6 +50,17 @@ for (const testCase of CASES) {
         document.querySelector("nextjs-portal")?.remove()
       })
 
+      if (testCase.focus !== undefined) {
+        /*
+         * By the keyboard, because `:focus-visible` is the rule being
+         * photographed and a programmatic `focus()` does not always satisfy
+         * it. Tab from the document rather than clicking, which is what a
+         * keyboard user does and what the ring exists for.
+         */
+        await page.locator(testCase.focus).first().press("Tab")
+        await page.keyboard.press("Shift+Tab")
+      }
+
       await expect(page).toHaveScreenshot(`${testCase.id}-${colorScheme}.png`, {
         fullPage: true,
       })

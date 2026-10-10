@@ -40,24 +40,30 @@ body {
  * rather than blending into its edge.
  */
 /*
- * In `base`, so a component can replace it.
+ * Unlayered, and that is the design rather than an oversight.
  *
- * This file is imported after Tailwind and was unlayered, and unlayered CSS
- * beats every cascade layer no matter the source order — so this rule won
- * against `outline-none` and against every `focus-visible:ring-*` a component
- * asked for. The command palette's search field is where it showed: a field
- * styled with a bottom hairline and no outline drew a hard 2px rectangle
- * around itself anyway, and anything that had replaced the ring with its own
- * was quietly drawing both.
+ * This file is imported after Tailwind, so an unlayered rule here beats every
+ * utility whatever the source order. That is what makes "one ring for the
+ * whole product" true: every control carries `outline-none` to remove the
+ * browser's own, and this puts ours back, and no component can drift.
  *
- * Only this rule is layered. The rest of the reset still wants to beat the
- * utilities — the reduced-motion stop below most of all.
+ * I moved it into `@layer base` once, reading the fact that it beat
+ * `outline-none` as a bug. It is the point — Button says so three lines above
+ * its own `outline-none`, in a file I had not read. Layering it meant the
+ * utility won and **no ring was drawn anywhere**: twenty-three controls, none
+ * of which provides its own, all of them silently unfocusable to look at. A
+ * visual case that photographs a focused button is what found it, which is
+ * the same gap I had flagged and not closed.
+ *
+ * The offset is a variable so a control can pull the ring inside its own box
+ * without fighting the cascade. A full-bleed field — the command palette's
+ * search — draws a rectangle across the dialog's edges with the ring outside
+ * it, which is what somebody reported as a border that did not look good.
+ * Setting `--cs-focus-ring-offset: -2px` there keeps one ring and moves it in.
  */
-@layer base {
-  :focus-visible {
-    outline: 2px solid var(--cs-color-focus-ring);
-    outline-offset: 2px;
-  }
+:focus-visible {
+  outline: 2px solid var(--cs-color-focus-ring);
+  outline-offset: var(--cs-focus-ring-offset, 2px);
 }
 
 /*

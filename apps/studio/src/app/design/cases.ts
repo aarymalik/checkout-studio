@@ -19,10 +19,26 @@ export interface GalleryCase {
   /** Also the screenshot's name, so it must stay stable. */
   id: string
   covers: readonly string[]
+  /**
+   * A selector to focus before the shutter.
+   *
+   * Without one a case is photographed with nothing focused, which is how the
+   * focus ring went unwatched: the rule that draws it lives in reset.css, it
+   * was unlayered and beat every `outline-none` in the product, and not one of
+   * thirty-eight screenshots could have shown that. Changing it moved nothing.
+   */
+  focus?: string
 }
 
 export const CASES: readonly GalleryCase[] = [
-  { id: "button-variants", covers: ["Button"] },
+  /*
+   * Focused, so the ring is in a baseline.
+   *
+   * This case rather than a case of its own: a ring is a thing a control wears
+   * rather than a component in itself, and a picture of one on a button is
+   * worth more than a picture of one on nothing.
+   */
+  { id: "button-variants", covers: ["Button"], focus: "button" },
   { id: "button-sizes", covers: ["Button"] },
   {
     id: "text-fields",
