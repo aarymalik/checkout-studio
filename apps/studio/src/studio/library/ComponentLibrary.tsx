@@ -159,12 +159,23 @@ export function ComponentLibrary({
                         "disabled:pointer-events-none disabled:opacity-40",
                       )}
                     >
-                      <span className="min-w-0 flex-1 truncate">{entry.name}</span>
                       {/*
-                        The type id, because the catalog names components by it
-                        and somebody who has read the docs searches for it.
+                        The name, and nothing else.
+                        
+                        Every row used to carry its type id as well —
+                        `core.section` beside Section — on the reasoning that
+                        somebody who had read the catalog would search for it.
+                        They still can: `searchCatalog` matches the id whether
+                        or not it is on screen, so the id was buying nothing
+                        and costing sixteen rows of repetition.
+                        
+                        It earns its place again on the day two plugins
+                        register components with the same display name, which
+                        the catalog's own namespaces make likely eventually.
+                        Showing it on the pair that collides is the fix then,
+                        rather than on every row now.
                       */}
-                      <span className="shrink-0 text-tiny text-foreground-muted">{entry.type}</span>
+                      <span className="min-w-0 flex-1 truncate">{entry.name}</span>
                     </button>
                   </li>
                 ))}
