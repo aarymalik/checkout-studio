@@ -3,7 +3,10 @@ import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 import { manifest } from "./manifest"
 import { badge } from "./components/badge/definition"
 import { heading } from "./components/heading/definition"
+import { icon } from "./components/icon/definition"
+import { image } from "./components/image/definition"
 import { text } from "./components/text/definition"
+import { video } from "./components/video/definition"
 import { headingOrder } from "./validators"
 
 /**
@@ -25,8 +28,11 @@ export const coreContent: Plugin = {
     api.registerComponent(heading)
     api.registerComponent(text)
     api.registerComponent(badge)
+    api.registerComponent(image)
+    api.registerComponent(video)
+    api.registerComponent(icon)
     api.registerDocumentValidator(headingOrder)
   },
 }
 
-export { badge, heading, text }
+export { badge, heading, icon, image, text, video }

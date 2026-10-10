@@ -495,6 +495,25 @@ Object Fit
 
 Lazy Load
 
+**As built.** All eight, plus a decorative switch.
+
+`alt` is always emitted, because an `<img>` without it is announced by reading
+its source — which is how somebody ends up hearing "hero-final-v3-compressed
+dot jpg". An `alt=""` is a different claim: it tells assistive technology to
+skip the image, which is right for one the text beside it already describes and
+wrong for a product photo. Only the author knows which, so a missing
+description is a validation error unless they have said the image is
+decorative.
+
+The intrinsic width and height come from the resolved asset and are put on the
+element, so the browser reserves the space before the bytes arrive. Without
+them the page reflows as each image loads, which on a checkout means the button
+somebody is reaching for moves.
+
+Nothing renders without a source on a published page. In the editor an empty
+box remains, because a component that renders nothing cannot be selected and
+the user has no way to give it the source it is missing.
+
 ---
 
 ## Video
@@ -510,6 +529,26 @@ YouTube
 Vimeo
 
 MP4
+
+**As built — self-hosted only, and the content security policy is why.** A
+published checkout allows Stripe's origins, whichever tracking integrations the
+page has enabled, and our asset CDN; docs/security.md § Content Security Policy
+ends "reject unknown sources". A YouTube or Vimeo iframe would be blocked by
+the browser, so building one would ship a component that works in the editor
+and renders a blank rectangle to a paying customer.
+
+Widening that policy on a payments page has a security argument on both sides
+and is not a decision a renderer should make by quietly adding an origin.
+
+Autoplay implies muted rather than trusting two switches to agree: every
+browser refuses to autoplay a video with sound, and a page asking for both
+would simply not play with nothing on screen to explain it. Autoplay is also
+suppressed in the editor whatever the node says — a canvas where four videos
+start the moment a page opens is a canvas nobody can work on.
+
+`interactive: false`, which looks wrong and is not. The flag means "this ships
+JavaScript to a published page", and a `<video>` is played, paused and scrubbed
+by the browser.
 
 Editable
 
@@ -548,6 +587,27 @@ Stroke
 Color
 
 Rotation
+
+**As built — a short list of inline paths, not a library.** An icon component
+whose name is a prop cannot be tree-shaken: the bundler cannot know which icon
+a document will ask for, so it ships all of them. Lucide alone is over a
+thousand, on a page whose entire first-party budget is 60 KB and whose job is
+to take a payment.
+
+So the set is eight icons drawn on Lucide's 24×24 grid with its stroke
+conventions — chosen for what a checkout says: that something is secure,
+guaranteed, on its way, or done. Adding one is a line of paths and a reviewed
+decision about the bytes.
+
+Custom SVG upload needs asset handling and a sanitiser — an uploaded SVG is a
+script execution vector — and belongs with Phase 14.
+
+Sized in `em`, so an icon beside a line of text is the size of that text and
+stays so when somebody changes it. Stroked in `currentColor`, so one inside a
+muted paragraph is muted without anybody setting it twice.
+
+Labelled or hidden, never neither: an icon carrying meaning on its own needs
+words, and one beside text that already says it needs to be skipped.
 
 ---
 

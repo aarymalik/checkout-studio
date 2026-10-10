@@ -88,6 +88,8 @@ export const CONTROL_KINDS = [
   "asset",
   /** A single line. */
   "text",
+  /** On or off. */
+  "toggle",
   /** A bare number, with no unit to pick. A line height is `1.6`, not `1.6px`. */
   "number",
   /**
