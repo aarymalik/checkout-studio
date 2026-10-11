@@ -201,4 +201,50 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
         ["section"],
       ),
   },
+  /*
+   * An HTML Block holding what a merchant would put in one.
+   *
+   * The tree is written out rather than parsed from markup, because the
+   * parser is the editor's and this file is read by the renderer's gallery —
+   * and because this is the shape the component actually stores. What a
+   * screenshot of it proves is that a stored tree becomes the elements it
+   * says it is, with the theme's type and spacing applied to them.
+   */
+  {
+    id: "merchant-markup",
+    covers: ["core.html-block"],
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["html"] },
+          {
+            id: "html",
+            type: "core.html-block",
+            props: {
+              content: [
+                { tag: "h2", children: [{ text: "Returns" }] },
+                {
+                  tag: "p",
+                  children: [
+                    { text: "Thirty days, " },
+                    { tag: "strong", children: [{ text: "no questions" }] },
+                    { text: ". Read the " },
+                    { tag: "a", attrs: { href: "/terms" }, children: [{ text: "terms" }] },
+                    { text: "." },
+                  ],
+                },
+                {
+                  tag: "ul",
+                  children: [
+                    { tag: "li", children: [{ text: "Unworn, in its box" }] },
+                    { tag: "li", children: [{ text: "Proof of purchase" }] },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        ["section"],
+      ),
+  },
 ]

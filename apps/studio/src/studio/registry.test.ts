@@ -13,22 +13,24 @@ import { host, registry } from "./registry"
  * would pass.
  */
 describe("the studio's registry", () => {
-  it("activated both core plugins", () => {
+  it("activated every core plugin", () => {
     expect(host.records().map((record) => [record.manifest.id, record.state])).toEqual([
       ["core-layout", "active"],
       ["core-content", "active"],
+      ["core-embed", "active"],
     ])
   })
 
   it("let them share the core namespace without replacing each other", () => {
     /*
-     * Two plugins, one namespace, which docs/component-library.md requires and
-     * the host allows only because each declares it. A duplicate type id would
-     * still be refused, so the second plugin added to `core.*` and replaced
-     * nothing in it — the test for that rule is in plugin-sdk.
+     * Three plugins, one namespace, which docs/component-library.md requires
+     * and the host allows only because each declares it. A duplicate type id
+     * would still be refused, so each added to `core.*` and replaced nothing
+     * in it — the test for that rule is in plugin-sdk.
      */
     expect(registry.has("core.section")).toBe(true)
     expect(registry.has("core.heading")).toBe(true)
+    expect(registry.has("core.html-block")).toBe(true)
   })
 
   it("carries a plugin's document rules into the registry too", () => {

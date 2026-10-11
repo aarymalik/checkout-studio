@@ -2,6 +2,7 @@ import { CURRENT_VERSION } from "@checkout-studio/schema"
 import { PluginHost } from "@checkout-studio/plugin-sdk"
 import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
 import { coreContent } from "@checkout-studio/plugin-core-content/renderer"
+import { coreEmbed } from "@checkout-studio/plugin-core-embed/renderer"
 import { coreLayout } from "@checkout-studio/plugin-core-layout/renderer"
 
 /**
@@ -51,5 +52,6 @@ export const host = new PluginHost({
 })
   .register(coreLayout)
   .register(coreContent)
+  .register(coreEmbed)
 
 export const registry: RendererRegistry = host.startSync()
