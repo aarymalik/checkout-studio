@@ -1,6 +1,6 @@
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
-import { safeHref } from "../href"
+import { safeHref } from "@checkout-studio/plugin-sdk"
 import { hasNoText } from "../text"
 import { LinkRenderer } from "./Renderer"
 

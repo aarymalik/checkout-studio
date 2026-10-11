@@ -20,6 +20,8 @@ export type {
   RenderMode,
 } from "./component"
 
+export { relFor, safeHref } from "./href"
+
 export {
   CONTROL_KINDS,
   PROPERTY_GROUPS,

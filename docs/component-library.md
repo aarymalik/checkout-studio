@@ -1165,6 +1165,52 @@ Attributes (event handlers and `javascript:` URLs stripped)
 
 `<script>` is never rendered.
 
+### Built as a tree, not as sanitized text
+
+The stored prop is not markup. The editor parses what the author typed and
+stores the tree that survived the allowlist, and the renderer builds elements
+from it.
+
+The difference is what is possible rather than what is filtered. A sanitized
+string leaves the dangerous value expressible at every step and relies on the
+filter; a tree has no branch a `<script>` fits in, which is
+[security.md](./security.md) § Scripts on Checkout Pages — "the schema never
+contains executable code" — enforced by the shape of the data. It also means
+no `dangerouslySetInnerHTML`, so the renderer's rule that raw HTML is written
+in exactly one file holds, and no parser or sanitizer is downloaded by a
+customer.
+
+### Deviations
+
+**No `<img>`.** Its source would be an origin outside the asset pipeline,
+which a published checkout's CSP refuses — the same reason Video is
+self-hosted only.
+
+**No `<iframe>`, `<object>` or `<embed>`.** A third-party frame is the Embed
+component, where the provider is known.
+
+**No `<form>` or form fields.** A form inside a page that already has a
+payment form is a way to collect card details in a box Stripe never sees.
+
+**No `<svg>`.** SVG carries its own script surface and needs its own
+sanitizer, deferred to Phase 14 with custom SVG upload.
+
+**No `style` attribute, and no `id`.** Style belongs to the cascade; an inline
+declaration would be a seventh stage that always wins. An id is page-global, so
+a block that sets one can break an anchor or an `aria-describedby` elsewhere.
+
+### Open: its contents have no typography
+
+A block renders semantic HTML and nothing styles it. The cascade applies to
+nodes, and an `<h2>` inside a block is not a node — so it renders at body size,
+a list renders without bullets, and a link renders as text.
+
+The catalog's answer is Code Block, whose CSS is scoped to the same page. That
+pairs two components to make one of them presentable, and a merchant who pastes
+a heading expects a heading. The alternative is a way for a component to
+contribute a rule block to the stylesheet, which Code Block needs anyway and
+which the engine has no hook for today. Not decided.
+
 ---
 
 ## Code Block
@@ -1214,6 +1260,16 @@ Loop
 Speed
 
 Direction
+
+### Not built, and deferred to Phase 14
+
+Two reasons, either of which is enough. The player is around 250 KB against a
+60 KB budget for the whole published checkout. And there is no asset pipeline
+for an animation to load from until Phase 14, which is where Image's and
+Video's sources already wait.
+
+It is not registered, so the component gallery's coverage test does not ask for
+a photograph of a component that does not exist.
 
 ---
 

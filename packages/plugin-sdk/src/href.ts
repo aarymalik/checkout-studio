@@ -22,6 +22,17 @@
  * Anything else yields null, and the component renders something that is not a
  * link rather than a link that goes somewhere unexpected — a destination that
  * silently does nothing is recoverable, and one that runs a script is not.
+ *
+ * ## Why it is in the SDK
+ *
+ * It was written for Button and Link and lived in `core-content`. HTML Block
+ * allows `<a href>` and needs the same check, and a plugin may never import
+ * another plugin — so the alternatives were to copy it or to move it. Copying
+ * a security primitive means two of them, and the second one is the one that
+ * does not get the fix.
+ *
+ * This is what an SDK is for: the engine does not care what a destination is,
+ * but every component author has the same problem with one.
  */
 const SCHEMES = ["http:", "https:", "mailto:", "tel:"]
 

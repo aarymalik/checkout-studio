@@ -88,6 +88,16 @@ export const CONTROL_KINDS = [
   "asset",
   /** A single line. */
   "text",
+  /**
+   * A block of markup, which the editor parses before it is stored.
+   *
+   * Its own kind rather than a multi-line `text`, because the value the
+   * control edits and the value the property holds are not the same thing: a
+   * user types HTML and the stored prop is the tree that survived the
+   * allowlist. The control owns that conversion, so the inspector has to know
+   * which properties need it.
+   */
+  "markup",
   /** On or off. */
   "toggle",
   /**

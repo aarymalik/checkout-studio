@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 import { within } from "@testing-library/react"
 
 import { button } from "../src/components/button/definition"
-import { relFor, safeHref } from "../src/components/href"
 import { link } from "../src/components/link/definition"
 import { nodeOf, renderComponent } from "./support"
 
@@ -13,59 +12,10 @@ import { nodeOf, renderComponent } from "./support"
  * is untrusted input: it arrives from the database, from an import, from a
  * template, and in a workspace from another person. On a page taking card
  * details an unchecked `href` is cross-site scripting with extra steps.
+ *
+ * What `safeHref` itself allows and refuses is tested where it now lives, in
+ * plugin-sdk. What these two components do with its answer is here.
  */
-
-describe("the destination guard", () => {
-  it("allows the four schemes a checkout has a reason to use", () => {
-    for (const href of [
-      "https://example.test/terms",
-      "http://example.test",
-      "mailto:help@example.test",
-      "tel:+441234567890",
-    ]) {
-      expect(safeHref(href)).toBe(href)
-    }
-  })
-
-  it("allows a relative path, a fragment and a query", () => {
-    for (const href of ["/thanks", "#details", "?step=2"]) {
-      expect(safeHref(href)).toBe(href)
-    }
-  })
-
-  it("refuses a javascript: URL, which runs when somebody clicks it", () => {
-    expect(safeHref("javascript:alert(1)")).toBeNull()
-    // Whitespace and case are not a disguise.
-    expect(safeHref("  JavaScript:alert(1)")).toBeNull()
-    expect(safeHref("java\tscript:alert(1)")).toBeNull()
-  })
-
-  it("refuses a data: URL, which opens a page the author wrote in our origin", () => {
-    expect(safeHref("data:text/html,<script>alert(1)</script>")).toBeNull()
-  })
-
-  it("refuses a protocol-relative URL, which is not the relative path it looks like", () => {
-    // `//evil.example` is https://evil.example, not a path on this site.
-    expect(safeHref("//evil.example/pay")).toBeNull()
-  })
-
-  it("refuses nothing at all", () => {
-    expect(safeHref("")).toBeNull()
-    expect(safeHref("   ")).toBeNull()
-    expect(safeHref(undefined)).toBeNull()
-    expect(safeHref(42)).toBeNull()
-  })
-
-  it("protects the page that opened a new tab", () => {
-    /*
-     * Without `noopener` the opened page can reach back through
-     * `window.opener` and navigate the one that opened it — and the page it
-     * would be replacing is a checkout.
-     */
-    expect(relFor("_blank")).toBe("noopener noreferrer")
-    expect(relFor("_self")).toBeUndefined()
-  })
-})
 
 describe("Button", () => {
   it("is a button when it does something, with a type", () => {

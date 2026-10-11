@@ -3,7 +3,7 @@ import type { ComponentRenderProps } from "@checkout-studio/plugin-sdk"
 import type { CSSProperties, ReactElement, ReactNode } from "react"
 
 import { iconOf } from "../icon/set"
-import { relFor, safeHref } from "../href"
+import { relFor, safeHref } from "@checkout-studio/plugin-sdk"
 import { textOf } from "../text"
 
 /** A button's gradient is a background, where a heading's is clipped to glyphs. */

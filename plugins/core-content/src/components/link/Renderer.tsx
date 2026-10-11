@@ -1,7 +1,7 @@
 import type { ComponentRenderProps } from "@checkout-studio/plugin-sdk"
 import type { ReactElement } from "react"
 
-import { relFor, safeHref } from "../href"
+import { relFor, safeHref } from "@checkout-studio/plugin-sdk"
 import { textOf } from "../text"
 
 /**

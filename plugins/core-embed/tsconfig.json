@@ -1,0 +1,4 @@
+{
+  "extends": "@checkout-studio/config/typescript/react-library.json",
+  "include": ["src/**/*", "tests/**/*", "*.config.ts"]
+}

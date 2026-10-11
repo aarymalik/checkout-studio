@@ -1906,12 +1906,32 @@ registry holds appears in a case, so `core-embed` cannot arrive unphotographed.
 It also found two things while being built. The first version passed
 `CheckoutRenderer` no colour mode, so all fifteen dark screenshots were a light
 checkout on dark chrome — a matrix that could never have caught a dark-mode
-regression and looked right at a glance. The second is the focus ring: the
-layered reset shipped in #51 removed it from every control in the product, and
-a case that photographs a focused button is what found it. Both recorded in
-ui-guidelines.md, along with one that is still open.
+regression and looked right at a glance. The second is the focus ring, which
+the layered reset shipped in #51 removed from every control in the product.
 
-Still to do: `core-embed`.
+The case written to photograph a focused button did not catch that and could
+not: two pixels around a button are about 540 of a full page's 990,000, and
+`maxDiffPixelRatio` allows nearly 2,000. Verified by deleting the ring, at
+which point both screenshots still passed. The focused case is photographed
+twice now, the second cropped to the control. Recorded in ui-guidelines.md,
+along with the white ring that turned out to be `transition-colors` animating
+`outline-color` away from `currentColor`.
+
+**`core-embed` is begun.** HTML Block is built, as a tree rather than as
+sanitized text — component-library.md § HTML Block carries the argument, and
+the short version is that a `<script>` is not representable rather than
+filtered. The markup parser is the browser's own, on an inert document, in the
+editor half; the published half gained an element mapper and nothing else.
+
+Three decisions taken with it. Embed will be a closed provider allowlist with
+no custom iframe, since an arbitrary origin is the unknown source the CSP rule
+refuses. Lottie is deferred to Phase 14: its player is four times the entire
+renderer budget and it has no asset pipeline to load from. And `safeHref` moved
+into plugin-sdk, because a plugin may not import another plugin and two copies
+of a security primitive means one of them does not get the fix.
+
+Still to do: Code Block, Embed, and the typography an HTML Block's contents
+have none of — recorded in component-library.md § HTML Block.
 
 ### Exit Criteria
 
