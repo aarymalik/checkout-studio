@@ -1,7 +1,7 @@
 import type { Node } from "@checkout-studio/schema"
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
-import { DEFERRED_CLASS, classFor, hideClasses } from "../styles/css"
+import { DEFERRED_CLASS, classFor, hideClasses, typeClassFor } from "../styles/css"
 import { evaluateVisibility } from "../visibility/evaluate"
 import type { RenderContext } from "./context"
 
@@ -49,8 +49,15 @@ export function planNode(nodeId: string, context: RenderContext): NodePlan | nul
     context.singleBreakpoint ? { activeBreakpoint: context.breakpoint } : {},
   )
 
+  const definition = context.registry.get(node.type) ?? null
   const className = [
     classFor(node.id),
+    /*
+     * The component type's own class, and only for a component that has rules
+     * for the elements it draws inside itself. Every other node would be
+     * carrying bytes for a stylesheet nobody emits.
+     */
+    ...(definition?.descendantStyles === undefined ? [] : [typeClassFor(node.type)]),
     ...hiding,
     // Undecidable here: the rule depends on something only the browser knows,
     // such as a field the customer has not filled in. The node renders, and the
@@ -58,7 +65,7 @@ export function planNode(nodeId: string, context: RenderContext): NodePlan | nul
     ...(visibility.decision === "deferred" ? [DEFERRED_CLASS] : []),
   ].join(" ")
 
-  return { node, definition: context.registry.get(node.type) ?? null, className, hiding }
+  return { node, definition, className, hiding }
 }
 
 /**
