@@ -42,6 +42,58 @@ export function classFor(nodeId: string): string {
   return `ck-${nodeId.replace(/[^a-zA-Z0-9_-]/g, "_")}`
 }
 
+/**
+ * The class a component type's own rules are written against.
+ *
+ * A type rather than a node, because these rules are the same for every node
+ * of the type and three HTML blocks on a page should not be three copies of
+ * the same stylesheet. The engine puts this class on a node only when its
+ * component declares such rules, so nothing else carries a byte for it.
+ */
+export function typeClassFor(type: string): string {
+  return `ck-t-${type.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+}
+
+/**
+ * What a component may write a rule against: element names, and lists of them.
+ *
+ * Not a combinator, a class, an attribute or a pseudo-class. The rules are
+ * already scoped to the component's own elements, so what is left to express
+ * is which of those elements — and a grammar this small cannot escape its
+ * scope, which is the property worth having while the author is us. Code Block
+ * takes merchant CSS and needs a real scoper; that is its own problem.
+ */
+const DESCENDANT_SELECTOR = /^[a-z][a-z0-9]*(\s*,\s*[a-z][a-z0-9]*)*$/
+
+/**
+ * A component's rules for the elements it draws inside itself.
+ *
+ * Declarations arrive resolved, as a node's do. A selector that is not the
+ * small grammar above is dropped rather than emitted, because a selector that
+ * reached the stylesheet unchecked could style the page outside the component
+ * — including the payment form.
+ */
+export function emitDescendantCss(
+  type: string,
+  styles: Readonly<Record<string, Record<string, string>>>,
+): string {
+  const scope = `.${ROOT_CLASS} .${typeClassFor(type)}`
+  let css = ""
+
+  for (const [selector, declarations] of Object.entries(styles)) {
+    if (!DESCENDANT_SELECTOR.test(selector)) continue
+
+    const scoped = selector
+      .split(",")
+      .map((element) => `${scope} ${element.trim()}`)
+      .join(",\n")
+
+    css += rule(scoped, declarations)
+  }
+
+  return css
+}
+
 /** `:hover` and friends. `base` has no suffix. */
 const STATE_SUFFIX: Record<StyleState, string> = {
   base: "",

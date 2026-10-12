@@ -143,6 +143,26 @@ export interface ComponentDefinition {
    * breakpoint would compete with the node's own responsive overrides.
    */
   defaultStyles: StyleProperties
+  /**
+   * Styles for the elements a component draws inside itself.
+   *
+   * The cascade styles nodes. A component that renders a subtree of its own —
+   * an HTML Block's markup, a rich text field's paragraphs — has elements in
+   * it that are not nodes, and nothing reaches them: an `<h2>` inside a block
+   * renders at body size and a list renders without bullets, which is what
+   * the component gallery's first screenshot of HTML Block showed.
+   *
+   * A map of selector to declarations, emitted once per component type that
+   * appears on the page and scoped to that type's own elements, so these rules
+   * cannot reach anything else. Values are resolved exactly as a node's are, so
+   * a token reference works here and a literal is as wrong here as anywhere.
+   *
+   * The selector is deliberately almost nothing: element names, and a comma
+   * list of them. Not a descendant combinator, not a class, not an attribute.
+   * Scoping untrusted or clever selectors correctly is a problem worth having
+   * once, in Code Block, where the author is a merchant rather than us.
+   */
+  descendantStyles?: Readonly<Record<string, StyleProperties>>
   renderer: ComponentType<ComponentRenderProps>
   /** A rule about this component's own nodes. */
   validate?: ComponentValidator

@@ -1930,8 +1930,20 @@ renderer budget and it has no asset pipeline to load from. And `safeHref` moved
 into plugin-sdk, because a plugin may not import another plugin and two copies
 of a security primitive means one of them does not get the fix.
 
-Still to do: Code Block, Embed, and the typography an HTML Block's contents
-have none of — recorded in component-library.md § HTML Block.
+**The engine gained one thing, and a screenshot is why.** The cascade reaches
+nodes, and the elements a component draws inside itself are not nodes — so a
+merchant's `<h2>` in an HTML Block rendered at body size with the list beside
+it unbulleted. A component may now declare `descendantStyles`, which the
+renderer emits once per type on the page and scopes to that type's own
+elements, with every value resolved against the theme exactly as a node's are.
+
+It is general rather than a favour to one plugin: Code Block's CSS has to reach
+the stylesheet too, and `buildStylesheet` is the only place CSS enters a
+published page. The selector grammar is element names and lists of them and
+nothing else, because the author here is us; merchant-authored CSS needs a real
+scoper and that is Code Block's own change.
+
+Still to do: Code Block and Embed.
 
 ### Exit Criteria
 

@@ -1199,17 +1199,27 @@ sanitizer, deferred to Phase 14 with custom SVG upload.
 declaration would be a seventh stage that always wins. An id is page-global, so
 a block that sets one can break an anchor or an `aria-describedby` elsewhere.
 
-### Open: its contents have no typography
+### Its contents are styled by the component, from the theme
 
-A block renders semantic HTML and nothing styles it. The cascade applies to
-nodes, and an `<h2>` inside a block is not a node — so it renders at body size,
-a list renders without bullets, and a link renders as text.
+A block renders semantic HTML, and the cascade reaches nodes — an `<h2>` inside
+a block is not one. The first screenshot of this component showed the result: a
+heading at body size, a list with no bullets, a link reading as text.
 
-The catalog's answer is Code Block, whose CSS is scoped to the same page. That
-pairs two components to make one of them presentable, and a merchant who pastes
-a heading expects a heading. The alternative is a way for a component to
-contribute a rule block to the stylesheet, which Code Block needs anyway and
-which the engine has no hook for today. Not decided.
+A component may now declare `descendantStyles`, a map of element selector to
+declarations, which the renderer emits once per component type on the page and
+scopes to that type's own elements. HTML Block's are in `typography.ts` and come
+entirely from the theme's type scale, so a block's heading and a Heading node
+beside it are the same size and a rebrand moves both.
+
+The alternative was to let Code Block's CSS be the answer, which pairs two
+components to make one of them presentable. A merchant who pastes a heading
+expects a heading.
+
+The selector grammar is element names and comma lists of them — no combinator,
+class, attribute or pseudo-class. The rules are already scoped, so what is left
+to express is which elements, and a grammar this small cannot escape its scope.
+Code Block takes CSS from a merchant rather than from us and needs a real
+scoper; that is its own problem and its own change.
 
 ---
 

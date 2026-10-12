@@ -32,12 +32,12 @@ So `html/content.ts` is the only check: one hand-written walk, total over
 arbitrary stored JSON, which the renderer calls for the tree and `validate`
 calls for the reason. Publishing refuses exactly what rendering would drop.
 
-## Open
-
-**A block's contents have no typography.** The cascade styles nodes, and an
-`<h2>` inside a block is not a node — so it renders at body size and a list
-renders without bullets. See component-library.md § HTML Block for the two ways
-out and why neither is taken yet.
+**Typography for things that are not nodes.** The cascade reaches nodes, and
+the elements a block draws are not nodes — so a merchant's `<h2>` rendered at
+body size until the engine gained `descendantStyles`. HTML Block's are in
+`components/html-block/typography.ts`, every value from the theme's own type
+scale. The renderer emits them once per type on the page, scoped to that type's
+elements.
 
 ## Not built
 
