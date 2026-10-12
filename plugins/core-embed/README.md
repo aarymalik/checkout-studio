@@ -2,8 +2,7 @@
 
 What a merchant brings from outside the builder.
 
-HTML Block and Code Block today. Embed follows; Lottie does not — see **Not
-built**. The authoring pattern and the three entry points are `core-layout`'s.
+HTML Block, Code Block and Embed. Lottie is not built — see **Not built**. The authoring pattern and the three entry points are `core-layout`'s.
 
 ## What this one added
 
@@ -46,7 +45,16 @@ rule the engine did not write. It is scoped to the block rather than the page
 — component-library.md § Code Block has the argument, and the short version is
 that reach, not capability, is what a payment page cannot afford.
 
+**A closed list of providers.** Embed frames four services and builds each
+address itself from an identifier, because `frame-src` names origins and an
+origin a merchant typed is one nobody reviewed. `components/embed/providers.ts`
+is the list, and Phase 16's policy header reads its origins so the two cannot
+drift.
+
 ## Not built
+
+**A custom iframe.** The origin would be whatever the document says. See
+component-library.md § Embed.
 
 **Lottie.** The player is four times the renderer's entire bundle budget, and
 there is no asset pipeline for an animation to load from until Phase 14. It is

@@ -34,10 +34,15 @@ describe("the studio's registry", () => {
   })
 
   it("carries a plugin's document rules into the registry too", () => {
-    // Heading order is a page-level rule, so it arrives as a document
-    // validator rather than on a component.
+    /*
+     * Page-level rules, which arrive as document validators rather than on a
+     * component because no single node can answer them: whether a heading
+     * level is wrong depends on what came before it, and whether an embed is
+     * too close to the payment form depends on what else is in its section.
+     */
     expect(registry.documentValidators().map((entry) => entry.rule)).toEqual([
       "core-content.heading-order",
+      "core-embed.embed-beside-payment",
     ])
   })
 

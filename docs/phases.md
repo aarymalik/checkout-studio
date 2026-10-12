@@ -1958,7 +1958,30 @@ Its CSS is stored as rules rather than as a stylesheet, for the reason HTML
 Block's markup is stored as a tree — the engine re-emits each one through its
 own writer, so a stored rule cannot be a rule the engine did not write.
 
-Still to do: Embed.
+**Embed closes Phase 9.** Four providers, a closed list, and no custom iframe:
+`frame-src` names origins the way the script policy does, and an origin a
+merchant typed is an origin nobody reviewed on a page taking card details. The
+component builds the address from a provider and an identifier rather than
+accepting a URL, so the origin is never the document's to choose, and Phase 16
+reads `PROVIDERS` for the header so the policy cannot drift from what renders.
+
+The sandbox grants scripts, popups and forms, and withholds `allow-same-origin`
+and `allow-top-navigation` — the second because a frame that can replace the
+page around it is a checkout a customer can be taken off mid-payment.
+
+The catalog's other rule is a document validator: an embed in the same section
+as the payment element is an error that blocks publishing. It names
+`checkout.payment-element`, a type this plugin does not own and matches as a
+string, and until Phase 13 it correctly finds nothing.
+
+Two things found while writing it. axe could not run on a component holding an
+iframe — jsdom has no window inside one to ask — so the suite stops at the
+frame, and there is a test proving the frame element itself is still checked,
+because that was the claim the skip rested on. And the first screenshot of the
+case was a blank page: an empty media box is `surfaceRaised` on `background`,
+which on the light theme is very nearly the page. A configured embed now names
+its provider; the empty state is the same for Image, Video and Embed, and is
+recorded rather than fixed three times over.
 
 ### Exit Criteria
 

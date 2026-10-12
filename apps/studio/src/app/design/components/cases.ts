@@ -1,3 +1,4 @@
+import type { RenderMode } from "@checkout-studio/plugin-sdk"
 import type { CheckoutSchema, Node } from "@checkout-studio/schema"
 import { createDocument } from "@checkout-studio/schema"
 
@@ -24,6 +25,15 @@ export interface ComponentCase {
   /** Also the screenshot's name, so it must stay stable. */
   id: string
   covers: readonly string[]
+  /**
+   * Which mode to draw in. `published` unless the case says otherwise.
+   *
+   * On the case rather than in the renderer, which used to ask
+   * `id === "media-without-a-source"`. A second case needing the editor is
+   * what showed that up: the question "which mode is this case about" belongs
+   * beside the case, not in an expression naming one of them.
+   */
+  mode?: RenderMode
   /** The page this case draws. */
   document: () => CheckoutSchema
 }
@@ -191,6 +201,7 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
   {
     id: "media-without-a-source",
     covers: ["core.image", "core.video"],
+    mode: "editor-preview",
     document: () =>
       pageOf(
         [
@@ -284,6 +295,41 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
               ],
             },
           },
+        ],
+        ["section"],
+      ),
+  },
+  /*
+   * Embeds, photographed as the editor draws them.
+   *
+   * `editor-preview` rather than published, and that is the point rather than
+   * a convenience: a published embed is a frame holding somebody else's page,
+   * so a screenshot of one would be a screenshot of YouTube — different every
+   * time it changes, and a test that fails when a third party redesigns.
+   *
+   * What is ours is the box: its ratio, its surface, and the fact that the
+   * editor draws it without calling the provider.
+   */
+  {
+    id: "embeds",
+    covers: ["core.embed"],
+    mode: "editor-preview",
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["video", "booking", "empty"] },
+          {
+            id: "video",
+            type: "core.embed",
+            props: { provider: "youtube", id: "dQw4w9WgXcQ", title: "How it works" },
+          },
+          {
+            id: "booking",
+            type: "core.embed",
+            props: { provider: "calendly", id: "acme/intro-call" },
+            styles: { desktop: { base: { aspectRatio: "4 / 3" } } },
+          },
+          { id: "empty", type: "core.embed", props: { provider: "vimeo", id: "" } },
         ],
         ["section"],
       ),

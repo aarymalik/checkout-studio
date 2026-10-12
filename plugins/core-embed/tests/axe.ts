@@ -18,8 +18,39 @@ import { expect } from "vitest"
  * this runs per component rather than once over an assembled page: a page
  * passing says nothing about the component nobody put on it.
  */
+/** What axe objects to, as rule ids. */
+export async function violationsIn(container: HTMLElement): Promise<string[]> {
+  return (await run(container)).violations.map((violation) => violation.id)
+}
+
 export async function expectNoViolations(container: HTMLElement): Promise<void> {
-  const results = await axe.run(container, {
+  const results = await run(container)
+
+  const summary = results.violations.map(
+    (violation) =>
+      `${violation.id} (${violation.impact}): ${violation.help}\n` +
+      violation.nodes.map((node) => `    ${node.html}\n    ${node.failureSummary}`).join("\n"),
+  )
+
+  expect(summary, `axe found ${summary.length} violation(s)`).toEqual([])
+}
+
+async function run(container: HTMLElement): Promise<axe.AxeResults> {
+  return axe.run(container, {
+    /*
+     * Do not walk into frames.
+     *
+     * axe asks a frame's own window to analyse itself, and jsdom's iframe has
+     * no window to ask — it throws "Respondable target must be a frame in the
+     * current window" before any rule runs. That is the environment, not a
+     * finding: an Embed renders an `<iframe>` and what is inside it belongs to
+     * the provider.
+     *
+     * The frame element itself is still checked from here, which is the part
+     * that is ours: `frame-title` reads the attribute on the host document and
+     * fails an Embed with no accessible name.
+     */
+    iframes: false,
     rules: {
       "color-contrast": { enabled: false },
       /*
@@ -32,12 +63,4 @@ export async function expectNoViolations(container: HTMLElement): Promise<void> 
       region: { enabled: false },
     },
   })
-
-  const summary = results.violations.map(
-    (violation) =>
-      `${violation.id} (${violation.impact}): ${violation.help}\n` +
-      violation.nodes.map((node) => `    ${node.html}\n    ${node.failureSummary}`).join("\n"),
-  )
-
-  expect(summary, `axe found ${summary.length} violation(s)`).toEqual([])
 }
