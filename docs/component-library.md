@@ -629,6 +629,53 @@ Number
 
 Password
 
+### The first component that ships JavaScript
+
+Everything before Phase 10 renders on the server and hydrates nothing. A field
+cannot: somebody types into it, and what they typed has to be remembered,
+checked and shown back. `interactive: true` is not machinery — `RenderNode` is
+a server component with no hooks, so a `"use client"` renderer ships itself —
+it is the fact made visible, because a component declaring it is a component
+spending the published bundle's budget.
+
+The budget is 60 KB for everything a customer downloads. A field costs 1.3 KB.
+
+### Deviation: no validation library in the browser
+
+[phases.md](./phases.md) names React Hook Form and the schema is Zod. Zod
+cannot ship: one `"use client"` component importing the schema builder put a
+403 KB chunk into the bundle and took first-party JavaScript from 6.8 KB to
+**95.3 KB against the 60 KB budget**. The gate refused the build.
+
+So a field's rules are stored once, as data. The browser reads them with a
+hand-written check of a few hundred bytes; the server builds the Zod object
+from the same descriptors, where size does not matter. Two readers of one
+description can drift, so both run over one table of cases and are asserted to
+agree about whether a value is acceptable.
+
+React Hook Form is not used either, and for the same reason at a smaller
+scale: around 12 KB, on the page that still has to fit Stripe's payment element
+in Phase 13. What a generated field needs is a value, an error and a way to say
+it exists.
+
+### Labels, and what is announced
+
+The label is an element and stays visible. A placeholder disappears the moment
+somebody types, so a form built from them is one nobody can check before
+submitting. Both are offered; they are different things.
+
+`aria-describedby` points at the help text, and at the error when there is one.
+The required mark beside the label is `aria-hidden`, because `aria-required` on
+the control is what a screen reader announces — otherwise it reads "asterisk".
+
+A field is checked when it is left, not while it is typed, and its error clears
+as soon as somebody starts fixing it.
+
+### On the canvas
+
+Read-only, not disabled. A disabled field is skipped by the keyboard and dimmed,
+so the canvas would show the component in a state no published page puts it in.
+
 Editable
 
 Placeholder

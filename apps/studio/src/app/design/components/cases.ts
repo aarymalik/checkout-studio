@@ -334,4 +334,41 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
         ["section"],
       ),
   },
+  /*
+   * Form fields, in the editor.
+   *
+   * `editor-preview` because that is the state this case is about: a field on
+   * the canvas is read-only rather than disabled, so a merchant can see it
+   * without typing into a form that goes nowhere. What a published one does —
+   * remembering, checking, announcing — is behaviour, and lives in the
+   * plugin's tests rather than in a photograph.
+   */
+  {
+    id: "fields",
+    covers: ["core.input"],
+    mode: "editor-preview",
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["email", "phone", "qty"] },
+          {
+            id: "email",
+            type: "core.input",
+            props: {
+              label: "Email address",
+              kind: "email",
+              required: true,
+              placeholder: "name@example.com",
+            },
+          },
+          {
+            id: "phone",
+            type: "core.input",
+            props: { label: "Phone", kind: "tel", help: "Only if something goes wrong." },
+          },
+          { id: "qty", type: "core.input", props: { label: "Quantity", kind: "number", min: 1 } },
+        ],
+        ["section"],
+      ),
+  },
 ]
