@@ -143,13 +143,28 @@ export const propertyOption = z
   .strict()
 
 /**
- * Shows a property only when another one has a given value.
+ * Shows a property only when another one has, or does not have, a given value.
  *
  * Declarative rather than a predicate function, so that a property definition
  * stays something the AI assistant can read and a marketplace can inspect
  * without executing it.
+ *
+ * `not` exists because "every value except one" is a real shape and equality
+ * cannot say it: an Input's minimum length applies to four of its five kinds,
+ * and enumerating the four would be a list that forgets to grow when a fifth
+ * arrives. Exactly one of the two is given — a condition with both is two
+ * conditions, and a condition with neither is not one.
  */
-export const propertyCondition = z.object({ key: z.string().min(1), equals: primitive }).strict()
+export const propertyCondition = z
+  .object({
+    key: z.string().min(1),
+    equals: primitive.optional(),
+    not: primitive.optional(),
+  })
+  .strict()
+  .refine((condition) => (condition.equals === undefined) !== (condition.not === undefined), {
+    error: "A condition is either `equals` or `not`.",
+  })
 
 /**
  * Which bag the value is written to.

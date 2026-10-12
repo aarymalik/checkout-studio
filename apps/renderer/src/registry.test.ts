@@ -20,6 +20,7 @@ describe("the published registry", () => {
       ["core-layout", "active"],
       ["core-content", "active"],
       ["core-embed", "active"],
+      ["core-forms", "active"],
     ])
   })
 
@@ -30,20 +31,30 @@ describe("the published registry", () => {
   it("holds the same types the editor draws with", () => {
     // Not an exhaustive list: the point is that all three plugins reached it,
     // and the catalog in docs/component-library.md is the list.
-    for (const type of ["core.section", "core.heading", "core.button", "core.html-block"]) {
+    for (const type of [
+      "core.section",
+      "core.heading",
+      "core.button",
+      "core.html-block",
+      "core.input",
+    ]) {
       expect(registry.has(type), type).toBe(true)
     }
   })
 
-  it("ships nothing that needs a client", () => {
+  it("ships a client only for the components that cannot do without one", () => {
     /*
-     * Every core component renders on the server and hydrates nothing, which
-     * is what keeps a published checkout at a few kilobytes. The first
-     * component that needs a client is the payment element in Phase 13, and
-     * when it arrives this test should say so rather than be deleted.
+     * This asserted an empty list until Phase 10, and said that when the first
+     * interactive component arrived it should say so rather than be deleted.
+     * It is the form fields: somebody types into one, and what they typed has
+     * to be remembered, checked and shown back.
+     *
+     * The list is named rather than counted, because what matters is *which*
+     * components spend the published bundle's budget. `pnpm renderer:bundle`
+     * measures the cost; this says who is allowed to incur it.
      */
     const interactive = registry.types().filter((type) => registry.get(type)?.interactive === true)
 
-    expect(interactive).toEqual([])
+    expect(interactive).toEqual(["core.input"])
   })
 })

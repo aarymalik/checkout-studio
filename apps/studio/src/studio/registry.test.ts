@@ -18,6 +18,7 @@ describe("the studio's registry", () => {
       ["core-layout", "active"],
       ["core-content", "active"],
       ["core-embed", "active"],
+      ["core-forms", "active"],
     ])
   })
 
@@ -31,6 +32,7 @@ describe("the studio's registry", () => {
     expect(registry.has("core.section")).toBe(true)
     expect(registry.has("core.heading")).toBe(true)
     expect(registry.has("core.html-block")).toBe(true)
+    expect(registry.has("core.input")).toBe(true)
   })
 
   it("carries a plugin's document rules into the registry too", () => {

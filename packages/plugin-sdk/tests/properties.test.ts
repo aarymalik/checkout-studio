@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { PROPERTY_GROUPS, defineProperties, propertyDefinition } from "../src/properties"
+import {
+  PROPERTY_GROUPS,
+  defineProperties,
+  propertyCondition,
+  propertyDefinition,
+} from "../src/properties"
 import type { PropertyDefinitionInput } from "../src/properties"
 
 /**
@@ -134,5 +139,27 @@ describe("the inspector's sections", () => {
     const one = property() as unknown as PropertyDefinitionInput
 
     expect(propertyDefinition.parse(one).group).toBe("Layout")
+  })
+})
+
+describe("a condition", () => {
+  it("shows a property when another has a value", () => {
+    expect(propertyCondition.safeParse({ key: "kind", equals: "number" }).success).toBe(true)
+  })
+
+  it("shows a property when another does not have a value", () => {
+    // "Every value except one" is a real shape — an Input's minimum length
+    // applies to four of its five kinds — and equality cannot say it.
+    expect(propertyCondition.safeParse({ key: "kind", not: "number" }).success).toBe(true)
+  })
+
+  it("refuses a condition that is both", () => {
+    expect(
+      propertyCondition.safeParse({ key: "kind", equals: "text", not: "number" }).success,
+    ).toBe(false)
+  })
+
+  it("refuses a condition that is neither", () => {
+    expect(propertyCondition.safeParse({ key: "kind" }).success).toBe(false)
   })
 })
