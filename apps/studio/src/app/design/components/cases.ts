@@ -247,4 +247,45 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
         ["section"],
       ),
   },
+  /*
+   * A Code Block, with a stylesheet of its own.
+   *
+   * The rules are written out rather than parsed, for the reason the tree
+   * above is: the parser is the editor's, and this is the shape the component
+   * stores. What a screenshot of it proves is the part no unit test reaches —
+   * that a merchant's rule is in the page's stylesheet, scoped to this node,
+   * and that the theme's typography is underneath it.
+   */
+  {
+    id: "merchant-css",
+    covers: ["core.code-block"],
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["code"] },
+          {
+            id: "code",
+            type: "core.code-block",
+            props: {
+              content: [
+                { tag: "h2", children: [{ text: "Delivery" }] },
+                {
+                  tag: "p",
+                  attrs: { class: "lead" },
+                  children: [{ text: "Free over £50, next day before 2pm." }],
+                },
+                { tag: "p", children: [{ text: "Everything else arrives within three days." }] },
+              ],
+              styles: [
+                // A merchant's own CSS, where a literal is the point.
+                // design-system-ignore: this is what somebody types into a block.
+                { selector: ".lead", declarations: { fontWeight: "600", color: "#4f46e5" } },
+                { selector: "h2", declarations: { textTransform: "uppercase" } },
+              ],
+            },
+          },
+        ],
+        ["section"],
+      ),
+  },
 ]

@@ -1227,7 +1227,7 @@ scoper; that is its own problem and its own change.
 
 Supports
 
-CSS (scoped to `.checkout-root`)
+CSS (scoped to the block, not the page — see below)
 
 HTML (sanitized, as HTML Block)
 
@@ -1236,6 +1236,50 @@ JavaScript is not supported.
 Tracking is configured through Tracking Integrations in page settings, per [schema.md](./schema.md).
 
 Third-party widgets use the Embed component.
+
+### Stored as rules, not as a stylesheet
+
+The same argument as HTML Block's tree. A stored string of CSS that the
+renderer concatenates into the page's stylesheet is arbitrary CSS one tampered
+document away from the payment form. What is stored is a list of selectors and
+declarations, which the engine re-emits through its own writer — scoping every
+selector and passing every value through the guard the theme is held to. A
+stored rule cannot be a rule the engine did not write.
+
+### Deviation: scoped to the block, not to `.checkout-root`
+
+A merchant can already give any node any style, `position: fixed` included,
+through the inspector — `styleProperties` is an open record by design. So CSS
+here is not a new capability; it is more reach, one rule instead of one node.
+
+On a page carrying a payment form, reach is the part that matters. A rule
+matching more than its author expected can cover the Stripe element, hide the
+amount, or hide an error — and a document does not always come from the
+merchant whose page it is. It arrives from an import, from a template, and in a
+workspace from another person.
+
+Scoped to the block, the component still does what it is for: style the markup
+in this block. Two Code Blocks on a page are two stylesheets, and neither can
+reach the other.
+
+### Deviation: no `@media`
+
+A product decision rather than a safety one. Breakpoints are first-class here —
+the inspector sets styles per breakpoint and the renderer emits the queries — and
+a merchant writing their own would be a second mechanism the first cannot see.
+The block reports it rather than dropping it silently.
+
+`@import` and `@font-face` fetch from an origin the CSP refuses, and
+`@keyframes` names animations globally so two blocks could collide. All three
+are refused and reported.
+
+### The theme is underneath
+
+A block's markup gets the same typography an HTML Block's does, with the
+author's own rules layered over it per selector. A rule saying
+`h2 { text-transform: uppercase }` means "and uppercase" — replacing the map
+would leave the author's rule working and the heading at body size, which reads
+as the theme being broken.
 
 ---
 

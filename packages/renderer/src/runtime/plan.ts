@@ -53,11 +53,13 @@ export function planNode(nodeId: string, context: RenderContext): NodePlan | nul
   const className = [
     classFor(node.id),
     /*
-     * The component type's own class, and only for a component that has rules
-     * for the elements it draws inside itself. Every other node would be
-     * carrying bytes for a stylesheet nobody emits.
+     * The component type's own class, and only for a component whose rules are
+     * the same for every node of the type. Every other node would be carrying
+     * bytes for a stylesheet nobody emits — and a component whose rules come
+     * from the node is written against the node's own class, which is already
+     * the first entry here.
      */
-    ...(definition?.descendantStyles === undefined ? [] : [typeClassFor(node.type)]),
+    ...(typeof definition?.descendantStyles === "object" ? [typeClassFor(node.type)] : []),
     ...hiding,
     // Undecidable here: the rule depends on something only the browser knows,
     // such as a field the customer has not filled in. The node renders, and the

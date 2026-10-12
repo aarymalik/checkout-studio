@@ -3,6 +3,7 @@ import { PluginHost } from "@checkout-studio/plugin-sdk"
 import { CURRENT_VERSION } from "@checkout-studio/schema"
 
 import { coreEmbed } from "../src/renderer"
+import { parseCss } from "../src/css/parse"
 import { parseHtml } from "../src/html/parse"
 import { expectNoViolations } from "./axe"
 import { renderComponent } from "./support"
@@ -30,18 +31,20 @@ const registry = new PluginHost({
 const MODES = ["published", "static", "editor-preview", "embed"] as const
 
 /** What a merchant's block holds, per type. */
+const MERCHANT_MARKUP = [
+  "<h2>Returns</h2>",
+  "<p>Thirty days, <strong>no questions</strong>. Read the",
+  '<a href="/terms" target="_blank">terms</a>.</p>',
+  "<ul><li>Unworn</li><li>In its box</li></ul>",
+  '<table><caption>Timings</caption><tr><th scope="col">Step</th><td>Days</td></tr></table>',
+].join("")
+
 const FILLED: Readonly<Record<string, Record<string, unknown>>> = {
-  "core.html-block": {
-    content: parseHtml(
-      [
-        "<h2>Returns</h2>",
-        "<p>Thirty days, <strong>no questions</strong>. Read the",
-        '<a href="/terms" target="_blank">terms</a>.</p>',
-        "<ul><li>Unworn</li><li>In its box</li></ul>",
-        '<table><caption>Timings</caption><tr><th scope="col">Step</th><td>Days</td></tr></table>',
-      ].join(""),
-    ).content,
+  "core.code-block": {
+    content: parseHtml(MERCHANT_MARKUP).content,
+    styles: parseCss(".lead { font-size: 18px } h2 { margin-bottom: 8px }").rules,
   },
+  "core.html-block": { content: parseHtml(MERCHANT_MARKUP).content },
 }
 
 describe("axe", () => {
@@ -74,6 +77,6 @@ describe("axe", () => {
   }
 
   it("covered every component the plugin registers", () => {
-    expect(registry.types()).toEqual(Object.keys(FILLED))
+    expect([...registry.types()].sort()).toEqual(Object.keys(FILLED).sort())
   })
 })

@@ -141,22 +141,45 @@ describe("a component's descendant styles", () => {
   })
 })
 
+describe("rules that come from the node rather than the type", () => {
+  /** A component whose rules are whatever its own prop says. */
+  const SHEET = definition("core.sheet", {
+    descendantStyles: (node) => node.props["styles"] as Record<string, Record<string, string>>,
+  })
+
+  function cssForTwo(): string {
+    const registry = registryWith(definition("core.page"), SHEET)
+    const schema = documentOf("root", [
+      { id: "root", type: "core.page", children: ["one", "two"] },
+      { id: "one", type: "core.sheet", props: { styles: { p: { color: "{colors.primary}" } } } },
+      { id: "two", type: "core.sheet", props: { styles: { p: { color: "{colors.danger}" } } } },
+    ])
+
+    return buildStylesheet(contextFor(schema, { mode: "published", registry })).css
+  }
+
+  it("asks each node and writes each answer", () => {
+    const css = cssForTwo()
+
+    expect(css).toContain("var(--ck-color-primary)")
+    expect(css).toContain("var(--ck-color-danger)")
+  })
+
+  it("scopes each to its own node, so one block cannot style another", () => {
+    // The property that matters. Two Code Blocks on a page are two
+    // stylesheets, and a merchant styling `p` in one is not styling the other.
+    const targeting = selectors(cssForTwo()).filter((selector) => selector.endsWith(" p"))
+
+    expect(targeting).toEqual([".checkout-root .ck-one p", ".checkout-root .ck-two p"])
+  })
+
+  it("carries no type class, because the node's own class is the scope", () => {
+    expect(cssForTwo()).not.toContain("ck-t-core_sheet")
+  })
+})
+
 describe("what a selector may be", () => {
-  /*
-   * The grammar is element names and lists of them, and nothing else. These
-   * are the ways a wider one would let a component out of its own scope — a
-   * descendant combinator with a leading `*`, a sibling selector, or a close
-   * brace ending the rule early and starting one of its own.
-   */
-  it.each([
-    ["a combinator", "h2 > span"],
-    ["a universal selector", "*"],
-    ["a class", ".payment-form"],
-    ["an id", "#card"],
-    ["an attribute", "[data-stripe]"],
-    ["a pseudo-class", "h2:hover"],
-    ["an escape out of the rule", "h2 { color: red } .ck-root"],
-  ])("drops %s", (_name, selector) => {
+  function cssWith(selector: string): string {
     const registry = registryWith(
       definition("core.page"),
       definition("core.sneaky", {
@@ -167,8 +190,70 @@ describe("what a selector may be", () => {
       { id: "root", type: "core.page", children: ["sneaky"] },
       { id: "sneaky", type: "core.sneaky" },
     ])
-    const css = buildStylesheet(contextFor(schema, { mode: "published", registry })).css
 
-    expect(css).not.toContain(selector)
+    return buildStylesheet(contextFor(schema, { mode: "published", registry })).css
+  }
+
+  /*
+   * What keeps a rule inside its scope is the prefix, not the grammar. A
+   * selector is emitted with the component's class in front of it, so the
+   * most ambitious one still only matches a descendant of the component —
+   * `*` is "everything in this block" and `:root` matches nothing at all.
+   *
+   * These are the selectors a person writes CSS with. The grammar started at
+   * element names, because the only author was us; it widened when Code Block
+   * began taking CSS from a merchant.
+   */
+  it.each([
+    ["a child combinator", "h2 > span"],
+    ["a universal selector", "*"],
+    ["a class", ".lead"],
+    ["a pseudo-class", "a:hover"],
+    ["a descendant pair", "thead th"],
+  ])("emits %s, scoped", (_name, selector) => {
+    const emitted = selectors(cssWith(selector)).filter((part) => part.includes(selector))
+
+    expect(emitted.length).toBeGreaterThan(0)
+
+    for (const part of emitted) {
+      expect(part.startsWith(".checkout-root .ck-t-core_sneaky ")).toBe(true)
+    }
+  })
+
+  /*
+   * What the grammar does have to stop is a selector leaving the rule. A `}`
+   * closes the block and starts whatever follows at the top level of the
+   * stylesheet, which is the one way a selector becomes CSS of its own — and
+   * a backslash can encode the characters the scan looks for.
+   */
+  it.each([
+    ["a closing brace, which would end the rule", "h2 { color: red } .ck-root"],
+    ["an opening brace", "h2 {"],
+    ["a semicolon", "h2; body"],
+    ["an at-rule", "h2 @media print"],
+    ["a backslash, which can encode the rest", "h2 \\7d body"],
+    ["a quote", 'h2["x"]'],
+    ["an attribute selector", "[data-stripe]"],
+    ["a comment, which could carry the rest out", "h2 /* } */ span"],
+    ["an unclosed parenthesis", "h2:nth-child(2"],
+    ["a parenthesis that closes one that never opened", "h2:nth-child(2))"],
+    ["nothing at all", "   "],
+  ])("drops %s", (_name, selector) => {
+    expect(cssWith(selector)).not.toContain("color: var(--ck-color-primary)")
+  })
+
+  it("cannot reach the page even when it names the page", () => {
+    /*
+     * `.checkout-root` is the checkout's own class, and a component asking for
+     * it is a component asking to style the whole page. Prefixed like anything
+     * else it becomes "an element with that class inside this block", which
+     * is nothing — so the rule is emitted and reaches nothing, rather than
+     * being a special case somebody has to remember to add.
+     */
+    const rule = selectors(cssWith(".checkout-root")).filter((part) =>
+      part.endsWith(" .checkout-root"),
+    )
+
+    expect(rule).toEqual([".checkout-root .ck-t-core_sneaky .checkout-root"])
   })
 })

@@ -639,10 +639,20 @@ platform: `visual/__screenshots__/{darwin,linux}/`. A local run writes and
 compares `darwin`; CI runs on Linux and compares `linux`, which means **a new
 case needs both**, and only one of them can be made on a developer's machine.
 
-When a Linux baseline is missing, Playwright writes it and fails the job. CI
-uploads what it wrote as the `visual-regression` artifact. The loop is: push,
-let the job fail, `gh run download <id> -n visual-regression`, look at the
-images, commit them.
+When a Linux baseline is missing or has changed, Playwright writes what it
+drew and fails the job. CI uploads it as the `visual-regression` artifact.
+
+`pnpm visual:accept` brings those back: it finds the last failed run on the
+current branch, downloads the artifact, and copies in only the screenshots
+that differ from what is committed — the job uploads the whole directory, so
+without that comparison a six-file change reads as sixty.
+
+It stops short of committing, deliberately. These images are what every later
+run is compared against, and one nobody looked at is a test that passes for a
+reason nobody chose. **Look at them, then commit.**
+
+The round trip itself is not avoidable: nobody developing on macOS can draw
+the Linux half, so a new case always costs one CI run.
 
 ## What a screenshot cannot see
 
