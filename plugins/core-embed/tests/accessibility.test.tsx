@@ -40,6 +40,7 @@ const MERCHANT_MARKUP = [
 ].join("")
 
 const FILLED: Readonly<Record<string, Record<string, unknown>>> = {
+  "core.embed": { provider: "youtube", id: "dQw4w9WgXcQ", title: "How it works" },
   "core.code-block": {
     content: parseHtml(MERCHANT_MARKUP).content,
     styles: parseCss(".lead { font-size: 18px } h2 { margin-bottom: 8px }").rules,

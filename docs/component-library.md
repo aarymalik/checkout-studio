@@ -1295,11 +1295,67 @@ Calendly
 
 Typeform
 
-Custom iframe
-
 Every embed renders in a sandboxed `<iframe>`.
 
 Embeds cannot be placed in the same section as a Payment Element.
+
+### Deviation: no custom iframe
+
+[security.md](./security.md) § Scripts on Checkout Pages ends "every script
+origin on a published checkout is enumerated in its Content Security Policy",
+and `frame-src` works the same way — a frame loads only from an origin the
+policy names. An origin a merchant typed is an origin nobody reviewed, on a
+page taking card details. It is the argument that made Video self-hosted only.
+
+With a closed list the policy is derivable: a page's `frame-src` is the origins
+of the providers that page uses and nothing else. Phase 16 builds that header
+and reads the origins from `PROVIDERS`, so the policy cannot drift from what
+the components render.
+
+### The component builds the address
+
+An author gives a provider and an identifier — a video id, a Calendly handle —
+and the address comes from a pattern. A component that accepted a URL would be
+a component where the origin is whatever the document says, which is what the
+closed list exists to prevent.
+
+The identifier patterns are tight, because an identifier goes into a URL and
+`../` in one is a different address. YouTube is framed at
+`youtube-nocookie.com`: a checkout is not a place to drop a third party's
+cookies on somebody who has not pressed play.
+
+### What the sandbox allows back in
+
+`allow-scripts`, because each of these is an application. `allow-popups` so a
+booking confirmation can open the merchant's own page. `allow-forms`, because
+two of them are forms.
+
+Not `allow-same-origin`: with it a frame reaches its own storage and cookies,
+and these four work without it. Not `allow-top-navigation`, which is the one
+that matters most — with it a frame can replace the page around it, and a
+checkout a customer can be navigated away from mid-payment is the whole risk
+in one attribute.
+
+The referrer policy is `strict-origin-when-cross-origin`, so a provider is told
+which site framed them and never which checkout page.
+
+### Not loaded in the editor
+
+The canvas draws the box and names the provider; it does not call the service.
+Four embeds reaching four third parties when a page opens is slow and watched,
+and an editor that fetches a booking page is a service being told about a page
+nobody has published.
+
+### Open: an empty media box is nearly invisible
+
+An Embed with no identifier draws the same box Image and Video draw with no
+source — `surfaceRaised` on `background`, which on the light theme is very
+nearly the page. The first screenshot of this case was a blank page.
+
+A configured Embed now carries the provider's name as text, because otherwise
+a set-up video and an empty frame look identical on the canvas. The empty state
+is unchanged and is the same for all three components, so fixing it is one
+change to a shared idea rather than three to one component each. Not taken yet.
 
 ---
 

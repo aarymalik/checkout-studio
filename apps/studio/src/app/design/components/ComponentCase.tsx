@@ -16,10 +16,10 @@ import { COMPONENT_CASES } from "./cases"
  * the token references becoming CSS variables. Mounting the components
  * directly would photograph something the product never produces.
  *
- * `mode="published"`, not `editor-preview`. The editor adds a minimum height
- * to an empty container and keeps a box for an image with no source, and those
- * belong in a picture of the editor rather than in a picture of the component.
- * The one case that is *about* the empty state asks for the editor on purpose.
+ * `mode="published"` unless a case says otherwise. The editor adds a minimum
+ * height to an empty container and keeps a box for an image with no source,
+ * and those belong in a picture of the editor rather than in a picture of the
+ * component. A case that is *about* what the editor draws says so itself.
  */
 export function ComponentCase({
   id,
@@ -53,7 +53,7 @@ export function ComponentCase({
         theme={defaultTheme}
         registry={registry}
         colorMode={colorMode}
-        mode={id === "media-without-a-source" ? "editor-preview" : "published"}
+        mode={current.mode ?? "published"}
       />
     </div>
   )
