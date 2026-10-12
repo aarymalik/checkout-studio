@@ -13,7 +13,7 @@ export const manifest: PluginManifest = pluginManifest.parse({
   namespace: "core",
   name: "Core Embed",
   version: "0.1.0",
-  description: "HTML Block.",
+  description: "HTML Block and Code Block.",
   author: "Checkout Studio",
   category: "components",
   compatibility: { minEngineVersion: "0.1.0", schemaVersion: "1.0.0" },

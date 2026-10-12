@@ -1943,7 +1943,22 @@ published page. The selector grammar is element names and lists of them and
 nothing else, because the author here is us; merchant-authored CSS needs a real
 scoper and that is Code Block's own change.
 
-Still to do: Code Block and Embed.
+**Code Block is built**, and the decision in it is where its CSS reaches.
+The catalog says the page; this scopes it to the block. A merchant can already
+put `position: fixed` on any node through the inspector, so CSS is not a new
+capability — it is more reach, and on a page carrying a payment form reach is
+what matters: a rule matching more than its author expected can cover the
+Stripe element or hide the amount, and a document arrives from imports,
+templates and other people's workspaces as well as from the merchant. Recorded
+in component-library.md § Code Block, along with the refusal of `@media`, which
+is a product decision: breakpoints are already first-class and a second
+mechanism would be invisible to the first.
+
+Its CSS is stored as rules rather than as a stylesheet, for the reason HTML
+Block's markup is stored as a tree — the engine re-emits each one through its
+own writer, so a stored rule cannot be a rule the engine did not write.
+
+Still to do: Embed.
 
 ### Exit Criteria
 

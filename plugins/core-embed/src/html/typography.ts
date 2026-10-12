@@ -3,6 +3,10 @@ import type { StyleProperties } from "@checkout-studio/schema"
 /**
  * What the elements inside a block look like.
  *
+ * Both components that render the tree use these — it belongs to the markup
+ * rather than to either one. A Code Block layers the merchant's own rules on
+ * top; see `blockStyles`.
+ *
  * ## Why a component has to say this at all
  *
  * The cascade styles nodes, and the elements a block draws are not nodes. The
@@ -28,6 +32,27 @@ import type { StyleProperties } from "@checkout-studio/schema"
  * pasted content ends up with a gap nobody can find the source of.
  */
 
+/**
+ * The theme's typography, with a block's own rules layered over it.
+ *
+ * Per selector rather than per map: a merchant writing `h2 { text-transform:
+ * uppercase }` means "and uppercase", not "and nothing else". Replacing the
+ * map wholesale is what the first version did, and it left a Code Block's
+ * heading at body size while the rule the author wrote worked perfectly —
+ * which looks like the theme being broken rather than like a merge.
+ */
+export function blockStyles(
+  own: Readonly<Record<string, StyleProperties>>,
+): Record<string, StyleProperties> {
+  const merged: Record<string, StyleProperties> = { ...BLOCK_TYPOGRAPHY }
+
+  for (const [selector, declarations] of Object.entries(own)) {
+    merged[selector] = { ...merged[selector], ...declarations }
+  }
+
+  return merged
+}
+
 const heading = (step: "h1" | "h2" | "h3" | "h4"): StyleProperties => ({
   fontFamily: "{typography.fontFamily.heading}",
   fontSize: `{typography.scale.${step}.fontSize}`,
@@ -37,7 +62,7 @@ const heading = (step: "h1" | "h2" | "h3" | "h4"): StyleProperties => ({
   marginBottom: "{spacing.3}",
 })
 
-export const HTML_BLOCK_TYPOGRAPHY: Readonly<Record<string, StyleProperties>> = {
+export const BLOCK_TYPOGRAPHY: Readonly<Record<string, StyleProperties>> = {
   h1: heading("h1"),
   h2: heading("h2"),
   h3: heading("h3"),

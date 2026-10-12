@@ -2,7 +2,7 @@
 
 What a merchant brings from outside the builder.
 
-HTML Block today. Code Block and Embed follow; Lottie does not — see **Not
+HTML Block and Code Block today. Embed follows; Lottie does not — see **Not
 built**. The authoring pattern and the three entry points are `core-layout`'s.
 
 ## What this one added
@@ -38,6 +38,13 @@ body size until the engine gained `descendantStyles`. HTML Block's are in
 `components/html-block/typography.ts`, every value from the theme's own type
 scale. The renderer emits them once per type on the page, scoped to that type's
 elements.
+
+**A stylesheet stored as rules.** Code Block's CSS is a list of selectors and
+declarations, not text: the engine re-emits each rule through its own writer,
+scoping the selector and checking every value, so a stored rule cannot be a
+rule the engine did not write. It is scoped to the block rather than the page
+— component-library.md § Code Block has the argument, and the short version is
+that reach, not capability, is what a payment page cannot afford.
 
 ## Not built
 

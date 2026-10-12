@@ -157,12 +157,25 @@ export interface ComponentDefinition {
    * cannot reach anything else. Values are resolved exactly as a node's are, so
    * a token reference works here and a literal is as wrong here as anywhere.
    *
-   * The selector is deliberately almost nothing: element names, and a comma
-   * list of them. Not a descendant combinator, not a class, not an attribute.
-   * Scoping untrusted or clever selectors correctly is a problem worth having
-   * once, in Code Block, where the author is a merchant rather than us.
+   * Two forms, and which one decides where the rules are scoped.
+   *
+   * A plain map is the same for every node of the type — HTML Block's
+   * typography — so it is emitted once per type on the page and scoped to a
+   * class the type's nodes share.
+   *
+   * A function of the node is for rules that come out of what the author put
+   * in that particular node: a Code Block holds its own stylesheet. Those are
+   * emitted per node and scoped to the node's own class, so one block's CSS
+   * cannot reach another's.
+   *
+   * The selector is checked before it is emitted. What keeps a rule inside its
+   * scope is the prefix rather than the grammar — a selector cannot reach up or
+   * sideways once it has one — so the check is about a selector not escaping
+   * the *rule*: no brace, semicolon, at-sign, backslash or quote.
    */
-  descendantStyles?: Readonly<Record<string, StyleProperties>>
+  descendantStyles?:
+    | Readonly<Record<string, StyleProperties>>
+    | ((node: Node) => Readonly<Record<string, StyleProperties>>)
   renderer: ComponentType<ComponentRenderProps>
   /** A rule about this component's own nodes. */
   validate?: ComponentValidator

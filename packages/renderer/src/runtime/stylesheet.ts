@@ -2,7 +2,14 @@ import type { StyleProperties } from "@checkout-studio/schema"
 
 import { behaviourOf } from "../fallback/modes"
 import { compileTheme } from "../theme/compile"
-import { emitDescendantCss, emitNodeCss, unsupportedCss, visibilityCss } from "../styles/css"
+import {
+  classFor,
+  emitDescendantCss,
+  emitNodeCss,
+  typeClassFor,
+  unsupportedCss,
+  visibilityCss,
+} from "../styles/css"
 import { fontFaceCss, planFonts } from "../styles/fonts"
 import { resolveDeclarations } from "../styles/tokens"
 import type { FontPlan } from "../styles/fonts"
@@ -71,14 +78,26 @@ export function buildStylesheet(
 
     if (plan.definition === null) unsupported = true
 
-    /*
-     * Once per type, not once per node. A component's rules for the elements
-     * it draws inside itself are the same for every node of that type, so
-     * three HTML blocks on a page would otherwise be three copies.
-     */
     const declared = plan.definition?.descendantStyles
 
-    if (declared !== undefined) descendants.set(plan.node.type, declared)
+    /*
+     * A plain map is the same for every node of the type, so it is collected
+     * and written once: three HTML blocks on a page would otherwise be three
+     * copies of one stylesheet.
+     *
+     * A function is asked about this node, and written against this node's
+     * class. A Code Block's rules come out of what its author typed into it,
+     * so two blocks on a page are two different stylesheets and neither may
+     * reach the other.
+     */
+    if (typeof declared === "function") {
+      css += emitDescendantCss(
+        classFor(plan.node.id),
+        resolveDescendants(context, plan.node.type, declared(plan.node)),
+      )
+    } else if (declared !== undefined) {
+      descendants.set(plan.node.type, declared)
+    }
 
     // Including the nodes with no component. Their placeholder keeps the box
     // the node would have occupied, which is what stops a live page reflowing
@@ -87,7 +106,7 @@ export function buildStylesheet(
   }
 
   for (const [type, styles] of descendants) {
-    css += emitDescendantCss(type, resolveDescendants(context, type, styles))
+    css += emitDescendantCss(typeClassFor(type), resolveDescendants(context, type, styles))
   }
 
   css += visibilityCss(used)

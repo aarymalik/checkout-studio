@@ -55,33 +55,68 @@ export function typeClassFor(type: string): string {
 }
 
 /**
- * What a component may write a rule against: element names, and lists of them.
+ * What a rule may be written against.
  *
- * Not a combinator, a class, an attribute or a pseudo-class. The rules are
- * already scoped to the component's own elements, so what is left to express
- * is which of those elements — and a grammar this small cannot escape its
- * scope, which is the property worth having while the author is us. Code Block
- * takes merchant CSS and needs a real scoper; that is its own problem.
+ * ## What keeps this safe is the prefix, not the grammar
+ *
+ * Every selector here is emitted with a scope in front of it, so what it can
+ * match is a descendant of the component's own element and nothing else. A
+ * selector cannot reach up, sideways, or at the page — `*` prefixed is "every
+ * element inside this block", and `:root` prefixed matches nothing at all.
+ *
+ * What the grammar has to stop is a selector leaving the *rule*: a `}` ends
+ * the block and starts whatever follows at the top level of the stylesheet,
+ * which is the one way a selector becomes CSS of its own. So the check is a
+ * character allowlist with every structural character absent — no braces, no
+ * semicolon, no at-sign, no backslash (which can encode the others), no quote,
+ * no comment opener — plus balanced parentheses.
+ *
+ * ## It started narrower
+ *
+ * Element names and comma lists of them, because the only author was us and
+ * HTML Block needs nothing else. Code Block takes CSS from a merchant, who
+ * reasonably writes `.lead` and `thead th`, so the grammar widened to what a
+ * person writes selectors with. Attribute selectors stay out: they are the one
+ * construct with a quoting problem inside it, and nothing has asked yet.
  */
-const DESCENDANT_SELECTOR = /^[a-z][a-z0-9]*(\s*,\s*[a-z][a-z0-9]*)*$/
+const SELECTOR_CHARACTERS = /^[a-zA-Z0-9_\-.#:>+~*\s(),]+$/
+
+function isEmittableSelector(selector: string): boolean {
+  if (selector.trim() === "") return false
+  if (!SELECTOR_CHARACTERS.test(selector)) return false
+
+  let depth = 0
+
+  for (const character of selector) {
+    if (character === "(") depth += 1
+    if (character === ")") depth -= 1
+    if (depth < 0) return false
+  }
+
+  return depth === 0
+}
 
 /**
- * A component's rules for the elements it draws inside itself.
+ * Rules for the elements inside something, scoped to its class.
+ *
+ * The class is a component type's when the rules are the same for every node
+ * of that type, and a node's own when they come from what the author put in
+ * that node — a Code Block's stylesheet is the second kind.
  *
  * Declarations arrive resolved, as a node's do. A selector that is not the
- * small grammar above is dropped rather than emitted, because a selector that
+ * grammar above is dropped rather than emitted, because a selector that
  * reached the stylesheet unchecked could style the page outside the component
  * — including the payment form.
  */
 export function emitDescendantCss(
-  type: string,
+  scopeClass: string,
   styles: Readonly<Record<string, Record<string, string>>>,
 ): string {
-  const scope = `.${ROOT_CLASS} .${typeClassFor(type)}`
+  const scope = `.${ROOT_CLASS} .${scopeClass}`
   let css = ""
 
   for (const [selector, declarations] of Object.entries(styles)) {
-    if (!DESCENDANT_SELECTOR.test(selector)) continue
+    if (!isEmittableSelector(selector)) continue
 
     const scoped = selector
       .split(",")

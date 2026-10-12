@@ -1,6 +1,7 @@
 import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { manifest } from "./manifest"
+import { codeBlock } from "./components/code-block/definition"
 import { htmlBlock } from "./components/html-block/definition"
 
 /**
@@ -15,7 +16,8 @@ export const coreEmbed: Plugin = {
   manifest,
   activate(api: PluginApi) {
     api.registerComponent(htmlBlock)
+    api.registerComponent(codeBlock)
   },
 }
 
-export { htmlBlock }
+export { codeBlock, htmlBlock }

@@ -2,7 +2,7 @@ import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
 import { readContent } from "../../html/content"
 import { HtmlBlockRenderer } from "./Renderer"
-import { HTML_BLOCK_TYPOGRAPHY } from "./typography"
+import { BLOCK_TYPOGRAPHY } from "../../html/typography"
 
 /**
  * HTML Block's registration.
@@ -31,9 +31,9 @@ export const htmlBlock: ComponentDefinition = {
   /*
    * The elements inside a block are not nodes, so the cascade does not reach
    * them. Without these a merchant's `<h2>` renders at body size — see
-   * typography.ts, and the screenshot that showed it.
+   * html/typography.ts, and the screenshot that showed it.
    */
-  descendantStyles: HTML_BLOCK_TYPOGRAPHY,
+  descendantStyles: BLOCK_TYPOGRAPHY,
   renderer: HtmlBlockRenderer,
   validate: (node) => readContent(node.props["content"]).problem,
 }
