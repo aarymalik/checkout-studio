@@ -39,6 +39,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const BASELINES = join(ROOT, "apps", "studio", "visual", "__screenshots__", "linux")
 const ARTIFACT = "visual-regression"
 
+/** The job whose failure this script is about, as ci.yml names it. */
+const VISUAL_JOB = "visual regression"
+
 function gh(...args) {
   return execFileSync("gh", args, { cwd: ROOT, encoding: "utf8" }).trim()
 }
@@ -50,13 +53,28 @@ function currentBranch() {
   }).trim()
 }
 
-/** The newest run on this branch whose visual job failed. */
+/**
+ * The newest run on this branch whose *visual job* failed.
+ *
+ * The job, not the run. The first version of this asked for a run whose
+ * overall conclusion was `failure`, which is not true until every job has
+ * finished — so it found nothing at exactly the moment somebody reaches for
+ * it: the visual check has gone red and the build is still going. That is how
+ * it failed its first real use.
+ */
 function lastFailedRun(branch) {
   const runs = JSON.parse(
-    gh("run", "list", "--branch", branch, "--limit", "10", "--json", "databaseId,conclusion"),
+    gh("run", "list", "--branch", branch, "--limit", "10", "--json", "databaseId"),
   )
 
-  return runs.find((run) => run.conclusion === "failure")?.databaseId ?? null
+  for (const { databaseId } of runs) {
+    const { jobs } = JSON.parse(gh("run", "view", String(databaseId), "--json", "jobs"))
+    const visual = jobs.find((job) => job.name === VISUAL_JOB)
+
+    if (visual?.conclusion === "failure") return databaseId
+  }
+
+  return null
 }
 
 /**
@@ -106,7 +124,7 @@ const branch = process.argv[2] ?? currentBranch()
 const run = lastFailedRun(branch)
 
 if (run === null) {
-  console.error(`No failed run on ${branch}. Nothing to accept.`)
+  console.error(`No run on ${branch} with a failed "${VISUAL_JOB}" job. Nothing to accept.`)
   process.exit(1)
 }
 
