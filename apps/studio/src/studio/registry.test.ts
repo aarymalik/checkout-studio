@@ -33,6 +33,7 @@ describe("the studio's registry", () => {
     expect(registry.has("core.heading")).toBe(true)
     expect(registry.has("core.html-block")).toBe(true)
     expect(registry.has("core.input")).toBe(true)
+    expect(registry.has("core.radio-group")).toBe(true)
   })
 
   it("carries a plugin's document rules into the registry too", () => {

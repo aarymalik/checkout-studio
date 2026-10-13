@@ -3,6 +3,8 @@ import type { FieldKind, FieldSpec } from "../../form/fields"
 
 export interface InputSpec extends FieldSpec {
   placeholder?: string
+  /** Textarea only. */
+  rows?: number
 }
 
 /** A positive integer a merchant typed, or undefined. */
@@ -57,6 +59,7 @@ export function specOf(props: Readonly<Record<string, unknown>>, nodeId: string)
   const maxLength = limit(props["maxLength"])
   const min = limit(props["min"])
   const max = limit(props["max"])
+  const rows = limit(props["rows"])
 
   return {
     name: text(props["name"]) ?? nodeId,
@@ -69,5 +72,6 @@ export function specOf(props: Readonly<Record<string, unknown>>, nodeId: string)
     ...(maxLength === undefined ? {} : { maxLength }),
     ...(min === undefined ? {} : { min }),
     ...(max === undefined ? {} : { max }),
+    ...(rows === undefined ? {} : { rows }),
   }
 }

@@ -1,6 +1,11 @@
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 
-import { inputProperties } from "./components/input/properties"
+import { inputProperties, textareaProperties } from "./components/input/properties"
+import {
+  checkboxProperties,
+  radioGroupProperties,
+  selectProperties,
+} from "./components/choice/properties"
 
 /**
  * The editor half: property definitions, read by the inspector in Phase 12.
@@ -11,4 +16,8 @@ import { inputProperties } from "./components/input/properties"
  */
 export const coreFormsProperties: ReadonlyMap<string, readonly PropertyDefinition[]> = new Map([
   ["core.input", inputProperties],
+  ["core.textarea", textareaProperties],
+  ["core.select", selectProperties],
+  ["core.checkbox", checkboxProperties],
+  ["core.radio-group", radioGroupProperties],
 ])

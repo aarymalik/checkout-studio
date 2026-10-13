@@ -2,7 +2,8 @@ import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { manifest } from "./manifest"
 import { FormProvider } from "./form/FormProvider"
-import { input } from "./components/input/definition"
+import { input, textarea } from "./components/input/definition"
+import { checkbox, radioGroup, select } from "./components/choice/definitions"
 
 /**
  * The renderer half: the form context, and the fields that use it.
@@ -17,7 +18,11 @@ export const coreForms: Plugin = {
   activate(api: PluginApi) {
     api.registerProvider({ id: "forms", component: FormProvider })
     api.registerComponent(input)
+    api.registerComponent(textarea)
+    api.registerComponent(select)
+    api.registerComponent(checkbox)
+    api.registerComponent(radioGroup)
   },
 }
 
-export { input }
+export { checkbox, input, radioGroup, select, textarea }

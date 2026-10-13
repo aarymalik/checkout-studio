@@ -1,7 +1,9 @@
 import type { StyleProperties } from "@checkout-studio/schema"
 
+import { FIELD_ERROR_CLASS } from "./Field"
+
 /**
- * What a field's parts look like.
+ * What every field's parts look like.
  *
  * The cascade reaches nodes, and a field's label, control and messages are
  * not nodes — the first screenshot of the gallery case was three labels and no
@@ -16,9 +18,7 @@ import type { StyleProperties } from "@checkout-studio/schema"
  * renderer also sets: the engine's selector grammar is element names, classes
  * and combinators, and an attribute selector is the one construct it refuses.
  */
-export const FIELD_ERROR_CLASS = "ck-field-error"
-
-export const INPUT_STYLES: Readonly<Record<string, StyleProperties>> = {
+export const FIELD_STYLES: Readonly<Record<string, StyleProperties>> = {
   label: {
     display: "block",
     fontSize: "{typography.scale.small.fontSize}",
@@ -27,7 +27,7 @@ export const INPUT_STYLES: Readonly<Record<string, StyleProperties>> = {
     marginBottom: "{spacing.1}",
   },
 
-  input: {
+  "input, textarea, select": {
     display: "block",
     width: "100%",
     fontFamily: "{typography.fontFamily.body}",
@@ -58,4 +58,35 @@ export const INPUT_STYLES: Readonly<Record<string, StyleProperties>> = {
   // An error is not a quieter note than the help text. It is the thing the
   // person has to act on, and it is the only red on the field.
   [`p.${FIELD_ERROR_CLASS}`]: { color: "{colors.danger}" },
+
+  /*
+   * A radio group's label is a legend, and a legend is not a label — it has
+   * its own box, its own default margins, and a browser's own idea of where
+   * it sits on the fieldset's border. Said flat, it reads as the label it is.
+   */
+  fieldset: { borderWidth: "0", padding: "0", margin: "0" },
+  legend: {
+    display: "block",
+    padding: "0",
+    fontSize: "{typography.scale.small.fontSize}",
+    fontWeight: "{typography.scale.h4.fontWeight}",
+    color: "{colors.foreground}",
+    marginBottom: "{spacing.1}",
+  },
+
+  // A tick and its words sit on one line, and the words are clickable.
+  "label.ck-field-choice": {
+    display: "flex",
+    alignItems: "center",
+    gap: "{spacing.2}",
+    fontSize: "{typography.scale.body.fontSize}",
+    fontWeight: "{typography.scale.body.fontWeight}",
+    marginBottom: "{spacing.1}",
+  },
+
+  "input.ck-field-tick": {
+    width: "auto",
+    marginTop: "0",
+    accentColor: "{colors.primary}",
+  },
 }

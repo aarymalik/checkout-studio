@@ -1,4 +1,4 @@
-import { limitMessage, messages, TEL } from "./fields"
+import { isChoice, limitMessage, messages, TEL } from "./fields"
 import type { FieldSpec } from "./fields"
 
 /**
@@ -30,7 +30,26 @@ export function validateValue(spec: FieldSpec, raw: unknown): string | null {
   const value = typeof raw === "string" ? raw : ""
   const { required, invalid } = messages(spec)
 
+  /*
+   * A checkbox holds "true" or nothing. Unticked is the empty case, which is
+   * only a problem when it had to be ticked — a consent box that nobody is
+   * forced to tick is a perfectly ordinary optional checkbox.
+   */
+  if (spec.kind === "checkbox") return spec.required && value !== "true" ? required : null
+
   if (value === "") return spec.required ? required : null
+
+  /*
+   * A choice has to be one of the choices, in the browser as on the server.
+   * A `<select>` cannot offer anything else, so this is about what arrives
+   * rather than about what somebody can click — which is the whole reason the
+   * server asks the same question again.
+   */
+  if (isChoice(spec.kind)) {
+    const offered = spec.options ?? []
+
+    return offered.some((option) => option.value === value) ? null : invalid
+  }
 
   if (spec.kind === "number") {
     const number = Number(value)

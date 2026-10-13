@@ -89,3 +89,22 @@ export const inputProperties = defineProperties([
     responsive: true,
   },
 ])
+
+/**
+ * Textarea's, which are Input's without the kind.
+ *
+ * docs/component-library.md § Textarea: rows, placeholder and validation. The
+ * kind is fixed, so offering the select would be offering to turn a textarea
+ * into a password field.
+ */
+export const textareaProperties = defineProperties([
+  ...inputProperties.filter((property) => property.key !== "kind"),
+  {
+    key: "rows",
+    target: "prop",
+    label: "Rows",
+    group: "General",
+    control: "number",
+    help: "How tall it starts. People can drag it taller.",
+  },
+])

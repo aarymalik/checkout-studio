@@ -702,6 +702,11 @@ Placeholder
 
 Validation
 
+Rendered by Input's component, because the rows are the only thing it has that
+an input does not. It is a type of its own because the catalog lists one, and
+because somebody looking for "Textarea" in the library should find it rather
+than discover it is a setting on something else.
+
 ---
 
 ## Select
@@ -714,7 +719,30 @@ Placeholder
 
 Default Value
 
-Searchable
+### Deviation: a native select, not a searchable combobox
+
+"Searchable" is listed. A native `<select>` already is: typing jumps to the
+matching option, in every browser, with no JavaScript from us. On a phone it
+opens the platform's own picker, which is better than anything we would build
+and is what people already know.
+
+A custom combobox is a listbox, a filter, a focus manager and a set of
+`aria-activedescendant` rules — the most commonly broken widget on the web —
+and several kilobytes on a page budgeted at 60 KB that still has to fit
+Stripe's payment element. If a merchant turns out to need one over a hundred
+options, a Country field is the shape that argument should take.
+
+### The placeholder is a disabled first option
+
+`<select>` has no `placeholder` attribute. The first option carries the empty
+value, so choosing it is choosing nothing, and on a required field it is
+disabled so it cannot be chosen _back_ to by accident.
+
+### Options are value-and-label pairs
+
+Not a list of strings. A label is read and can be reworded; a value is saved
+and must not move. One list would make them the same thing, so fixing a typo
+in "Standard delivery" would silently change every answer already collected.
 
 ---
 
@@ -728,6 +756,35 @@ Required
 
 Checked
 
+### Its label wraps it
+
+Every other field is a label above a control. A checkbox is a tick followed by
+its words, and the words _are_ the label — wrapping the input so the whole line
+is clickable, which on a phone is the difference between a consent box people
+tick and one they keep missing.
+
+That is the one piece of layout it does not share. Everything else is: the
+connection to the form is `useField`, the same hook every field uses, because
+the first version did its own and quietly did not register — a field that does
+not register looks right, holds what somebody ticked, and submits nothing.
+
+### "Has to be ticked", not "is required"
+
+An unticked box is not an unanswered question. "Terms is required" reads as
+something missing; what the person has to do is tick it.
+
+---
+
+## Fields on the canvas
+
+A text input and a textarea are **read-only** there: they look exactly as they
+will on the page, and cannot be typed into.
+
+A select and a radio group are **disabled**, which dims them, because HTML has
+no read-only for either. The alternative is worse than the dimming: an enabled
+select on the canvas opens its dropdown when a merchant clicks to select the
+node, and an enabled radio changes its own answer when they do.
+
 ---
 
 ## Radio Group
@@ -736,9 +793,24 @@ Editable
 
 Options
 
-Layout
-
 Required
+
+### A fieldset, because there is no single control to label
+
+Four radios under one question are four unlabelled controls unless the question
+is a `<legend>` inside a `<fieldset>`. A screen reader then announces
+"Delivery, radio button, Standard, 1 of 3" — the question, the answer, and the
+position. A `<div>` with a heading above it announces "Standard, radio button"
+and nothing about what is being asked.
+
+One tab stop, arrows within: the browser's own behaviour for radios sharing a
+name, which is why nothing here manages focus.
+
+### Not built: layout
+
+The catalog lists it. A row of radios is a style on the group, and the style
+cascade already expresses it — a property that duplicated `flex-direction`
+would be a second way to say the same thing, and the two would disagree.
 
 ---
 
