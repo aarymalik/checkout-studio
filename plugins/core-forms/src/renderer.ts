@@ -5,6 +5,7 @@ import { FormProvider } from "./form/FormProvider"
 import { input, textarea } from "./components/input/definition"
 import { checkbox, country, radioGroup, select } from "./components/choice/definitions"
 import { address } from "./components/address/definition"
+import { conditionCycles } from "./validators"
 
 /**
  * The renderer half: the form context, and the fields that use it.
@@ -25,6 +26,7 @@ export const coreForms: Plugin = {
     api.registerComponent(radioGroup)
     api.registerComponent(country)
     api.registerComponent(address)
+    api.registerDocumentValidator(conditionCycles)
   },
 }
 

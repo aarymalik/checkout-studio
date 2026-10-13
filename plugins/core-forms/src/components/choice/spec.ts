@@ -1,3 +1,4 @@
+import { conditionOf } from "../../form/conditions"
 import type { FieldKind, FieldSpec } from "../../form/fields"
 import { optionsOf } from "./options"
 
@@ -24,6 +25,7 @@ export function choiceSpecOf(
 ): ChoiceSpec {
   const help = text(props["help"])
   const placeholder = text(props["placeholder"])
+  const showWhen = conditionOf(props["showWhen"])
 
   return {
     name: text(props["name"]) ?? nodeId,
@@ -33,5 +35,6 @@ export function choiceSpecOf(
     options: optionsOf(props["options"]),
     ...(help === undefined ? {} : { help }),
     ...(placeholder === undefined ? {} : { placeholder }),
+    ...(showWhen === null ? {} : { showWhen }),
   }
 }

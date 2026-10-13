@@ -1565,6 +1565,65 @@ a photograph of a component that does not exist.
 
 ---
 
+## Conditional fields
+
+A field can wait for another field's answer. `showWhen` on the node names the
+field it watches, an operator — is, is not, is answered, is not answered — and
+the answer it compares against.
+
+### Gone, not hidden
+
+A field whose condition is not met **unmounts**. Its value and its error go with
+it, so "hidden field values are excluded from submission" is a property of
+React rather than bookkeeping that has to stay in step. A chain falls the same
+way: each field decides from the values, not from the one before it, so hiding
+the first hides everything downstream.
+
+A condition watching a field that is not on the page is **not met**. The field
+it depends on may itself be hidden, and a question whose premise is missing is
+one somebody answers without knowing what it is about.
+
+### Why not the engine's visibility conditions
+
+A node already has `visibility.conditions`, which the renderer evaluates and
+defers when the server cannot settle them — "a field the customer has not filled
+in" is the example in its own comment. That is the right mechanism for
+conditioning _any_ node on a field.
+
+It is not used here because deferring renders the node and marks it for
+something on the client to hide — and hiding does not unmount, so a hidden field
+would still be registered and still be in the submission. Fixing that needs a
+second mechanism to go and remove those values, which is the kind of pair that
+agrees until it does not.
+
+**So conditioning a Heading or a Section on a field's answer is not built.** It
+needs the deferred path to carry its conditions to the client and the unmounting
+problem solved for fields inside the hidden subtree.
+
+### A cycle is refused, not resolved
+
+Two fields waiting for each other can never both appear, and the merchant cannot
+see it: the canvas shows both, the customer sees neither. A cycle can also
+oscillate, because hiding a field removes its value, which can satisfy the
+condition that hid it.
+
+A document validator reports it as an error, so it blocks publishing. It does
+not pick a half to keep — there is no correct half, and guessing would hide a
+question the merchant believes is on the page.
+
+### Open: no inspector control
+
+Every other property is declared now and rendered in Phase 12. A condition
+cannot be: it is three values under one key, and a property definition addresses
+a prop by a single name — `showWhen.field` would store a prop called exactly
+that, flat, which is not the shape the component reads.
+
+The fix is either a nested key in the property schema or a control kind that
+owns all three, and both are decisions about the inspector. Phase 12 should meet
+this as a question rather than as a surprise.
+
+---
+
 # Common Properties
 
 Every component supports:

@@ -2,8 +2,8 @@
 
 The form a checkout's fields share, and the fields.
 
-Every field in the catalog: Input, Textarea, Select, Checkbox, Radio Group,
-Country Selector and Address. Conditional visibility and submission follow.
+Every field in the catalog — Input, Textarea, Select, Checkbox, Radio Group,
+Country Selector and Address — and conditions between them. Submission follows.
 
 ## What this one added
 
@@ -55,6 +55,12 @@ component, each registering under the field's name and its own —
 `address.city`. A part the merchant switches off is never registered, so its
 value is never in the submission, which is the mechanism conditional visibility
 will use rather than a second one.
+
+**A condition unmounts rather than hides.** A field waiting for another
+field's answer is gone when the answer is not there, so its value leaves with
+it and "hidden values are excluded from submission" is a property of React.
+`form/conditions.ts` says why this is not the engine's `visibility.conditions`,
+and what that costs: conditioning a Heading on a field's answer is not built.
 
 ## Not used
 

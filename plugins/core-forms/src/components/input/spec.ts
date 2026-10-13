@@ -1,3 +1,4 @@
+import { conditionOf } from "../../form/conditions"
 import { FIELD_KINDS } from "../../form/fields"
 import type { FieldKind, FieldSpec } from "../../form/fields"
 
@@ -60,6 +61,7 @@ export function specOf(props: Readonly<Record<string, unknown>>, nodeId: string)
   const min = limit(props["min"])
   const max = limit(props["max"])
   const rows = limit(props["rows"])
+  const showWhen = conditionOf(props["showWhen"])
 
   return {
     name: text(props["name"]) ?? nodeId,
@@ -73,5 +75,6 @@ export function specOf(props: Readonly<Record<string, unknown>>, nodeId: string)
     ...(min === undefined ? {} : { min }),
     ...(max === undefined ? {} : { max }),
     ...(rows === undefined ? {} : { rows }),
+    ...(showWhen === null ? {} : { showWhen }),
   }
 }

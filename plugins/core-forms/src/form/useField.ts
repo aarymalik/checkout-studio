@@ -4,6 +4,7 @@ import { useEffect, useId, useRef } from "react"
 import type { RefObject } from "react"
 
 import { useForm } from "./FormProvider"
+import { isShown } from "./conditions"
 import type { FieldSpec } from "./fields"
 
 /**
@@ -29,6 +30,14 @@ import type { FieldSpec } from "./fields"
  */
 
 export interface FieldConnection {
+  /**
+   * Whether this field belongs on the page at all.
+   *
+   * False when its condition is not met. A field that is not shown is not
+   * registered, so its value is not in the submission and its rules are not in
+   * the schema — one mechanism rather than a pair that has to agree.
+   */
+  visible: boolean
   /** Unique per instance, for tying a label and its messages to the control. */
   id: string
   value: string
@@ -40,6 +49,9 @@ export interface FieldConnection {
   setValue: (value: string) => void
   validate: () => void
 }
+
+/** Nothing registered, for a field rendered outside a form. */
+const EMPTY: ReadonlySet<string> = new Set()
 
 export function useField(spec: FieldSpec): FieldConnection {
   const form = useForm()
@@ -68,11 +80,13 @@ export function useField(spec: FieldSpec): FieldConnection {
 
   latest.current = spec
 
+  const visible = isShown(spec.showWhen ?? null, form?.values ?? {}, form?.names ?? EMPTY)
+
   useEffect(() => {
-    if (register === undefined) return
+    if (register === undefined || !visible) return
 
     return register({ ...latest.current, focus: () => element.current?.focus() })
-  }, [register, identity])
+  }, [register, identity, visible])
 
   const described = [
     spec.help === undefined ? null : `${id}-help`,
@@ -80,6 +94,7 @@ export function useField(spec: FieldSpec): FieldConnection {
   ].filter((value) => value !== null)
 
   return {
+    visible,
     id,
     value: form?.values[spec.name] ?? "",
     error,

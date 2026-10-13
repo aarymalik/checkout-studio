@@ -1,3 +1,4 @@
+import { conditionOf } from "../../form/conditions"
 import type { FieldKind, FieldSpec } from "../../form/fields"
 
 /**
@@ -65,6 +66,13 @@ export function partsOf(
   const name = text(props["name"]) ?? nodeId
   const required = props["required"] !== false
 
+  /*
+   * One condition for the whole address, carried by every part. An address
+   * appears or does not; a page where the postcode is conditional and the city
+   * is not is not an address.
+   */
+  const showWhen = conditionOf(props["showWhen"])
+
   return ADDRESS_PARTS.filter((part) => props[`show${part.key}`] !== false).map((part) => ({
     name: `${name}.${part.key}`,
     kind: part.kind,
@@ -75,5 +83,6 @@ export function partsOf(
      * a thing every address has.
      */
     required: required && part.optional !== true,
+    ...(showWhen === null ? {} : { showWhen }),
   }))
 }

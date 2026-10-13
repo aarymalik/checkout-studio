@@ -62,6 +62,15 @@ export interface FieldRegistration extends FieldSpec {
 
 export interface FormState {
   values: Readonly<Record<string, string>>
+  /**
+   * The fields currently on the page.
+   *
+   * State rather than the ref below, because a condition depends on it: a
+   * field appearing or going has to re-render the fields that watch it. The
+   * ref is what `validateField` reads, and it holds the descriptors; this
+   * holds only the names, which is all a condition needs.
+   */
+  names: ReadonlySet<string>
   /** Only the fields that have been checked and found wrong. */
   errors: Readonly<Record<string, string>>
   setValue: (name: string, value: string) => void
@@ -87,6 +96,7 @@ export function useForm(): FormState | null {
 export function FormProvider({ children }: { children: ReactNode }): ReactElement {
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [names, setNames] = useState<ReadonlySet<string>>(() => new Set())
 
   /*
    * A ref, not state. Registering a field during render would set state during
@@ -96,9 +106,17 @@ export function FormProvider({ children }: { children: ReactNode }): ReactElemen
 
   const register = useCallback((field: FieldRegistration) => {
     fields.current.set(field.name, field)
+    setNames((current) => new Set(current).add(field.name))
 
     return () => {
       fields.current.delete(field.name)
+      setNames((current) => {
+        const next = new Set(current)
+
+        next.delete(field.name)
+
+        return next
+      })
 
       // A field that has gone takes its value and its error with it. Leaving
       // either behind is how a hidden field ends up in a payload.
@@ -146,8 +164,8 @@ export function FormProvider({ children }: { children: ReactNode }): ReactElemen
   }, [])
 
   const state = useMemo<FormState>(
-    () => ({ values, errors, setValue, validateField, register }),
-    [values, errors, setValue, validateField, register],
+    () => ({ values, errors, names, setValue, validateField, register }),
+    [values, errors, names, setValue, validateField, register],
   )
 
   return <FormContext.Provider value={state}>{children}</FormContext.Provider>
