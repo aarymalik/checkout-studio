@@ -1565,6 +1565,64 @@ a photograph of a component that does not exist.
 
 ---
 
+## Submitting
+
+### The form is a `<form>`
+
+The provider puts a real one around the page, so a `<button type="submit">`
+anywhere inside it sends the answers — and so does Enter in a text field, which
+is how most people finish a form and which no amount of JavaScript gets right by
+hand.
+
+Button therefore gains **Submits the form**, off by default. A button with it
+set is `type="submit"` and still ships no JavaScript: the browser does the
+submitting. Off by default because the default has to be the safe one — a
+button inside a form that submits it by accident is a half-filled checkout
+posting itself, which is why `type="button"` was required by name in Phase 9.
+
+`noValidate` on the form: the browser's own bubbles cannot be styled, do not
+match the messages the fields produce, and vanish on the next click. The rules
+are the same; what shows them is ours.
+
+### Everything is checked before anything is sent
+
+A form with three problems shows three, not one and then another after a round
+trip. Focus moves to the first in document order — a person corrects a form from
+the top, and being dropped at the last problem means scrolling back up.
+
+A failed submit is announced in a live region that is always in the document and
+usually empty. `role="status"`, which is polite: it waits for a screen reader to
+finish its sentence rather than cutting across it. A live region added at the
+moment it has something to say is one nothing was listening to.
+
+### The server does not trust any of it
+
+The endpoint reads the fields from the **page's own published document**, not
+from the payload. A submission that simply omits a required field fails rather
+than passing by saying nothing; one that invents a field has it dropped rather
+than stored. Conditions are evaluated against the submitted values with the same
+function the browser ran, so a conditional form is checkable at all.
+
+When the server disagrees, its objection is shown on the field it is about.
+
+### Retrying is safe, and twice on purpose still works
+
+Each attempt at filling the form in carries one idempotency key, kept until it
+succeeds. A retry after a timeout replays the server's first answer instead of
+saving a second copy; a fresh key after a success is what lets somebody place a
+second order.
+
+A submission without a key is refused rather than quietly accepted — a duplicate
+order is something a merchant has to find and undo.
+
+### What is never written down
+
+Field content is not logged. The failure path reports which fields are wrong and
+why, both derived from the page's own rules; the success path logs an id. An XSS
+payload in a field is a string: stored as one, escaped where it is displayed.
+
+---
+
 ## Conditional fields
 
 A field can wait for another field's answer. `showWhen` on the node names the

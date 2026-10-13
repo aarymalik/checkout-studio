@@ -33,3 +33,6 @@ export type {
   CreateTokenInput,
   VerificationPurpose,
 } from "./repositories/identity"
+
+export { submissionRepository } from "./repositories/submission"
+export type { SavedSubmission, SubmissionInput } from "./repositories/submission"

@@ -88,6 +88,59 @@ export const publishedRepository = {
   },
 
   /**
+   * A published page by its own id.
+   *
+   * What a submission arrives with: the form on a published checkout knows the
+   * page it belongs to, and the endpoint has to fetch that page's document to
+   * check the submission against it. There is no hostname in a POST body worth
+   * trusting, and the page id is the thing the renderer already put in the
+   * page it served.
+   *
+   * Null for a page that does not exist, is not published, or was deleted —
+   * the same answer for all three, because distinguishing them would let an
+   * unauthenticated caller ask which page ids are real.
+   */
+  async findPublishedById(pageId: string): Promise<PublishedPage | null> {
+    const page = await prisma.page.findFirst({
+      where: {
+        id: pageId,
+        status: "published",
+        deletedAt: null,
+        project: { deletedAt: null },
+      },
+      select: {
+        id: true,
+        projectId: true,
+        title: true,
+        publishedRevision: {
+          select: {
+            id: true,
+            number: true,
+            schema: true,
+            theme: true,
+            schemaVersion: true,
+            createdAt: true,
+          },
+        },
+      },
+    })
+
+    if (page?.publishedRevision === null || page?.publishedRevision === undefined) return null
+
+    return {
+      pageId: page.id,
+      projectId: page.projectId,
+      title: page.title,
+      schema: page.publishedRevision.schema,
+      theme: page.publishedRevision.theme,
+      schemaVersion: page.publishedRevision.schemaVersion,
+      revisionId: page.publishedRevision.id,
+      revisionNumber: page.publishedRevision.number,
+      publishedAt: page.publishedRevision.createdAt,
+    }
+  },
+
+  /**
    * The newest revision of a page that is not the one currently published.
    *
    * The second link in the renderer's fallback chain: when a published

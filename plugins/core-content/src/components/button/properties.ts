@@ -104,4 +104,12 @@ export const buttonProperties = defineProperties([
     help: "Reported when somebody presses it, once analytics arrives in Phase 18.",
     advanced: true,
   },
+  {
+    key: "submits",
+    target: "prop",
+    label: "Submits the form",
+    group: "General",
+    control: "toggle",
+    help: "Sends the answers on the page. Off for a button that goes somewhere or does something else.",
+  },
 ])

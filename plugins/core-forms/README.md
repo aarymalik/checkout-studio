@@ -3,7 +3,7 @@
 The form a checkout's fields share, and the fields.
 
 Every field in the catalog — Input, Textarea, Select, Checkbox, Radio Group,
-Country Selector and Address — and conditions between them. Submission follows.
+Country Selector and Address — conditions between them, and submission.
 
 ## What this one added
 
@@ -61,6 +61,15 @@ field's answer is gone when the answer is not there, so its value leaves with
 it and "hidden values are excluded from submission" is a property of React.
 `form/conditions.ts` says why this is not the engine's `visibility.conditions`,
 and what that costs: conditioning a Heading on a field's answer is not built.
+
+**The server reads the page, not the payload.** `form/submission.ts` builds
+the fields from the stored document and checks the submitted values against
+them, conditions included, with the same `isShown` and the same `schemaFor` the
+browser used. Omitting a required field fails; inventing one has it dropped.
+
+**One key per attempt.** A retry after a network failure carries the key it
+already had, so a submission that did arrive is replayed rather than
+duplicated; a success takes a fresh one, so a second order is still possible.
 
 ## Not used
 

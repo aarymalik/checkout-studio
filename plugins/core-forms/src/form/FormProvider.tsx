@@ -60,6 +60,13 @@ export interface FieldRegistration extends FieldSpec {
   focus: () => void
 }
 
+/** How a submission ended, for whatever is showing the result. */
+export type SubmitState =
+  | { status: "idle" }
+  | { status: "sending" }
+  | { status: "sent"; id: string }
+  | { status: "failed"; message: string }
+
 export interface FormState {
   values: Readonly<Record<string, string>>
   /**
@@ -77,6 +84,7 @@ export interface FormState {
   /** Checks one field, and shows the result. Called when a field is left. */
   validateField: (name: string) => void
   register: (field: FieldRegistration) => () => void
+  submit: SubmitState
 }
 
 const FormContext = createContext<FormState | null>(null)
@@ -93,10 +101,46 @@ export function useForm(): FormState | null {
   return useContext(FormContext)
 }
 
-export function FormProvider({ children }: { children: ReactNode }): ReactElement {
+/** What each status means to somebody who has just pressed a button. */
+const UNEXPECTED = "Something went wrong saving that. Try again."
+
+const MESSAGES: Readonly<Record<number, string>> = {
+  404: "This form is no longer available.",
+  409: "That is already being saved.",
+  429: "Too many attempts. Try again shortly.",
+}
+
+export interface FormProviderProps {
+  children: ReactNode
+  /**
+   * The page this form belongs to, and where it posts.
+   *
+   * Both supplied by whoever renders the provider — the published application
+   * knows which page it is serving, and the canvas supplies neither, which is
+   * what stops the editor posting a half-built form at anything.
+   */
+  pageId?: string
+  endpoint?: string
+}
+
+export function FormProvider({
+  children,
+  pageId = "",
+  endpoint = "/api/submissions",
+}: FormProviderProps): ReactElement {
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [names, setNames] = useState<ReadonlySet<string>>(() => new Set())
+  const [submit, setSubmit] = useState<SubmitState>({ status: "idle" })
+
+  /*
+   * One key per attempt at filling the form in, kept until it succeeds.
+   *
+   * A retry after a timeout carries the same key, so the server replays its
+   * first answer rather than saving a second copy. A fresh key after a success
+   * is what lets somebody submit the form twice on purpose.
+   */
+  const attempt = useRef(crypto.randomUUID())
 
   /*
    * A ref, not state. Registering a field during render would set state during
@@ -163,10 +207,143 @@ export function FormProvider({ children }: { children: ReactNode }): ReactElemen
     )
   }, [])
 
-  const state = useMemo<FormState>(
-    () => ({ values, errors, names, setValue, validateField, register }),
-    [values, errors, names, setValue, validateField, register],
+  /**
+   * Checks everything, then sends it.
+   *
+   * The order matters for the person: every field is checked before anything
+   * is sent, so a form with three problems shows three — not one, then another
+   * after a round trip.
+   */
+  const onSubmit = useCallback(
+    async (event: { preventDefault: () => void }) => {
+      event.preventDefault()
+
+      const found: Record<string, string> = {}
+
+      for (const [name, field] of fields.current) {
+        const problem = validateValue(field, latest.current[name])
+
+        if (problem !== null) found[name] = problem
+      }
+
+      setErrors(found)
+
+      const wrong = [...fields.current.keys()].filter((name) => found[name] !== undefined)
+
+      if (wrong.length > 0) {
+        /*
+         * Focus the first one in registration order, which is document order:
+         * a person corrects a form from the top, and being dropped at the last
+         * problem means scrolling back up to find the first.
+         */
+        const first = wrong[0]
+
+        if (first !== undefined) fields.current.get(first)?.focus()
+
+        setSubmit({
+          status: "failed",
+          message:
+            wrong.length === 1
+              ? "One answer needs fixing."
+              : `${String(wrong.length)} answers need fixing.`,
+        })
+
+        return
+      }
+
+      setSubmit({ status: "sending" })
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            pageId,
+            payload: latest.current,
+            idempotencyKey: attempt.current,
+          }),
+        })
+
+        if (response.ok) {
+          const result = (await response.json()) as { id: string }
+
+          attempt.current = crypto.randomUUID()
+          setSubmit({ status: "sent", id: result.id })
+
+          return
+        }
+
+        /*
+         * The server's own answer about which fields are wrong, shown on the
+         * fields. It checked the page's document rather than believing the
+         * browser, so it can disagree — and when it does, the person has to be
+         * told where.
+         */
+        if (response.status === 422) {
+          const body = (await response.json()) as { errors?: Record<string, string> }
+          const serverErrors = body.errors ?? {}
+
+          setErrors(serverErrors)
+
+          const firstName = Object.keys(serverErrors)[0]
+
+          if (firstName !== undefined) fields.current.get(firstName)?.focus()
+
+          setSubmit({ status: "failed", message: "Some answers need fixing." })
+
+          return
+        }
+
+        setSubmit({ status: "failed", message: MESSAGES[response.status] ?? UNEXPECTED })
+      } catch {
+        /*
+         * A network failure, which is the one case where trying again is
+         * right: the attempt keeps its key, so a submission that did arrive is
+         * replayed rather than duplicated.
+         */
+        setSubmit({
+          status: "failed",
+          message: "That did not send. Check your connection and try again.",
+        })
+      }
+    },
+    [endpoint, pageId],
   )
 
-  return <FormContext.Provider value={state}>{children}</FormContext.Provider>
+  const announcement =
+    submit.status === "failed" ? submit.message : submit.status === "sent" ? "Thank you." : ""
+
+  const state = useMemo<FormState>(
+    () => ({ values, errors, names, setValue, validateField, register, submit }),
+    [values, errors, names, setValue, validateField, register, submit],
+  )
+
+  return (
+    <FormContext.Provider value={state}>
+      {/*
+       * A real `<form>`, so a `<button type="submit">` anywhere inside it
+       * submits — including Enter in a text field, which is how most people
+       * finish a form and which no amount of JavaScript gets right by hand.
+       *
+       * `noValidate` because the browser's own bubbles cannot be styled, do
+       * not match the messages this form produces, and vanish on the next
+       * click. The rules are the same ones; what shows them is ours.
+       */}
+      <form noValidate onSubmit={onSubmit}>
+        {children}
+        {/*
+         * Where a failed submit is announced.
+         *
+         * `role="status"` rather than `alert`: it is polite, so it waits for a
+         * screen reader to finish the sentence it is on instead of cutting
+         * across it. Always in the document and usually empty — a live region
+         * added at the moment it has something to say is a live region nothing
+         * was listening to.
+         */}
+        <p role="status" aria-live="polite" data-ck-form-status>
+          {announcement}
+        </p>
+      </form>
+    </FormContext.Provider>
+  )
 }
