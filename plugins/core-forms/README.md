@@ -2,8 +2,8 @@
 
 The form a checkout's fields share, and the fields.
 
-Input today. Textarea, Select, Checkbox, Radio Group, Country and Address
-follow, then conditional visibility, then submission.
+Input, Textarea, Select, Checkbox and Radio Group. Country and Address follow,
+then conditional visibility, then submission.
 
 ## What this one added
 
@@ -27,6 +27,21 @@ rendered, not from a walk of the document — so a field hidden by a condition i
 not in the payload, without a second mechanism that has to agree with the
 first. The server composes the same descriptors from the stored document, so
 "never trust client validation" is a second check rather than a different one.
+
+**One connection, several layouts.** `useField` is a field's link to the form:
+the value, the error, the ids, and the registration that puts it in the
+payload. `Field` is the usual layout — a label above a control — and the
+checkbox is the exception, because its words wrap its tick so the whole line is
+clickable. The first checkbox did its own layout _and_ its own everything, and
+quietly did not register: a field that looks right, holds what somebody ticked,
+and submits nothing.
+
+**An effect that depends on a value, not an object.** A spec is rebuilt from
+props every render, so an effect depending on it runs every render — and its
+cleanup sets state. That is an infinite loop, and it stopped the test suite
+twice: once on the spec object, then again on `options` after I had "fixed" it
+by listing the primitive fields. A list of fields is wrong the next time one is
+added, so the dependency is `JSON.stringify(spec)`.
 
 ## Not used
 

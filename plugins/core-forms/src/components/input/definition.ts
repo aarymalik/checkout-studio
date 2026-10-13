@@ -1,7 +1,7 @@
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
 import { InputRenderer } from "./Renderer"
-import { INPUT_STYLES } from "./styles"
+import { FIELD_STYLES } from "../../form/styles"
 
 /**
  * Input's registration.
@@ -27,9 +27,9 @@ export const input: ComponentDefinition = {
   /*
    * A field's label, control and messages are not nodes, so the cascade does
    * not reach them. Without these the gallery's first screenshot was three
-   * labels and no boxes at all — see styles.ts.
+   * labels and no boxes at all — see form/styles.ts.
    */
-  descendantStyles: INPUT_STYLES,
+  descendantStyles: FIELD_STYLES,
   renderer: InputRenderer,
   /*
    * Reads the prop, not the spec.
@@ -46,4 +46,23 @@ export const input: ComponentDefinition = {
       ? null
       : "This field has no label, so it is labelled by its type instead."
   },
+}
+
+/**
+ * Textarea.
+ *
+ * The same component as Input, which is why it is registered from here: the
+ * only thing a textarea has that an input does not is its rows, and two files
+ * would be two copies of the same attributes drifting apart.
+ *
+ * It is a type of its own rather than a kind of Input because the catalog
+ * lists it as one, and because a merchant looking for "Textarea" in the
+ * library should find it rather than discover it is a setting on something
+ * else.
+ */
+export const textarea: ComponentDefinition = {
+  ...input,
+  type: "core.textarea",
+  name: "Textarea",
+  defaultProps: { kind: "textarea", label: "Label", required: false, rows: 4 },
 }

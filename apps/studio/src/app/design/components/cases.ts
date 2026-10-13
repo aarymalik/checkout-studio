@@ -371,4 +371,63 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
         ["section"],
       ),
   },
+  /*
+   * The fields whose answer is a choice, and the multi-line one.
+   *
+   * `editor-preview` for the reason the case above is: what a published field
+   * does — remembering, checking, announcing — is behaviour and lives in the
+   * plugin's tests. What a picture is for is the shape of the control, and in
+   * particular the radio group's, whose label is a `<legend>` and therefore
+   * the one most likely to be laid out wrongly without anybody noticing.
+   */
+  {
+    id: "choices",
+    covers: ["core.textarea", "core.select", "core.checkbox", "core.radio-group"],
+    mode: "editor-preview",
+    document: () =>
+      pageOf(
+        [
+          {
+            id: "section",
+            type: "core.section",
+            children: ["notes", "delivery", "method", "terms"],
+          },
+          {
+            id: "notes",
+            type: "core.textarea",
+            props: { label: "Delivery notes", rows: 3, placeholder: "Leave it with a neighbour" },
+          },
+          {
+            id: "delivery",
+            type: "core.select",
+            props: {
+              label: "Delivery",
+              required: true,
+              options: [
+                { value: "standard", label: "Standard — 3 days" },
+                { value: "express", label: "Express — next day" },
+              ],
+            },
+          },
+          {
+            id: "method",
+            type: "core.radio-group",
+            props: {
+              label: "How should we contact you?",
+              required: true,
+              options: [
+                { value: "email", label: "Email" },
+                { value: "sms", label: "Text message" },
+              ],
+            },
+          },
+          {
+            id: "terms",
+            type: "core.checkbox",
+            props: { label: "Email me about this order", help: "This order only." },
+          },
+        ],
+        ["section"],
+      ),
+  },
 ]

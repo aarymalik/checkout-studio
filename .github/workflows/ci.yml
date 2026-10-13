@@ -162,10 +162,21 @@ jobs:
       - name: Every component, every variant, light and dark
         run: pnpm test:visual
 
-      # Baselines are per platform: a screenshot taken on macOS does not match
-      # one taken here, because the text rasterises differently. When a Linux
-      # baseline is missing, Playwright writes it and fails — so the run uploads
-      # what it wrote, to be reviewed and committed.
+      # Baselines are per platform: text rasterises differently on macOS and
+      # here, so nobody developing on a Mac can draw the Linux half and a new
+      # case arrives with it missing. Playwright writes a missing baseline and
+      # fails, which means a red X on every pull request that adds one.
+      #
+      # This job briefly committed those itself and pushed them to the branch.
+      # It worked — and left the pull request's head commit with *no checks at
+      # all*, because GitHub does not trigger workflows for pushes made with
+      # `GITHUB_TOKEN`. A meaningless red X traded for an unverified green is
+      # the worse of the two, so it was reverted.
+      #
+      # Doing it properly needs a token whose pushes do trigger a run — a PAT
+      # or a GitHub App — which is a credential decision rather than a code
+      # one. Until then: the job fails, uploads what it drew, and
+      # `pnpm visual:accept` brings it back in one command.
       - name: Upload what changed
         if: failure()
         uses: actions/upload-artifact@v4

@@ -33,9 +33,25 @@
  */
 
 /** The kinds of value a field can hold. More arrive with the other components. */
-export const FIELD_KINDS = ["text", "email", "tel", "number", "password"] as const
+export const FIELD_KINDS = [
+  "text",
+  "email",
+  "tel",
+  "number",
+  "password",
+  "textarea",
+  "select",
+  "checkbox",
+  "radio",
+] as const
 
 export type FieldKind = (typeof FIELD_KINDS)[number]
+
+/** One answer a Select or a Radio Group offers. */
+export interface FieldOption {
+  value: string
+  label: string
+}
 
 export interface FieldSpec {
   /** The key this field's value is submitted under. */
@@ -50,6 +66,19 @@ export interface FieldSpec {
   /** Number fields only. */
   min?: number
   max?: number
+  /**
+   * What a Select or a Radio Group offers.
+   *
+   * Both readers check that a submitted value is one of these. A page can be
+   * posted to without rendering it, so "the browser only showed three options"
+   * is not a reason to accept a fourth.
+   */
+  options?: readonly FieldOption[]
+}
+
+/** Whether this kind's answer is one of a fixed set. */
+export function isChoice(kind: FieldKind): boolean {
+  return kind === "select" || kind === "radio"
 }
 
 /**
@@ -62,13 +91,20 @@ export interface FieldSpec {
  */
 export function messages(spec: FieldSpec): { required: string; invalid: string } {
   return {
-    required: `${spec.label} is required.`,
+    /*
+     * A checkbox is not "required", it is unticked. "Terms is required" reads
+     * as a missing answer; what the person has to do is tick the box.
+     */
+    required:
+      spec.kind === "checkbox" ? `${spec.label} has to be ticked.` : `${spec.label} is required.`,
     invalid:
       spec.kind === "email"
         ? `${spec.label} needs an email address, like name@example.com.`
         : spec.kind === "tel"
           ? `${spec.label} needs a phone number.`
-          : `${spec.label} is not valid.`,
+          : isChoice(spec.kind)
+            ? `${spec.label} is not one of the choices.`
+            : `${spec.label} is not valid.`,
   }
 }
 

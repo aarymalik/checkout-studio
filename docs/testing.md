@@ -639,20 +639,32 @@ platform: `visual/__screenshots__/{darwin,linux}/`. A local run writes and
 compares `darwin`; CI runs on Linux and compares `linux`, which means **a new
 case needs both**, and only one of them can be made on a developer's machine.
 
-When a Linux baseline is missing or has changed, Playwright writes what it
-drew and fails the job. CI uploads it as the `visual-regression` artifact.
+Nobody developing on macOS can draw the Linux half, so a new case always
+arrives with half its baselines missing. Playwright writes a missing one and
+fails, deliberately — a new baseline is a change somebody should see.
 
-`pnpm visual:accept` brings those back: it finds the last failed run on the
-current branch, downloads the artifact, and copies in only the screenshots
-that differ from what is committed — the job uploads the whole directory, so
-without that comparison a six-file change reads as sixty.
+`pnpm visual:accept` brings them back in one command: it finds the last run
+whose **visual job** failed, downloads the artifact, and copies in only the
+screenshots that differ from what is committed. (The job uploads the whole
+directory, so without that comparison a six-file change reads as sixty.)
 
-It stops short of committing, deliberately. These images are what every later
-run is compared against, and one nobody looked at is a test that passes for a
-reason nobody chose. **Look at them, then commit.**
+It stops short of committing. These images are what every later run is compared
+against, and one nobody looked at is a test that passes for a reason nobody
+chose. **Look at them, then commit.**
 
-The round trip itself is not avoidable: nobody developing on macOS can draw
-the Linux half, so a new case always costs one CI run.
+### Why the job does not just commit them itself
+
+It did, briefly. A missing baseline is genuinely not a regression — it is a
+picture of something never photographed here, so there is nothing it can
+contradict — and the job adopted the untracked screenshots, pushed them to the
+branch, and passed.
+
+It left the pull request's head commit with **no checks at all**, because
+GitHub does not trigger workflows for pushes made with `GITHUB_TOKEN`. A
+meaningless red X traded for an unverified green is the worse of the two.
+
+Doing it properly needs a token whose pushes do start a run — a personal access
+token or a GitHub App — which is a credential decision rather than a code one.
 
 ## What a screenshot cannot see
 

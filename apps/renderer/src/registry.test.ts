@@ -37,6 +37,7 @@ describe("the published registry", () => {
       "core.button",
       "core.html-block",
       "core.input",
+      "core.select",
     ]) {
       expect(registry.has(type), type).toBe(true)
     }
@@ -55,6 +56,12 @@ describe("the published registry", () => {
      */
     const interactive = registry.types().filter((type) => registry.get(type)?.interactive === true)
 
-    expect(interactive).toEqual(["core.input"])
+    expect(interactive).toEqual([
+      "core.input",
+      "core.textarea",
+      "core.select",
+      "core.checkbox",
+      "core.radio-group",
+    ])
   })
 })

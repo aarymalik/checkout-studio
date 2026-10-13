@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { limitMessage, messages, TEL } from "./fields"
+import { isChoice, limitMessage, messages, TEL } from "./fields"
 import type { FieldSpec } from "./fields"
 
 /**
@@ -16,6 +16,22 @@ import type { FieldSpec } from "./fields"
 
 function schemaForField(spec: FieldSpec): z.ZodType {
   const { required, invalid } = messages(spec)
+
+  // Unticked is "", ticked is "true". A required one has to be the latter.
+  if (spec.kind === "checkbox") {
+    const box = z.union([z.literal(""), z.literal("true")])
+
+    return spec.required ? box.refine((value) => value === "true", { error: required }) : box
+  }
+
+  if (isChoice(spec.kind)) {
+    const values = (spec.options ?? []).map((option) => option.value)
+    const choice = z.string().refine((value) => values.includes(value), { error: invalid })
+
+    return spec.required
+      ? z.string().min(1, { error: required }).pipe(choice)
+      : z.union([z.literal(""), choice])
+  }
 
   if (spec.kind === "number") {
     let number = z.coerce.number({ error: invalid })
