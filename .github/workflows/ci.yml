@@ -183,6 +183,12 @@ jobs:
       # point of the suite. See scripts/adopt-new-baselines.mjs.
       - name: Adopt the screenshots this platform had not drawn
         if: steps.visual.outcome == 'failure' && github.event_name == 'pull_request'
+        # Hooks off. They are a developer's convenience — the pre-push one runs
+        # the whole suite, which inside this job means running it a second time
+        # against services this job does not have, and that is what failed the
+        # first time this step existed. CI's checks are the jobs themselves.
+        env:
+          HUSKY: 0
         run: node scripts/adopt-new-baselines.mjs
 
       - name: Push them to the branch
@@ -190,13 +196,14 @@ jobs:
         # Not on a fork: a pull request from one has no write token, and asking
         # for one would be handing a stranger's branch commit access to ours.
         env:
+          HUSKY: 0
           FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
           if [ "$FORK" = "true" ]; then
             echo "A fork's branch cannot be pushed to. Download the artifact instead."
             exit 1
           fi
-          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          git push --no-verify origin "HEAD:${{ github.event.pull_request.head.ref }}"
 
       # Anything the job wrote, for the differences a person still has to look
       # at. Kept on every failure, including the ones adopted above, so there is
