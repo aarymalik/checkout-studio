@@ -46,6 +46,7 @@ describe("the studio's registry", () => {
     expect(registry.documentValidators().map((entry) => entry.rule)).toEqual([
       "core-content.heading-order",
       "core-embed.embed-beside-payment",
+      "core-forms.condition-cycle",
     ])
   })
 

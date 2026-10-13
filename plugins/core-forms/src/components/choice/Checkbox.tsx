@@ -38,9 +38,12 @@ export function CheckboxRenderer({
   props,
   node,
   mode,
-}: ComponentRenderProps): ReactElement {
+}: ComponentRenderProps): ReactElement | null {
   const spec = choiceSpecOf(props, node.id, "checkbox", "Tick to agree")
-  const { id, value, error, describedBy, ref, setValue, validate } = useField(spec)
+  const { visible, id, value, error, describedBy, ref, setValue, validate } = useField(spec)
+
+  // Gone rather than hidden, for the reason in `Field`.
+  if (!visible) return null
 
   return (
     <div className={className}>

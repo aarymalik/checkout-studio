@@ -60,8 +60,20 @@ export interface FieldProps {
   control: (props: FieldControlProps) => ReactNode
 }
 
-export function Field({ spec, className, grouped = false, control }: FieldProps): ReactElement {
-  const { id, value, error, describedBy, ref, setValue, validate } = useField(spec)
+export function Field({
+  spec,
+  className,
+  grouped = false,
+  control,
+}: FieldProps): ReactElement | null {
+  const { visible, id, value, error, describedBy, ref, setValue, validate } = useField(spec)
+
+  /*
+   * Gone, not hidden. A field whose condition is not met unmounts, and
+   * `useField`'s cleanup takes its value and its error with it — which is what
+   * keeps it out of the submission without a second mechanism to remember.
+   */
+  if (!visible) return null
 
   const rendered = control({
     id,

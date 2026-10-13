@@ -47,6 +47,8 @@ export const FIELD_KINDS = [
 
 export type FieldKind = (typeof FIELD_KINDS)[number]
 
+import type { FieldCondition } from "./conditions"
+
 /** One answer a Select or a Radio Group offers. */
 export interface FieldOption {
   value: string
@@ -74,6 +76,16 @@ export interface FieldSpec {
    * is not a reason to accept a fourth.
    */
   options?: readonly FieldOption[]
+  /**
+   * The answer that puts this field on the page.
+   *
+   * Part of the description rather than a separate thing, because the server
+   * has to ask the same question: a submission is checked against the fields
+   * the document says should have been shown, which it works out from the
+   * values it was sent. A condition kept elsewhere would be a second copy for
+   * the server to find.
+   */
+  showWhen?: FieldCondition
 }
 
 /** Whether this kind's answer is one of a fixed set. */
