@@ -643,25 +643,28 @@ Nobody developing on macOS can draw the Linux half, so a new case always
 arrives with half its baselines missing. Playwright writes a missing one and
 fails, deliberately — a new baseline is a change somebody should see.
 
-**A missing baseline is not a regression.** It is a picture of something never
-photographed here, so there is nothing it can contradict. On a pull request the
-visual job commits those and passes; `scripts/adopt-new-baselines.mjs` is the
-rule, and git is what tells the two cases apart:
+`pnpm visual:accept` brings them back in one command: it finds the last run
+whose **visual job** failed, downloads the artifact, and copies in only the
+screenshots that differ from what is committed. (The job uploads the whole
+directory, so without that comparison a six-file change reads as sixty.)
 
-- Playwright writes a **missing** baseline into the screenshots directory, so
-  it is an untracked file. Those are adopted.
-- For a **changed** one it leaves the baseline alone and writes the actual into
-  `test-results/`. The tracked file is unmodified, so anything modified under
-  `__screenshots__` is a real difference and still fails the build.
+It stops short of committing. These images are what every later run is compared
+against, and one nobody looked at is a test that passes for a reason nobody
+chose. **Look at them, then commit.**
 
-A fork's branch cannot be pushed to, so a pull request from one keeps the old
-behaviour: the job fails and uploads the artifact.
+### Why the job does not just commit them itself
 
-`pnpm visual:accept` remains for the case that still needs a person — a
-baseline that **changed**. It finds the last run whose visual job failed,
-downloads the artifact, and copies in only what differs from what is committed.
-It stops short of committing: a baseline nobody looked at is a test that passes
-for a reason nobody chose. **Look at them, then commit.**
+It did, briefly. A missing baseline is genuinely not a regression — it is a
+picture of something never photographed here, so there is nothing it can
+contradict — and the job adopted the untracked screenshots, pushed them to the
+branch, and passed.
+
+It left the pull request's head commit with **no checks at all**, because
+GitHub does not trigger workflows for pushes made with `GITHUB_TOKEN`. A
+meaningless red X traded for an unverified green is the worse of the two.
+
+Doing it properly needs a token whose pushes do start a run — a personal access
+token or a GitHub App — which is a credential decision rather than a code one.
 
 ## What a screenshot cannot see
 
