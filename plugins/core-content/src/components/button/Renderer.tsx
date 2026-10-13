@@ -21,6 +21,15 @@ function gradientStyle(value: unknown): CSSProperties {
  * `<button>` that navigated by script would take all of that away for no gain.
  * So the element follows the behaviour rather than the appearance.
  *
+ * ## It can submit a form, and that is still not JavaScript
+ *
+ * A button with `submits` is `type="submit"`, which is how a form is sent on
+ * every page that has ever had one: the browser does it, Enter in a text field
+ * does it, and this component ships nothing to make it happen. The form system
+ * puts a `<form>` around the page and handles the event.
+ *
+ * Off by default, because the default has to be the safe one — see below.
+ *
  * `type="button"` on the real button, which Phase 9's accessibility criteria
  * ask for by name. Without it a button inside a form submits that form, and
  * the first time anybody notices is when a half-filled checkout posts itself.
@@ -79,7 +88,7 @@ export function ButtonRenderer({ className, props }: ComponentRenderProps): Reac
   }
 
   return (
-    <button {...shared} type="button" disabled={disabled}>
+    <button {...shared} type={props["submits"] === true ? "submit" : "button"} disabled={disabled}>
       {content}
     </button>
   )

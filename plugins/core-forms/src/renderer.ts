@@ -31,3 +31,13 @@ export const coreForms: Plugin = {
 }
 
 export { address, checkbox, country, input, radioGroup, select, textarea }
+
+/**
+ * The server's half of a submission.
+ *
+ * Exported from the renderer entry rather than the editor's, because the
+ * endpoint that checks a payload is not the editor — it is the published
+ * application, which already imports this file for the components.
+ */
+export { checkSubmission, fieldsIn } from "./form/submission"
+export type { SubmissionCheck } from "./form/submission"
