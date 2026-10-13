@@ -38,6 +38,7 @@ describe("the published registry", () => {
       "core.html-block",
       "core.input",
       "core.select",
+      "core.address",
     ]) {
       expect(registry.has(type), type).toBe(true)
     }
@@ -62,6 +63,8 @@ describe("the published registry", () => {
       "core.select",
       "core.checkbox",
       "core.radio-group",
+      "core.country",
+      "core.address",
     ])
   })
 })

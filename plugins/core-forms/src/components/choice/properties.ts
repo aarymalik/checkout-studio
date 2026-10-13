@@ -1,6 +1,8 @@
 import { defineProperties } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinitionInput } from "@checkout-studio/plugin-sdk"
 
+import { COUNTRIES } from "./countries"
+
 /**
  * The property definitions the choice fields share, and the ones they do not.
  *
@@ -77,3 +79,26 @@ export const selectProperties = defineProperties([
 export const checkboxProperties = defineProperties([label, help, required, name])
 
 export const radioGroupProperties = defineProperties([label, options, help, required, name])
+
+/**
+ * Country's, which offer every country and store the chosen ones.
+ *
+ * The list is here rather than in the component because this file is the
+ * editor's: a published checkout gets the countries the merchant picked, and
+ * never the two hundred and fifty they did not.
+ */
+export const countryProperties = defineProperties([
+  label,
+  {
+    key: "options",
+    target: "prop",
+    label: "Countries you ship to",
+    group: "General",
+    control: "select",
+    options: [...COUNTRIES],
+    help: "Only these are offered at checkout. A shorter list is a shorter list to read.",
+  },
+  help,
+  required,
+  name,
+])

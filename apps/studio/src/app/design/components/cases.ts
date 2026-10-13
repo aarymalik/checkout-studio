@@ -430,4 +430,37 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
         ["section"],
       ),
   },
+  /*
+   * An address and a country, which are the two composite shapes.
+   *
+   * Worth a picture of its own: an address is five controls that arrive as one
+   * component, and whether they read as one thing is a question about the page
+   * rather than about any of them. The country offers two, because what the
+   * published page carries is the countries the merchant chose.
+   */
+  {
+    id: "address",
+    covers: ["core.address", "core.country"],
+    mode: "editor-preview",
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["where", "ship"] },
+          { id: "where", type: "core.address", props: { required: true } },
+          {
+            id: "ship",
+            type: "core.country",
+            props: {
+              label: "Country",
+              required: true,
+              options: [
+                { value: "GB", label: "United Kingdom" },
+                { value: "IE", label: "Ireland" },
+              ],
+            },
+          },
+        ],
+        ["section"],
+      ),
+  },
 ]

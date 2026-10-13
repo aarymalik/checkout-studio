@@ -2,8 +2,8 @@
 
 The form a checkout's fields share, and the fields.
 
-Input, Textarea, Select, Checkbox and Radio Group. Country and Address follow,
-then conditional visibility, then submission.
+Every field in the catalog: Input, Textarea, Select, Checkbox, Radio Group,
+Country Selector and Address. Conditional visibility and submission follow.
 
 ## What this one added
 
@@ -42,6 +42,19 @@ cleanup sets state. That is an infinite loop, and it stopped the test suite
 twice: once on the spec object, then again on `options` after I had "fixed" it
 by listing the primitive fields. A list of fields is wrong the next time one is
 added, so the dependency is `JSON.stringify(spec)`.
+
+**Data that stays in the editor.** A Country Selector offers the countries the
+merchant ships to, and those are stored in the document — so the published page
+carries that list and the full one never leaves `./editor`. It is the first
+place in this product where the _data_ would have been the bundle cost rather
+than the code. Checked rather than assumed: no country name appears in any
+client chunk, while the Address component does.
+
+**The first composite.** An Address is five or six fields arriving as one
+component, each registering under the field's name and its own —
+`address.city`. A part the merchant switches off is never registered, so its
+value is never in the submission, which is the mechanism conditional visibility
+will use rather than a second one.
 
 ## Not used
 

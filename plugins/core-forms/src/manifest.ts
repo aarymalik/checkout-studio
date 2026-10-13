@@ -13,7 +13,7 @@ export const manifest: PluginManifest = pluginManifest.parse({
   namespace: "core",
   name: "Core Forms",
   version: "0.1.0",
-  description: "The form a checkout's fields share, and the fields.",
+  description: "The form a checkout's fields share, and every field.",
   author: "Checkout Studio",
   category: "components",
   compatibility: { minEngineVersion: "0.1.0", schemaVersion: "1.0.0" },
