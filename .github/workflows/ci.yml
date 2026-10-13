@@ -137,8 +137,14 @@ jobs:
     name: visual regression
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # To push adopted baselines back to the pull request's branch.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The branch, not the merge commit, so a push from here lands on it.
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -160,14 +166,43 @@ jobs:
         run: pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium
 
       - name: Every component, every variant, light and dark
+        id: visual
         run: pnpm test:visual
+        continue-on-error: true
 
-      # Baselines are per platform: a screenshot taken on macOS does not match
-      # one taken here, because the text rasterises differently. When a Linux
-      # baseline is missing, Playwright writes it and fails — so the run uploads
-      # what it wrote, to be reviewed and committed.
+      # Baselines are per platform, because text rasterises differently on
+      # macOS and here — so nobody developing on a Mac can draw the Linux half,
+      # and every new case used to arrive with half of them missing. Playwright
+      # writes a missing baseline and fails, which put a red X on every pull
+      # request that added one.
+      #
+      # A missing baseline is not a regression: it is a picture of something
+      # never photographed here, so there is nothing it can contradict. This
+      # commits those and lets the job pass. A baseline that *changed* is
+      # untouched by Playwright and still fails the build, which is the whole
+      # point of the suite. See scripts/adopt-new-baselines.mjs.
+      - name: Adopt the screenshots this platform had not drawn
+        if: steps.visual.outcome == 'failure' && github.event_name == 'pull_request'
+        run: node scripts/adopt-new-baselines.mjs
+
+      - name: Push them to the branch
+        if: steps.visual.outcome == 'failure' && github.event_name == 'pull_request'
+        # Not on a fork: a pull request from one has no write token, and asking
+        # for one would be handing a stranger's branch commit access to ours.
+        env:
+          FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if [ "$FORK" = "true" ]; then
+            echo "A fork's branch cannot be pushed to. Download the artifact instead."
+            exit 1
+          fi
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+
+      # Anything the job wrote, for the differences a person still has to look
+      # at. Kept on every failure, including the ones adopted above, so there is
+      # always a copy of what the run drew.
       - name: Upload what changed
-        if: failure()
+        if: steps.visual.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: visual-regression
@@ -176,6 +211,15 @@ jobs:
             apps/studio/playwright-report
             apps/studio/test-results
           retention-days: 7
+
+      # A failure the step above did not adopt is a real one, and the job has
+      # to carry it: `continue-on-error` hides the exit code from the job's
+      # result, so it is put back here.
+      - name: Fail on a difference
+        if: steps.visual.outcome == 'failure' && github.event_name != 'pull_request'
+        run: |
+          echo "The visual suite failed outside a pull request, where baselines are not adopted."
+          exit 1
 
   audit:
     name: dependency audit

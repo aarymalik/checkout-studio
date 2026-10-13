@@ -639,20 +639,29 @@ platform: `visual/__screenshots__/{darwin,linux}/`. A local run writes and
 compares `darwin`; CI runs on Linux and compares `linux`, which means **a new
 case needs both**, and only one of them can be made on a developer's machine.
 
-When a Linux baseline is missing or has changed, Playwright writes what it
-drew and fails the job. CI uploads it as the `visual-regression` artifact.
+Nobody developing on macOS can draw the Linux half, so a new case always
+arrives with half its baselines missing. Playwright writes a missing one and
+fails, deliberately — a new baseline is a change somebody should see.
 
-`pnpm visual:accept` brings those back: it finds the last failed run on the
-current branch, downloads the artifact, and copies in only the screenshots
-that differ from what is committed — the job uploads the whole directory, so
-without that comparison a six-file change reads as sixty.
+**A missing baseline is not a regression.** It is a picture of something never
+photographed here, so there is nothing it can contradict. On a pull request the
+visual job commits those and passes; `scripts/adopt-new-baselines.mjs` is the
+rule, and git is what tells the two cases apart:
 
-It stops short of committing, deliberately. These images are what every later
-run is compared against, and one nobody looked at is a test that passes for a
-reason nobody chose. **Look at them, then commit.**
+- Playwright writes a **missing** baseline into the screenshots directory, so
+  it is an untracked file. Those are adopted.
+- For a **changed** one it leaves the baseline alone and writes the actual into
+  `test-results/`. The tracked file is unmodified, so anything modified under
+  `__screenshots__` is a real difference and still fails the build.
 
-The round trip itself is not avoidable: nobody developing on macOS can draw
-the Linux half, so a new case always costs one CI run.
+A fork's branch cannot be pushed to, so a pull request from one keeps the old
+behaviour: the job fails and uploads the artifact.
+
+`pnpm visual:accept` remains for the case that still needs a person — a
+baseline that **changed**. It finds the last run whose visual job failed,
+downloads the artifact, and copies in only what differs from what is committed.
+It stops short of committing: a baseline nobody looked at is a test that passes
+for a reason nobody chose. **Look at them, then commit.**
 
 ## What a screenshot cannot see
 
