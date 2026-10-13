@@ -814,17 +814,80 @@ would be a second way to say the same thing, and the two would disagree.
 
 ---
 
+## Country Selector
+
+### The list lives in the editor, not on the checkout
+
+The inspector offers every country; the merchant picks the ones they ship to;
+those are stored in the document like any other options. So a published page
+carries exactly the countries it offers, and a checkout shipping to three does
+not make a customer download two hundred and fifty.
+
+It is the same control a Select renders. The difference is entirely the editor,
+which is where the value is: a merchant should not be typing country names.
+
+Empty by default and refused by validation until it is filled in. Defaulting to
+a guess would be this component deciding where somebody's business ships to.
+
+Codes are ISO 3166-1 alpha-2 — what Stripe takes and what a shipping label
+needs.
+
+---
+
 ## Address
 
 Supports
-
-Google Places (future)
 
 Editable
 
 Country
 
 Required Fields
+
+### One component, several fields
+
+An address is five or six answers, each needing its own label, validation and
+place in a submission — but one thing a merchant drops onto a page, because
+nobody wants to assemble one out of six Inputs and get the order wrong.
+
+Each part registers under the field's name and its own: `address.line1`,
+`address.city`. Flat keys, because the form holds one record of strings; the
+dots are a convention a submission can read back into a shape later.
+
+A part the merchant switches off is never registered, so its value is never in
+the submission — the same mechanism conditional visibility will use, which is
+why there is not a second one.
+
+The optional parts stay optional even when the field is required. "Address line
+2 is required" is a sentence no checkout should produce, and a county is not a
+thing every address has.
+
+### Each part says what it is, so autofill can do the typing
+
+`address-line1`, `address-level2`, `postal-code`. An address is the most tedious
+thing on a checkout and the one a browser is best at filling in.
+
+### Not a fieldset
+
+A `<legend>` becomes part of every control's accessible name inside it, so a
+screen reader would announce "Delivery address Town or city" for the city. The
+parts already say what they are; a heading above the group is the merchant's to
+add.
+
+### Not built: Google Places
+
+The catalog marks it future, and it stays future. An address autocompleted from
+a third party is a request to that third party on every keystroke, from a page
+taking card details, to an origin the content security policy would have to
+name. It is worth doing and it is worth doing deliberately.
+
+### Deviation: the shape is not per-country
+
+An address form that rearranges itself by country is the right answer and a much
+bigger one — the parts differ, their names differ, and whether a postal code
+exists at all differs. What is built is the shape most countries share, with
+labels a merchant can reword and parts they can switch off. A Japanese address
+does not look like this.
 
 ---
 

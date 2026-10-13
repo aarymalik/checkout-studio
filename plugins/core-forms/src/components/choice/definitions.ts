@@ -69,3 +69,36 @@ export const radioGroup: ComponentDefinition = {
       ? "This group has no options, so there is nothing to choose."
       : labelled(node),
 }
+
+/**
+ * Country Selector.
+ *
+ * ## The same control as Select, and a different editor
+ *
+ * What it renders is a select, because that is what choosing a country is. The
+ * difference is where the list comes from: the inspector offers every country
+ * and the merchant picks the ones they ship to, which are then stored in the
+ * document like any other options.
+ *
+ * So the published page carries exactly the countries that page offers — a
+ * checkout shipping to three does not make a customer download two hundred and
+ * fifty — and the list itself never leaves the editor's bundle. See
+ * `countries.ts`.
+ *
+ * ## Empty by default, on purpose
+ *
+ * A Country field with no countries is refused by `validate`, the same as a
+ * Select with no options. Defaulting to a guess would be this component
+ * deciding where somebody's business ships to, and the merchant is the only
+ * one who knows.
+ */
+export const country: ComponentDefinition = {
+  ...select,
+  type: "core.country",
+  name: "Country Selector",
+  defaultProps: { label: "Country", required: true, options: [] },
+  validate: (node) =>
+    optionsOf(node.props["options"]).length === 0
+      ? "This field offers no countries. Choose the ones you ship to."
+      : labelled(node),
+}

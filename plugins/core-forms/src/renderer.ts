@@ -3,7 +3,8 @@ import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 import { manifest } from "./manifest"
 import { FormProvider } from "./form/FormProvider"
 import { input, textarea } from "./components/input/definition"
-import { checkbox, radioGroup, select } from "./components/choice/definitions"
+import { checkbox, country, radioGroup, select } from "./components/choice/definitions"
+import { address } from "./components/address/definition"
 
 /**
  * The renderer half: the form context, and the fields that use it.
@@ -22,7 +23,9 @@ export const coreForms: Plugin = {
     api.registerComponent(select)
     api.registerComponent(checkbox)
     api.registerComponent(radioGroup)
+    api.registerComponent(country)
+    api.registerComponent(address)
   },
 }
 
-export { checkbox, input, radioGroup, select, textarea }
+export { address, checkbox, country, input, radioGroup, select, textarea }
