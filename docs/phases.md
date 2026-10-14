@@ -2330,8 +2330,40 @@ The gap the previous slice named is closed: a quantity change is the first thing
 that can alter a cart, so there is now a test that the old total stays on screen
 and is marked `aria-busy` while a new one is worked out.
 
-Still to do: Coupon, Order Bump, Shipping Selector, Tax Summary, trust and
-guarantee components, page-level validation, and the marketing plugin.
+**A coupon decides nothing.** Typing a code puts it in the selections and asks
+the server to price the cart again. Whether it exists, has expired, is spent or
+is for somebody else is all in stripe-integration.md and all of it is the
+server's — a discount a browser could decide is a discount anybody can award
+themselves. There is no property for what a code is worth, either.
+
+**A refused code is not a failed quote**, and that distinction is the whole
+slice. Nothing was applied, so the cart is exactly what it was and the total
+already on screen still describes it. Treating a refusal like any other problem
+blanked a correct total because somebody mistyped a word. The refusal is kept
+apart from `problem`, the code comes out of the selections — otherwise the next
+quantity change would ask for a price with a code the server has already
+refused, and the whole quote would fail — and the cart is priced again without
+it.
+
+Two things found while building it:
+
+- The refusal was cleared on every successful quote, which erased the
+  explanation in the same breath it was written: removing the refused code
+  triggers a re-quote, and that re-quote succeeds. It is now cleared when
+  somebody touches the coupon again, which is when it stops being true.
+- Two style rules were written as `[aria-invalid="true"]` and
+  `[aria-disabled="true"]`. The renderer's selector grammar is a character
+  allowlist with no brackets or quotes in it, so both would have been dropped
+  silently and styled nothing. They are classes now. Attribute selectors are
+  still worth having one day; nothing has needed them enough to work out the
+  quoting.
+
+The button is `type="button"` and Enter in the field is handled, because a
+coupon sits inside the checkout's form — left alone, finishing a discount code
+submits the order.
+
+Still to do: Order Bump, Shipping Selector, Tax Summary, trust and guarantee
+components, page-level validation, and the marketing plugin.
 
 ### Exit Criteria
 
