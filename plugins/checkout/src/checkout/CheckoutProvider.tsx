@@ -39,11 +39,25 @@ export interface CheckoutState {
   stale: boolean
   /** Why the last attempt failed, or null. */
   problem: QuoteProblem | null
+  /**
+   * The code the server refused, and what it said about it.
+   *
+   * Separate from `problem` because a refused coupon is not a failed quote.
+   * The cart is exactly what it was, the total that was on screen is still
+   * the right one, and the only thing that went wrong is a string somebody
+   * typed. It is cleared when a coupon is applied or one succeeds.
+   */
+  rejectedCoupon: RejectedCoupon | null
   setQuantity: (nodeId: string, quantity: number) => void
   toggleBump: (nodeId: string, accepted: boolean) => void
   applyCoupon: (code: string) => void
   removeCoupon: () => void
   chooseShipping: (methodId: string) => void
+}
+
+export interface RejectedCoupon {
+  code: string
+  message: string
 }
 
 const CheckoutContext = createContext<CheckoutState | null>(null)
@@ -82,6 +96,7 @@ export function CheckoutProvider({
   const [quote, setQuote] = useState<Quote | null>(null)
   const [stale, setStale] = useState(false)
   const [problem, setProblem] = useState<QuoteProblem | null>(null)
+  const [rejectedCoupon, setRejectedCoupon] = useState<RejectedCoupon | null>(null)
 
   /*
    * The request in flight, so a slower earlier answer cannot overwrite a
@@ -147,6 +162,39 @@ export function CheckoutProvider({
         if (result.ok) {
           setQuote(result.quote)
           setProblem(null)
+          /*
+           * A refusal is *not* cleared here. Refusing a code removes it from
+           * the selections, which asks for the cart to be priced again without
+           * it — and that quote succeeds. Clearing on success wiped the
+           * explanation in the same breath it was written, so the field went
+           * back to idle and the customer was never told anything.
+           *
+           * It is cleared when they touch the coupon again: applying another
+           * code, or removing one.
+           */
+        } else if (result.problem.code === "coupon-rejected") {
+          /*
+           * A refused code is not a failed quote.
+           *
+           * The cart is unchanged — a coupon that was not applied changed
+           * nothing — so the total already on screen still describes it, and
+           * throwing it away would blank a correct number because somebody
+           * mistyped a word. The code comes out of the selections, which asks
+           * for the cart to be priced again without it; what the server said
+           * about the code is kept for the component that asked.
+           */
+          setRejectedCoupon({
+            code: result.problem.couponCode ?? selections.couponCode ?? "",
+            message: result.problem.message,
+          })
+          setProblem(null)
+          setSelections((current) => {
+            if (current.couponCode === undefined) return current
+
+            const { couponCode: _refused, ...rest } = current
+
+            return rest
+          })
         } else {
           /*
            * The total goes. Showing the last good one beside a cart it does
@@ -213,11 +261,26 @@ export function CheckoutProvider({
   }, [])
 
   const applyCoupon = useCallback((code: string) => {
-    setSelections((current) => ({ ...current, couponCode: code }))
+    setRejectedCoupon(null)
+    setSelections((current) =>
+      current.couponCode === code ? current : { ...current, couponCode: code },
+    )
   }, [])
 
   const removeCoupon = useCallback(() => {
-    setSelections(({ couponCode: _removed, ...rest }) => rest)
+    setRejectedCoupon(null)
+    /*
+     * The same object when there was no coupon. An updater that spread a new
+     * one regardless would change `selections` by identity alone, and the
+     * quote effect would buy a fresh quote for a cart nobody touched.
+     */
+    setSelections((current) => {
+      if (current.couponCode === undefined) return current
+
+      const { couponCode: _removed, ...rest } = current
+
+      return rest
+    })
   }, [])
 
   const chooseShipping = useCallback((methodId: string) => {
@@ -230,6 +293,7 @@ export function CheckoutProvider({
       quote,
       stale,
       problem,
+      rejectedCoupon,
       setQuantity,
       toggleBump,
       applyCoupon,
@@ -241,6 +305,7 @@ export function CheckoutProvider({
       quote,
       stale,
       problem,
+      rejectedCoupon,
       setQuantity,
       toggleBump,
       applyCoupon,

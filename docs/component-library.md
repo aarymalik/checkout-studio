@@ -991,6 +991,8 @@ Visibility
 
 Editable
 
+Label
+
 Placeholder
 
 Button Text
@@ -998,6 +1000,21 @@ Button Text
 Validation Message
 
 Success Message
+
+Remove Text
+
+Applying a code sets it in the selections and asks the data source to price the
+cart again. Every judgement about the code is the server's — see
+[stripe-integration.md](./stripe-integration.md) § Coupons — so there is no
+property for what a code is worth or which codes exist.
+
+The Validation Message is a fallback rather than an override. The server says
+why a code was refused (expired, spent, below the minimum) and that sentence is
+more use to a customer than one written in advance; the merchant's is shown when
+the server says nothing.
+
+A refused code does not clear the total. Nothing was applied, so the cart is
+unchanged and the amount already on screen still describes it.
 
 ---
 

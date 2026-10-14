@@ -588,6 +588,40 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
       ),
   },
   {
+    id: "coupon",
+    covers: ["checkout.coupon"],
+    /*
+     * Idle, which is the state a merchant sees when they drop one on a page
+     * and the only one with a field and a button in it. Applied and refused
+     * both need somebody to type, and a screenshot of either would be a
+     * screenshot of a cart this gallery had arranged rather than of a
+     * component — the unit tests cover them.
+     */
+    cart: [{ nodeId: "summary", quantity: 1 }],
+    quote: {
+      quoteId: "qt_coupon",
+      signature: "sig",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      currency: "GBP",
+      lineItems: [],
+      subtotal: 4998,
+      discount: 500,
+      shipping: 0,
+      tax: 0,
+      total: 4498,
+      notices: [],
+    },
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["cpn", "summary"] },
+          { id: "cpn", type: "checkout.coupon" },
+          { id: "summary", type: "checkout.order-summary" },
+        ],
+        ["section"],
+      ),
+  },
+  {
     id: "order-summary",
     covers: ["checkout.order-summary"],
     cart: [{ nodeId: "summary", quantity: 1 }],

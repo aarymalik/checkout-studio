@@ -47,6 +47,9 @@ describe("the published registry", () => {
        */
       "checkout.product-card",
       "checkout.order-summary",
+      // Somebody types into it, and what they typed has to be remembered,
+      // sent, and answered.
+      "checkout.coupon",
     ]) {
       expect(registry.has(type), type).toBe(true)
     }
@@ -80,6 +83,9 @@ describe("the published registry", () => {
        */
       "checkout.product-card",
       "checkout.order-summary",
+      // Somebody types into it, and what they typed has to be remembered,
+      // sent, and answered.
+      "checkout.coupon",
     ])
   })
 })
