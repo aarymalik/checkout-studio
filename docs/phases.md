@@ -2362,8 +2362,38 @@ The button is `type="button"` and Enter in the field is handled, because a
 coupon sits inside the checkout's form — left alone, finishing a discount code
 submits the order.
 
-Still to do: Order Bump, Shipping Selector, Tax Summary, trust and guarantee
-components, page-level validation, and the marketing plugin.
+**An order bump is a checkbox**, and the whole offer is inside its `<label>` —
+so the entire box is the hit area and the control's accessible name is what
+somebody is actually agreeing to, price included. A control named "Add" is a
+box people tick without knowing what it costs.
+
+Accepting it puts the node's id in `selections.bumps` and the provider asks for
+a new quote. Nothing is added up here: once accepted, the price shown is the
+server's own line for this bump, and a test makes the two disagree to prove it.
+Unlike a Product Card it registers nothing on mount — a bump nobody has
+accepted is not in the cart, which is what makes it an offer rather than a
+product.
+
+`toggleBump` had the same latent bug `setQuantity` had: it built a new
+selections object even when the answer was already the answer. The quiet half
+is the removal — filtering an array that contains nothing to remove still
+returns a new array, and the quote effect cannot tell that from a real change.
+
+**Published pages now honour `prefers-reduced-motion`.** They did not: the
+studio's stylesheet has collapsed its durations since the design system was
+built, but a compiled theme said nothing, so the first component to animate
+would have animated at somebody who asked it not to. The three duration tokens
+are zeroed under the query in `compileTheme`, which means no component has to
+know about the preference and none can forget it.
+
+**Animation is deliberately not an editable on Order Bump.** What the catalog
+means by it is the flashing border these offers usually have, and that is
+decoration — the one thing CLAUDE.md's motion rules forbid outright. What is
+animated is the change of state when somebody accepts, which is animation
+communicating something.
+
+Still to do: Shipping Selector, Tax Summary, trust and guarantee components,
+page-level validation, and the marketing plugin.
 
 ### Exit Criteria
 

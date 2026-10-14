@@ -1118,7 +1118,20 @@ Image
 
 Badge
 
-Animation
+Animation _(not built — see below)_
+
+The whole offer sits inside the checkbox's `<label>`, so the accessible name
+includes the title, the badge and the price: what somebody ticks is what they
+are agreeing to.
+
+Accepting it adds the node to `selections.bumps` and the cart is priced again.
+The price shown once accepted is the server's line for this bump; the authored
+price is what is shown before a quote mentions it.
+
+Animation here means the flashing border these offers usually carry, which is
+decoration — forbidden by the motion rules in CLAUDE.md. The change of state
+when the offer is accepted _is_ animated, and collapses to nothing under
+`prefers-reduced-motion`.
 
 ---
 

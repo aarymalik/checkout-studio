@@ -181,7 +181,26 @@ describe("compiling a theme", () => {
       typography: { ...theme.typography, fluidScale: { desktop: 1, tablet: 1, mobile: 1 } },
     }
 
-    expect(compileTheme(flat).css).not.toContain("@media")
+    // A width query specifically. The reduced-motion one below is emitted for
+    // every theme and is not about breakpoints.
+    expect(compileTheme(flat).css).not.toContain("@media (max-width")
+  })
+
+  it("collapses every duration when the reader asks for less motion", () => {
+    /*
+     * The published page had no such rule until an order bump wanted a
+     * transition. Putting it here rather than in the component means no
+     * component has to know about the preference, and none can forget it.
+     */
+    const css = compileTheme(theme).css
+
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)")
+
+    const guard = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"))
+
+    for (const name of ["--ck-duration-fast", "--ck-duration-normal", "--ck-duration-slow"]) {
+      expect(guard).toContain(`${name}: 0ms;`)
+    }
   })
 
   it("scales only the type sizes it can read as pixels", () => {
