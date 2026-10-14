@@ -40,6 +40,12 @@ describe("the published registry", () => {
       "core.input",
       "core.select",
       "core.address",
+      /*
+       * A Product Card is interactive for a reason the form fields are not: it
+       * is what puts its product in the cart, from an effect. A card rendered
+       * only on the server would be a product nothing is being asked to price.
+       */
+      "checkout.product-card",
       "checkout.order-summary",
     ]) {
       expect(registry.has(type), type).toBe(true)
@@ -67,6 +73,12 @@ describe("the published registry", () => {
       "core.radio-group",
       "core.country",
       "core.address",
+      /*
+       * A Product Card is interactive for a reason the form fields are not: it
+       * is what puts its product in the cart, from an effect. A card rendered
+       * only on the server would be a product nothing is being asked to price.
+       */
+      "checkout.product-card",
       "checkout.order-summary",
     ])
   })

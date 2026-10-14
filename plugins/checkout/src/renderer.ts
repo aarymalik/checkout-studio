@@ -2,6 +2,8 @@ import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { manifest } from "./manifest"
 import { orderSummary } from "./components/order-summary/definition"
+import { productCard } from "./components/product-card/definition"
+import { productList } from "./components/product-list/definition"
 
 /**
  * The renderer half.
@@ -20,11 +22,13 @@ import { orderSummary } from "./components/order-summary/definition"
 export const checkout: Plugin = {
   manifest,
   activate(api: PluginApi) {
+    api.registerComponent(productCard)
+    api.registerComponent(productList)
     api.registerComponent(orderSummary)
   },
 }
 
-export { orderSummary }
+export { productCard, productList, orderSummary }
 export { CheckoutProvider, useCheckout } from "./checkout/CheckoutProvider"
 export type { CheckoutProviderProps, CheckoutState } from "./checkout/CheckoutProvider"
 export { formatMoney } from "./checkout/money"
