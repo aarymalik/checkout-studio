@@ -19,6 +19,7 @@
     "@checkout-studio/cache": "workspace:*",
     "@checkout-studio/database": "workspace:*",
     "@checkout-studio/observability": "workspace:*",
+    "@checkout-studio/plugin-checkout": "workspace:*",
     "@checkout-studio/plugin-core-content": "workspace:*",
     "@checkout-studio/plugin-core-embed": "workspace:*",
     "@checkout-studio/plugin-core-forms": "workspace:*",

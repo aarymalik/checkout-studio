@@ -21,6 +21,7 @@ describe("the published registry", () => {
       ["core-content", "active"],
       ["core-embed", "active"],
       ["core-forms", "active"],
+      ["checkout", "active"],
     ])
   })
 
@@ -39,6 +40,7 @@ describe("the published registry", () => {
       "core.input",
       "core.select",
       "core.address",
+      "checkout.order-summary",
     ]) {
       expect(registry.has(type), type).toBe(true)
     }
@@ -65,6 +67,7 @@ describe("the published registry", () => {
       "core.radio-group",
       "core.country",
       "core.address",
+      "checkout.order-summary",
     ])
   })
 })

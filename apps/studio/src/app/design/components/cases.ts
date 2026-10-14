@@ -1,3 +1,4 @@
+import type { Quote } from "@checkout-studio/plugin-checkout"
 import type { RenderMode } from "@checkout-studio/plugin-sdk"
 import type { CheckoutSchema, Node } from "@checkout-studio/schema"
 import { createDocument } from "@checkout-studio/schema"
@@ -34,6 +35,16 @@ export interface ComponentCase {
    * beside the case, not in an expression naming one of them.
    */
   mode?: RenderMode
+  /**
+   * The quote to draw this case with.
+   *
+   * A checkout component shows numbers a server returned, so a case without
+   * one photographs the "working out your total" state — true, and not what a
+   * picture of an Order Summary is for. Supplied here rather than fetched,
+   * because a screenshot that depended on a request would be a screenshot that
+   * depended on timing.
+   */
+  quote?: Quote
   /** The page this case draws. */
   document: () => CheckoutSchema
 }
@@ -459,6 +470,31 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
               ],
             },
           },
+        ],
+        ["section"],
+      ),
+  },
+  {
+    id: "order-summary",
+    covers: ["checkout.order-summary"],
+    quote: {
+      quoteId: "qt_gallery",
+      signature: "sig",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      currency: "GBP",
+      lineItems: [],
+      subtotal: 4998,
+      discount: 500,
+      shipping: 399,
+      tax: 980,
+      total: 5877,
+      notices: [],
+    },
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["summary"] },
+          { id: "summary", type: "checkout.order-summary" },
         ],
         ["section"],
       ),
