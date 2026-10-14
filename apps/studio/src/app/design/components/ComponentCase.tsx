@@ -5,6 +5,8 @@ import { defaultTheme } from "@checkout-studio/schema"
 import { useMemo } from "react"
 import type { ReactElement } from "react"
 
+import { CheckoutProvider } from "@checkout-studio/plugin-checkout/renderer"
+
 import { registry } from "@/studio/registry"
 import { COMPONENT_CASES } from "./cases"
 
@@ -46,7 +48,7 @@ export function ComponentCase({
 
   if (current === undefined || document === undefined) return <p>No case named {id}.</p>
 
-  return (
+  const drawn = (
     <div data-case={id} className="w-full">
       <CheckoutRenderer
         schema={document}
@@ -56,5 +58,23 @@ export function ComponentCase({
         mode={current.mode ?? "published"}
       />
     </div>
+  )
+
+  /*
+   * A checkout around the case, when it asks for one.
+   *
+   * The source answers from memory with the case's own quote. That is the
+   * seam working as intended: the gallery is an application that renders
+   * checkout components, and it supplies a data source the way the published
+   * app will supply a different one.
+   */
+  if (current.quote === undefined) return drawn
+
+  const quote = current.quote
+
+  return (
+    <CheckoutProvider source={{ quote: () => Promise.resolve({ ok: true, quote }) }}>
+      {drawn}
+    </CheckoutProvider>
   )
 }

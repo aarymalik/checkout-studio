@@ -2266,6 +2266,26 @@ pnpm test --filter=@checkout-studio/plugin-marketing --coverage
 pnpm test:visual -g "checkout"
 ```
 
+**The spine is built.** `CheckoutDataSource` is the seam — one method, with
+selections going up and a quote coming down — and the provider depends on the
+interface and never on an implementation. Three exist already and the provider
+cannot tell them apart: the tests answer from memory, the design gallery
+supplies its own, and Phase 13 will supply the one that talks to the pricing
+engine.
+
+Order Summary has no `+` in it. Every number is a field of the quote, the row
+order is fixed rather than the server's, and the only sign it chooses is the
+discount's — a positive magnitude the quote has already deducted would
+otherwise read as a line that adds to the bill.
+
+Money is integers in minor units, and how many make a major one comes from
+`Intl` rather than a table: the yen has none, the dinar has three, and a table
+of exceptions is wrong about the currency nobody tested. A test found that the
+comment claiming an unknown code throws was wrong — a well-formed unknown code
+formats with two decimals, which is ISO 4217's own default.
+
+Still to do: the rest of the checkout components, and the marketing plugin.
+
 ### Exit Criteria
 
 ```

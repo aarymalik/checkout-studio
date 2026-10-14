@@ -19,6 +19,7 @@ describe("the studio's registry", () => {
       ["core-content", "active"],
       ["core-embed", "active"],
       ["core-forms", "active"],
+      ["checkout", "active"],
     ])
   })
 
