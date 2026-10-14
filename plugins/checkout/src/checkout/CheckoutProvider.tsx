@@ -250,14 +250,24 @@ export function CheckoutProvider({
   }, [])
 
   const toggleBump = useCallback((nodeId: string, accepted: boolean) => {
-    setSelections((current) => ({
-      ...current,
-      bumps: accepted
-        ? current.bumps.includes(nodeId)
-          ? current.bumps
-          : [...current.bumps, nodeId]
-        : current.bumps.filter((bump) => bump !== nodeId),
-    }))
+    setSelections((current) => {
+      /*
+       * The same object when the answer is already the answer. Spreading
+       * regardless changed `selections` by identity alone, and the quote
+       * effect would buy a fresh quote for a cart nobody touched — the same
+       * mistake `setQuantity` had, and the filter below is the quiet half of
+       * it: filtering an array that contains nothing to remove still returns
+       * a new array.
+       */
+      if (current.bumps.includes(nodeId) === accepted) return current
+
+      return {
+        ...current,
+        bumps: accepted
+          ? [...current.bumps, nodeId]
+          : current.bumps.filter((bump) => bump !== nodeId),
+      }
+    })
   }, [])
 
   const applyCoupon = useCallback((code: string) => {

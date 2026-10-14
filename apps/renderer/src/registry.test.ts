@@ -50,6 +50,8 @@ describe("the published registry", () => {
       // Somebody types into it, and what they typed has to be remembered,
       // sent, and answered.
       "checkout.coupon",
+      // Somebody ticks it, and the cart changes.
+      "checkout.order-bump",
     ]) {
       expect(registry.has(type), type).toBe(true)
     }
@@ -86,6 +88,8 @@ describe("the published registry", () => {
       // Somebody types into it, and what they typed has to be remembered,
       // sent, and answered.
       "checkout.coupon",
+      // Somebody ticks it, and the cart changes.
+      "checkout.order-bump",
     ])
   })
 })

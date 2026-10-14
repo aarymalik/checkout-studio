@@ -2,6 +2,7 @@ import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { manifest } from "./manifest"
 import { orderSummary } from "./components/order-summary/definition"
+import { orderBump } from "./components/order-bump/definition"
 import { coupon } from "./components/coupon/definition"
 import { productCard } from "./components/product-card/definition"
 import { productList } from "./components/product-list/definition"
@@ -27,10 +28,11 @@ export const checkout: Plugin = {
     api.registerComponent(productList)
     api.registerComponent(orderSummary)
     api.registerComponent(coupon)
+    api.registerComponent(orderBump)
   },
 }
 
-export { productCard, productList, orderSummary, coupon }
+export { productCard, productList, orderSummary, coupon, orderBump }
 export { CheckoutProvider, useCheckout } from "./checkout/CheckoutProvider"
 export type { CheckoutProviderProps, CheckoutState } from "./checkout/CheckoutProvider"
 export { formatMoney } from "./checkout/money"

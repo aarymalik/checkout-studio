@@ -622,6 +622,38 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
       ),
   },
   {
+    id: "order-bump",
+    covers: ["checkout.order-bump"],
+    /*
+     * Not taken, which is the state every customer meets first and the one
+     * with the dashed border and the badge in it. Accepted needs somebody to
+     * tick it; the unit tests cover what changes when they do.
+     */
+    cart: [{ nodeId: "summary", quantity: 1 }],
+    quote: {
+      quoteId: "qt_bump",
+      signature: "sig",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      currency: "GBP",
+      lineItems: [],
+      subtotal: 4998,
+      discount: 0,
+      shipping: 0,
+      tax: 0,
+      total: 4998,
+      notices: [],
+    },
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["bump", "summary"] },
+          { id: "bump", type: "checkout.order-bump" },
+          { id: "summary", type: "checkout.order-summary" },
+        ],
+        ["section"],
+      ),
+  },
+  {
     id: "order-summary",
     covers: ["checkout.order-summary"],
     cart: [{ nodeId: "summary", quantity: 1 }],

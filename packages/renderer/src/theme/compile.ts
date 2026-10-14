@@ -2,7 +2,14 @@ import { isSafeCssValue, isTokenReference, tokenPath } from "@checkout-studio/sc
 import type { Breakpoint, CheckoutTheme, ThemeGroups } from "@checkout-studio/schema"
 
 import { BREAKPOINT_MAX_WIDTH, NARROW_BREAKPOINTS } from "../styles/breakpoints"
-import { ROOT_CLASS, isLengthToken, readToken, tokenPaths, variableFor } from "./variables"
+import {
+  ROOT_CLASS,
+  VARIABLE_PREFIX,
+  isLengthToken,
+  readToken,
+  tokenPaths,
+  variableFor,
+} from "./variables"
 
 /**
  * Theme → CSS custom properties.
@@ -278,6 +285,29 @@ function compile(
       )}}\n`
     }
   }
+
+  /*
+   * Motion collapses to nothing when the reader asks for less of it.
+   *
+   * Every duration in a published page reads one of these three, so no
+   * component has to know about the preference and none can forget it. The
+   * studio's own stylesheet has said this since the design system was built;
+   * a published checkout said nothing, which meant the first component to
+   * animate would have animated at somebody who had asked it not to.
+   *
+   * The easing is left alone: a curve over no time is no time.
+   */
+  css += `@media (prefers-reduced-motion: reduce) {\n${indent(
+    block(root, [
+      // These three lines are where the duration tokens get their values.
+      // design-system-ignore: there is no token for them to reference.
+      { variable: `${VARIABLE_PREFIX}duration-fast`, value: "0ms" },
+      // design-system-ignore: as above.
+      { variable: `${VARIABLE_PREFIX}duration-normal`, value: "0ms" },
+      // design-system-ignore: as above.
+      { variable: `${VARIABLE_PREFIX}duration-slow`, value: "0ms" },
+    ]),
+  )}}\n`
 
   if (theme.dark !== undefined) {
     css += block(`${root}[data-mode="dark"]`, darkDeclarations(theme, theme.dark, rejected))
