@@ -299,8 +299,8 @@ function compile(
    */
   css += `@media (prefers-reduced-motion: reduce) {\n${indent(
     block(root, [
-      // design-system-ignore: these three lines are where the duration tokens
-      // get their values, so there is no token for them to reference.
+      // These three lines are where the duration tokens get their values.
+      // design-system-ignore: there is no token for them to reference.
       { variable: `${VARIABLE_PREFIX}duration-fast`, value: "0ms" },
       // design-system-ignore: as above.
       { variable: `${VARIABLE_PREFIX}duration-normal`, value: "0ms" },
