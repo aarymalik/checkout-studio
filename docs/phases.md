@@ -2284,7 +2284,54 @@ of exceptions is wrong about the currency nobody tested. A test found that the
 comment claiming an unknown code throws was wrong — a well-formed unknown code
 formats with two decimals, which is ISO 4217's own default.
 
-Still to do: the rest of the checkout components, and the marketing plugin.
+**Products, and what a cart is.** A Product Card on a page _is_ the statement
+that the product is being bought: it puts its own item in the cart from an
+effect, and takes it out when it goes. Nothing else assembles a cart, so there
+is no second list that has to be kept in step with what the page shows —
+`CartItem.nodeId` is the node that put it there, which is also how the server
+prices it.
+
+Three things were found by writing the tests rather than by thinking about it:
+
+- The card first registered the quantity it was _showing_, which prefers the
+  quote's. That is the server's echo of its own input: the first quote would
+  pin the quantity for ever, and a server that capped one at available stock
+  would silently overwrite what the merchant asked for. The cart takes the
+  authored number; only the display takes the quote's.
+- One effect doing both jobs removed the item before re-adding it on every
+  quantity change, because React runs a cleanup before the effect. For an
+  instant the cart was empty, and the total a customer was reading vanished
+  and came back. Registration and removal are now separate effects.
+- An empty cart is no longer quoted at all. A card registers from an effect, so
+  the first render of every checkout has an empty one — the page was asking the
+  server what nothing costs, then asking again. It is also just true: an order
+  with nothing in it has no total, which is a different thing from a total that
+  has not arrived.
+
+The provider holds its data source in a ref rather than depending on it. An
+application writes `source={{ quote: ... }}` in its JSX — the gallery does, and
+it is the obvious thing to write — which is a new object every render and would
+re-quote for ever. Selections are the only dependency, and swapping data sources
+mid-checkout is not a thing that happens.
+
+**Prices are stored in minor units**, because that is what the server and Stripe
+work in and a card that stored 19.99 would have to convert. What a merchant
+should _type_ is a Phase 12 question: a currency control that shows £19.99 and
+stores 1999.
+
+Product List's Sorting and Filtering are **not built**. Both need a catalog —
+a set of products large enough to have an order and a subset — and a checkout
+page holds the products a merchant placed on it, in the order they placed them.
+Sorting three hand-placed cards would be a control that rearranges what somebody
+has just arranged by hand. The product source arrives with the pricing engine in
+Phase 13.
+
+The gap the previous slice named is closed: a quantity change is the first thing
+that can alter a cart, so there is now a test that the old total stays on screen
+and is marked `aria-busy` while a new one is worked out.
+
+Still to do: Coupon, Order Bump, Shipping Selector, Tax Summary, trust and
+guarantee components, page-level validation, and the marketing plugin.
 
 ### Exit Criteria
 

@@ -919,6 +919,18 @@ SKU
 
 Inventory
 
+Prices are stored in the currency's smallest unit: `1999` is £19.99. The server
+and Stripe both work in minor units, and a card that stored `19.99` would have
+to convert — the one piece of arithmetic that could put a different number on
+the page from the one on the bill.
+
+A card shows the quote's price whenever there is one, and the authored price
+only before a quote has arrived or on the editor's canvas. The authored price is
+a preview of a price rather than a promise of one. A sale price is shown by
+striking the list price through, and only when it is genuinely lower.
+
+A card is also what puts its product in the cart, so the page is the cart.
+
 ---
 
 ## Product List
@@ -929,11 +941,23 @@ Editable
 
 Columns
 
-Sorting
+Sorting _(Phase 13 — needs a product catalog; see below)_
 
-Filtering
+Filtering _(Phase 13 — needs a product catalog; see below)_
 
 Spacing
+
+Columns and Spacing are styles rather than props, which is what makes them
+responsive: the document stores per-breakpoint overrides for styles only, so a
+list that is two across on a desktop can be one on a phone.
+
+Sorting and Filtering need a set of products large enough to have an order and a
+subset. A checkout page holds the products a merchant placed on it, in the order
+they placed them, so until the server's product source exists these would
+rearrange what somebody has just arranged by hand.
+
+A list accepts Product Cards and nothing else. Without that restriction it is
+Grid with a different name in the panel.
 
 ---
 

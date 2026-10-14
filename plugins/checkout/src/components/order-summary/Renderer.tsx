@@ -38,13 +38,22 @@ export function OrderSummaryRenderer({ className, props }: ComponentRenderProps)
 
   if (quote === null) {
     /*
-     * No total at all — before the first quote, or after one failed. The
-     * difference matters to the person: one is a moment, the other needs
-     * saying.
+     * No total at all, for one of three reasons, and a customer should be told
+     * which. A failure needs saying; a quote on its way is a moment; an empty
+     * order is neither, and "working out your total" about an order with
+     * nothing in it is a summary waiting for something that is never coming.
      */
+    const empty =
+      checkout !== null &&
+      checkout.selections.items.length === 0 &&
+      checkout.selections.bumps.length === 0
+
     return (
       <div className={className} data-ck-summary-empty>
-        <p>{checkout?.problem?.message ?? "Working out your total…"}</p>
+        <p>
+          {checkout?.problem?.message ??
+            (empty ? "Nothing in your order yet." : "Working out your total…")}
+        </p>
       </div>
     )
   }

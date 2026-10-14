@@ -90,15 +90,56 @@ export function CheckoutProvider({
    */
   const inFlight = useRef<AbortController | null>(null)
 
+  /*
+   * The source, held rather than depended on.
+   *
+   * An application writes `source={{ quote: ... }}` in its JSX — the gallery
+   * does, and it is the obvious thing to write. That object is a new one every
+   * render, so an effect that listed it would re-quote on every render of the
+   * page, for ever, and the only symptom would be a server bill.
+   *
+   * What makes a new quote necessary is a change in *selections*, which is the
+   * only dependency below. Swapping one data source for another mid-checkout
+   * is not a thing that happens: the application mounts this with the one it
+   * has.
+   *
+   * The same mistake, written the same way, re-registered a form field on
+   * every render twice in core-forms. An effect that writes to the state that
+   * re-renders it must be given nothing that is rebuilt each time.
+   */
+  const latest = useRef(source)
+
+  latest.current = source
+
   useEffect(() => {
     inFlight.current?.abort()
+
+    /*
+     * Nothing to price.
+     *
+     * A Product Card puts its own product in the cart from an effect, so the
+     * first render of every checkout has an empty one — and asking a server
+     * what an empty cart costs is a request whose answer is already known.
+     * Without this the page quotes twice on load, aborts the first, and pays
+     * for a round trip to learn nothing.
+     *
+     * It is also simply true: an order with nothing in it has no total, which
+     * is a different thing from a total that has not arrived yet.
+     */
+    if (selections.items.length === 0 && selections.bumps.length === 0) {
+      setQuote(null)
+      setProblem(null)
+      setStale(false)
+
+      return
+    }
 
     const controller = new AbortController()
 
     inFlight.current = controller
     setStale(true)
 
-    source
+    latest.current
       .quote(selections, controller.signal)
       .then((result) => {
         if (controller.signal.aborted) return
@@ -129,18 +170,35 @@ export function CheckoutProvider({
     return () => {
       controller.abort()
     }
-  }, [source, selections])
+  }, [selections])
 
   const setQuantity = useCallback((nodeId: string, quantity: number) => {
-    setSelections((current) => ({
-      ...current,
-      items:
-        quantity <= 0
-          ? current.items.filter((item) => item.nodeId !== nodeId)
-          : current.items.some((item) => item.nodeId === nodeId)
-            ? current.items.map((item) => (item.nodeId === nodeId ? { ...item, quantity } : item))
-            : [...current.items, { nodeId, quantity }],
-    }))
+    setSelections((current) => {
+      const existing = current.items.find((item) => item.nodeId === nodeId)
+
+      /*
+       * Setting a quantity to what it already is returns the same object, so
+       * React bails out of the re-render and the quote effect never sees a
+       * change. Without it, every repeat of a value — a card re-running its
+       * effect, a parent re-rendering — would build a new selections object
+       * and buy a quote for a cart nobody touched.
+       */
+      if (existing?.quantity === quantity) return current
+      if (existing === undefined && quantity <= 0) return current
+
+      // Zero removes it: a card that has gone should not still be priced.
+      if (quantity <= 0) {
+        return { ...current, items: current.items.filter((item) => item.nodeId !== nodeId) }
+      }
+
+      return {
+        ...current,
+        items:
+          existing === undefined
+            ? [...current.items, { nodeId, quantity }]
+            : current.items.map((item) => (item.nodeId === nodeId ? { ...item, quantity } : item)),
+      }
+    })
   }, [])
 
   const toggleBump = useCallback((nodeId: string, accepted: boolean) => {

@@ -1,4 +1,4 @@
-import type { Quote } from "@checkout-studio/plugin-checkout"
+import type { CartItem, Quote } from "@checkout-studio/plugin-checkout"
 import type { RenderMode } from "@checkout-studio/plugin-sdk"
 import type { CheckoutSchema, Node } from "@checkout-studio/schema"
 import { createDocument } from "@checkout-studio/schema"
@@ -45,9 +45,40 @@ export interface ComponentCase {
    * depended on timing.
    */
   quote?: Quote
+  /**
+   * What is in the cart before anything renders.
+   *
+   * A Product Card puts its own product in, so a page with one needs nothing
+   * here. A page without one does: an Order Summary photographed beside an
+   * empty cart draws "Nothing in your order yet", which is correct and is not
+   * what a picture of a summary is for.
+   */
+  cart?: readonly CartItem[]
   /** The page this case draws. */
   document: () => CheckoutSchema
 }
+
+/*
+ * A product photograph, as a data URI.
+ *
+ * A screenshot that fetched an image would be a screenshot that depended on a
+ * network, and the visual job runs without one. This is drawn by the browser
+ * from the bytes in this file, so every platform draws the same square.
+ */
+// A stand-in product photograph. Nothing in the product is drawn in these.
+// design-system-ignore: photograph bytes, not interface colour.
+const WALLET_LEATHER = "#8b5e34"
+// design-system-ignore: the darker panel of the same photograph.
+const WALLET_PANEL = "#6b4423"
+
+const WALLET =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80">' +
+      `<rect width="80" height="80" fill="${WALLET_LEATHER}"/>` +
+      `<rect x="12" y="30" width="56" height="26" rx="3" fill="${WALLET_PANEL}"/>` +
+      "</svg>",
+  )
 
 interface Spec {
   id: string
@@ -475,8 +506,91 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
       ),
   },
   {
+    id: "products",
+    covers: ["checkout.product-card", "checkout.product-list"],
+    quote: {
+      quoteId: "qt_products",
+      signature: "sig",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      currency: "GBP",
+      lineItems: [
+        {
+          nodeId: "wallet",
+          kind: "product",
+          label: "Leather Wallet",
+          quantity: 1,
+          unitAmount: 3900,
+          amount: 3900,
+        },
+        {
+          nodeId: "belt",
+          kind: "product",
+          label: "Woven Belt",
+          quantity: 2,
+          unitAmount: 2400,
+          amount: 4800,
+        },
+        {
+          nodeId: "polish",
+          kind: "product",
+          label: "Leather Balm",
+          quantity: 1,
+          unitAmount: 900,
+          amount: 900,
+        },
+      ],
+      subtotal: 9600,
+      discount: 0,
+      shipping: 0,
+      tax: 0,
+      total: 9600,
+      notices: [],
+    },
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["list"] },
+          {
+            id: "list",
+            type: "checkout.product-list",
+            children: ["wallet", "belt", "polish"],
+          },
+          {
+            id: "wallet",
+            type: "checkout.product-card",
+            props: {
+              title: "Leather Wallet",
+              description: "Full grain, four card slots.",
+              price: 4500,
+              sku: "LW-01",
+              image: WALLET,
+              imageAlt: "",
+            },
+          },
+          {
+            id: "belt",
+            type: "checkout.product-card",
+            props: {
+              title: "Woven Belt",
+              description: "Elastic weave, leather tab.",
+              price: 2400,
+              quantity: 2,
+              inventory: 3,
+            },
+          },
+          {
+            id: "polish",
+            type: "checkout.product-card",
+            props: { title: "Leather Balm", price: 900, sku: "LB-04" },
+          },
+        ],
+        ["section"],
+      ),
+  },
+  {
     id: "order-summary",
     covers: ["checkout.order-summary"],
+    cart: [{ nodeId: "summary", quantity: 1 }],
     quote: {
       quoteId: "qt_gallery",
       signature: "sig",

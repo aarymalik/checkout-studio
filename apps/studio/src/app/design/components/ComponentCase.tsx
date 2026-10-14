@@ -73,7 +73,10 @@ export function ComponentCase({
   const quote = current.quote
 
   return (
-    <CheckoutProvider source={{ quote: () => Promise.resolve({ ok: true, quote }) }}>
+    <CheckoutProvider
+      source={{ quote: () => Promise.resolve({ ok: true, quote }) }}
+      initialItems={current.cart ?? []}
+    >
       {drawn}
     </CheckoutProvider>
   )
