@@ -6,6 +6,7 @@ import { coreEmbed } from "@checkout-studio/plugin-core-embed/renderer"
 import { coreForms } from "@checkout-studio/plugin-core-forms/renderer"
 import { checkout } from "@checkout-studio/plugin-checkout/renderer"
 import { coreLayout } from "@checkout-studio/plugin-core-layout/renderer"
+import { marketing } from "@checkout-studio/plugin-marketing/renderer"
 
 /**
  * The registry the canvas renders through.
@@ -35,5 +36,6 @@ export const host = new PluginHost({
   .register(coreEmbed)
   .register(coreForms)
   .register(checkout)
+  .register(marketing)
 
 export const registry: RendererRegistry = host.startSync()

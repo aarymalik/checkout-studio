@@ -54,6 +54,21 @@ export interface ComponentCase {
    * what a picture of a summary is for.
    */
   cart?: readonly CartItem[]
+  /**
+   * A selector for anything in this case that is not the same twice.
+   *
+   * Covered with a solid block before the comparison. Only a clock has needed
+   * it: a countdown's digits are read from `Date.now()` at render, so they
+   * differ on every run — the first version of this case claimed a far-future
+   * deadline made them stable, which is wrong, because "26733 days, 7 hours,
+   * 24 minutes, 27 seconds" changes in three of its four parts every time.
+   *
+   * What is masked is the values only. The boxes, the labels, the type, the
+   * spacing and the colours are all still compared, which is what a screenshot
+   * of a countdown is for — nobody needs a picture to tell them what 27 looks
+   * like.
+   */
+  mask?: string
   /** The page this case draws. */
   document: () => CheckoutSchema
 }
@@ -710,6 +725,30 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
           { id: "section", type: "core.section", children: ["badges", "guarantee"] },
           { id: "badges", type: "checkout.trust-badges" },
           { id: "guarantee", type: "checkout.guarantee-box" },
+        ],
+        ["section"],
+      ),
+  },
+  {
+    id: "marketing",
+    covers: ["marketing.countdown", "marketing.progress-bar"],
+    /*
+     * The digits are masked, because they are a clock. Every part but the days
+     * is different on every run, and `animations: "disabled"` does nothing
+     * about it — the value is read from the clock at render, not animated into
+     * place.
+     */
+    mask: ".ck-countdown-value",
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["progress", "clock"] },
+          { id: "progress", type: "marketing.progress-bar", props: { value: 2, max: 3 } },
+          {
+            id: "clock",
+            type: "marketing.countdown",
+            props: { endsAt: "2099-12-25T00:00:00Z", label: "Offer ends in" },
+          },
         ],
         ["section"],
       ),

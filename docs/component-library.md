@@ -1187,15 +1187,26 @@ other node's.
 
 Editable
 
-Target Date
-
-Timezone
+Target Date _(one field, including its timezone — see below)_
 
 Labels
 
 Colors
 
 Expired State
+
+Target Date and Timezone are a single field holding an exact instant:
+`2026-12-25T00:00:00-05:00`. Two fields can disagree, and resolving a
+wall-clock time in a named zone means asking a timezone database what the
+offset will be on a date that has not happened yet — which changes when a
+government moves its clocks, and is ambiguous twice a year. A string without an
+offset is read as UTC.
+
+The digits are `aria-hidden` and there is no live region: a countdown that
+announced itself would interrupt a screen reader every second. The deadline is
+given once in words, in the viewer's own timezone.
+
+Colors are styles, so they are themeable and respond to dark mode.
 
 ---
 
@@ -1269,7 +1280,18 @@ Maximum
 
 Label
 
-Animation
+Animation _(not built — see below)_
+
+`role="progressbar"` rather than `<progress>`: the element is semantically
+right and practically unstyleable, since the parts that matter are
+vendor-prefixed pseudo-elements. The role carries the same meaning to a screen
+reader and leaves the drawing to CSS the theme controls.
+
+The value is clamped to the range. A bar cannot be more than full.
+
+Animation here would mean a bar that moves on its own, which is decoration and
+forbidden by the motion rules in CLAUDE.md. The width animates when the value
+changes, and collapses to nothing under `prefers-reduced-motion`.
 
 ---
 

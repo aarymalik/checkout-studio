@@ -22,6 +22,7 @@ describe("the published registry", () => {
       ["core-embed", "active"],
       ["core-forms", "active"],
       ["checkout", "active"],
+      ["marketing", "active"],
     ])
   })
 
@@ -56,6 +57,9 @@ describe("the published registry", () => {
       // changes the cart.
       "checkout.shipping-selector",
       "checkout.tax-summary",
+      // It reads a clock that keeps moving. The trust components and the
+      // progress bar beside it do not, and ship nothing.
+      "marketing.countdown",
     ]) {
       expect(registry.has(type), type).toBe(true)
     }
@@ -98,6 +102,9 @@ describe("the published registry", () => {
       // changes the cart.
       "checkout.shipping-selector",
       "checkout.tax-summary",
+      // It reads a clock that keeps moving. The trust components and the
+      // progress bar beside it do not, and ship nothing.
+      "marketing.countdown",
     ])
   })
 })

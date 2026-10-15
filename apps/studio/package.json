@@ -29,6 +29,7 @@
     "@checkout-studio/plugin-core-embed": "workspace:*",
     "@checkout-studio/plugin-core-forms": "workspace:*",
     "@checkout-studio/plugin-core-layout": "workspace:*",
+    "@checkout-studio/plugin-marketing": "workspace:*",
     "@checkout-studio/plugin-sdk": "workspace:*",
     "@checkout-studio/renderer": "workspace:*",
     "@checkout-studio/schema": "workspace:*",

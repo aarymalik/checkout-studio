@@ -61,7 +61,16 @@ for (const testCase of COMPONENT_CASES) {
 
         await expect(page).toHaveScreenshot(
           `component-${testCase.id}-${breakpoint}-${colorScheme}.png`,
-          { fullPage: true },
+          {
+            fullPage: true,
+            /*
+             * A case may declare something that is not the same twice. Only a
+             * clock has: a countdown reads `Date.now()` when it renders, so
+             * its digits differ on every run and would fail the comparison
+             * every time. Everything around them is still compared.
+             */
+            ...(testCase.mask === undefined ? {} : { mask: [page.locator(testCase.mask)] }),
+          },
         )
       })
     }

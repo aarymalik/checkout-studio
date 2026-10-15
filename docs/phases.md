@@ -2449,7 +2449,43 @@ for a select's options, with the same caveat — the inspector's editor for a
 list arrives in Phase 12. Layout and Spacing are styles, so three badges across
 on a desktop stack on a phone.
 
-Still to do: page-level validation, and the marketing plugin.
+**The marketing plugin exists, with two of its six components.** Its own
+package and its own namespace, because none of these knows what a cart is: a
+landing page built on this engine ships marketing without checkout and loses
+nothing, and a checkout ships without marketing and loses nothing either.
+
+**Countdown reads the clock rather than counting.** Every tick recomputes from
+`Date.now()`, so a throttled tab, a laptop that slept and a page left open over
+lunch all come back showing the truth instead of however far behind they fell.
+The next tick is scheduled to land on the next whole second, not one second
+from now, so the digits change when the clock does.
+
+Its deadline is one field, not a date and a timezone. Two fields can disagree,
+and resolving a wall-clock time in a named zone means asking a timezone
+database what the offset will be on a date that has not happened yet — which
+changes when a government moves its clocks and is ambiguous twice a year. An
+instant is the same moment for the merchant, for a customer in Tokyo, and for
+the server that stops honouring the offer. The date picker with a zone beside
+it is the inspector's job in Phase 12; it writes one offset.
+
+**The digits are `aria-hidden` and there is no live region.** A countdown that
+announced itself would interrupt a screen reader every second and make the rest
+of the page unusable, so the deadline is given once in words, in the viewer's
+own timezone, and the ticking is left to the eyes. The digits also carry
+`suppressHydrationWarning`: the server renders what was left when it rendered
+and the browser has less by the time it hydrates, which is a clock rather than
+a bug to reconcile.
+
+Without a deadline it draws nothing. A merchant who has not chosen a date
+should not have a row of zeroes on their page.
+
+**Progress Bar uses `role="progressbar"` rather than `<progress>`**, which is
+semantically right and practically unstyleable — the parts that matter are
+vendor-prefixed pseudo-elements no design system can reach. Its value is
+clamped at both ends, because a value above the maximum draws a bar wider than
+its track and a negative one draws it backwards out of the left-hand edge.
+
+Still to do: Testimonial, FAQ, Logo Wall and Reviews, and page-level validation.
 
 ### Exit Criteria
 
