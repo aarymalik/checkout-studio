@@ -18,4 +18,5 @@ export type {
   QuoteProblem,
   QuoteResult,
   Selections,
+  ShippingMethod,
 } from "./checkout/source"

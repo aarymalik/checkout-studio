@@ -654,6 +654,48 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
       ),
   },
   {
+    id: "shipping-and-tax",
+    covers: ["checkout.shipping-selector", "checkout.tax-summary"],
+    cart: [{ nodeId: "summary", quantity: 1 }],
+    quote: {
+      quoteId: "qt_delivery",
+      signature: "sig",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      currency: "GBP",
+      lineItems: [
+        {
+          nodeId: "vat",
+          kind: "tax",
+          label: "VAT 20%",
+          quantity: 1,
+          unitAmount: 980,
+          amount: 980,
+        },
+      ],
+      shippingMethods: [
+        { id: "std", label: "Standard", amount: 0, description: "Three to five days" },
+        { id: "exp", label: "Express", amount: 599, description: "Next working day" },
+      ],
+      shippingMethodId: "std",
+      subtotal: 4898,
+      discount: 0,
+      shipping: 0,
+      tax: 980,
+      total: 5878,
+      notices: [],
+    },
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["ship", "tax", "summary"] },
+          { id: "ship", type: "checkout.shipping-selector" },
+          { id: "tax", type: "checkout.tax-summary", props: { note: "Charged at the UK rate." } },
+          { id: "summary", type: "checkout.order-summary" },
+        ],
+        ["section"],
+      ),
+  },
+  {
     id: "order-summary",
     covers: ["checkout.order-summary"],
     cart: [{ nodeId: "summary", quantity: 1 }],

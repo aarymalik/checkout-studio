@@ -2392,8 +2392,35 @@ decoration — the one thing CLAUDE.md's motion rules forbid outright. What is
 animated is the change of state when somebody accepts, which is animation
 communicating something.
 
-Still to do: Shipping Selector, Tax Summary, trust and guarantee components,
-page-level validation, and the marketing plugin.
+**The quote now carries the delivery options.** It did not: the documented
+shape has a shipping _total_ but never what the customer chose it from. A
+selector has to show prices against the options, and what is available depends
+on the cart and the address, so it cannot be authored on the page — and a
+component holding the prices would be a price the browser could change. Added
+to the Quote in stripe-integration.md rather than worked around.
+
+**The tick follows the quote, not the click.** `shippingMethodId` on the quote
+says which method the server priced, and that is the radio that is marked. The
+obvious alternative — mark what somebody clicked — puts a tick beside Express
+while the amount next to it still describes Standard, which is a checkout
+showing a number that is not the one being charged. The group is `aria-busy`
+in the gap instead. A test fails if the two are swapped.
+
+The selector is a `<fieldset>` of radios, so arrow keys work and a screen
+reader says "two of four" without anybody writing a key handler. With nothing
+to choose from it says so, and it invents no example methods for the canvas: a
+merchant who styles a page against options that do not exist is styling a page
+they will never see.
+
+**Tax Summary shows the server's working and does none of its own.** It lists
+the quote's `kind: "tax"` lines when they exist and the single figure when they
+do not, and it never totals them — there is a test where the lines come to
+£7.00 and the quote says £9.99, and the component prints the lines and no
+total. Its note is a sibling of the `<dl>` rather than a child, because a `<dl>`
+may hold only `<dt>`, `<dd>` and `<div>`.
+
+Still to do: trust and guarantee components, page-level validation, and the
+marketing plugin.
 
 ### Exit Criteria
 
