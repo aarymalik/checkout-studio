@@ -432,8 +432,33 @@ export interface Quote {
   tax: number
   total: number
 
+  /**
+   * What the customer may choose between, when a choice is offered, and which
+   * one this quote was priced with.
+   *
+   * Both are the server's. A Shipping Selector has to show prices against the
+   * options, and what is available depends on the cart and the address — so it
+   * cannot be authored on the page, and a component holding the prices would
+   * be a price the browser could change.
+   *
+   * `shippingMethodId` is also what the selector ticks. Marking the method
+   * somebody just clicked would put a tick beside an option while the total
+   * next to it still described the previous one.
+   */
+  shippingMethods?: ShippingMethod[]
+  shippingMethodId?: string
+
   /** Surfaced to the customer, never fatal. */
   notices: QuoteNotice[]
+}
+
+export interface ShippingMethod {
+  id: string
+  label: string
+  /** Minor units, like every other amount. */
+  amount: number
+  /** "Arrives Tuesday", or whatever else is worth knowing. */
+  description?: string
 }
 
 export interface QuoteLineItem {

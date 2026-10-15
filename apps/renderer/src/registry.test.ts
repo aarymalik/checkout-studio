@@ -52,6 +52,10 @@ describe("the published registry", () => {
       "checkout.coupon",
       // Somebody ticks it, and the cart changes.
       "checkout.order-bump",
+      // Both read a quote that lands after the page does; the selector also
+      // changes the cart.
+      "checkout.shipping-selector",
+      "checkout.tax-summary",
     ]) {
       expect(registry.has(type), type).toBe(true)
     }
@@ -90,6 +94,10 @@ describe("the published registry", () => {
       "checkout.coupon",
       // Somebody ticks it, and the cart changes.
       "checkout.order-bump",
+      // Both read a quote that lands after the page does; the selector also
+      // changes the cart.
+      "checkout.shipping-selector",
+      "checkout.tax-summary",
     ])
   })
 })

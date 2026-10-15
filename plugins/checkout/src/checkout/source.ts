@@ -47,6 +47,29 @@ export interface QuoteLineItem {
   amount: number
 }
 
+/**
+ * A way of getting the order to somebody, and what it costs.
+ *
+ * ## Why this is on the quote and not in a merchant's props
+ *
+ * A Shipping Selector has to offer choices with prices against them, and a
+ * price a component holds is a price the browser could change. What is
+ * available depends on the cart and the address as well — a method that fits
+ * one order does not fit the next — so it cannot be decided when the page is
+ * built, only when the cart is priced.
+ *
+ * This extends the Quote in docs/stripe-integration.md, which describes the
+ * shipping *total* but never what the customer chose it from. Recorded there.
+ */
+export interface ShippingMethod {
+  id: string
+  label: string
+  /** Minor units. See money.ts. */
+  amount: number
+  /** "Arrives Tuesday", or whatever else is worth knowing. */
+  description?: string
+}
+
 /** Something the customer should see, which does not stop them paying. */
 export interface QuoteNotice {
   code: string
@@ -67,6 +90,22 @@ export interface Quote {
   shipping: number
   tax: number
   total: number
+
+  /**
+   * What the customer may choose between, when the server offers a choice.
+   *
+   * Absent rather than empty when there is nothing to choose — a page with no
+   * shipping at all should not have to carry an empty list to say so.
+   */
+  shippingMethods?: readonly ShippingMethod[]
+  /**
+   * Which method this quote was priced with.
+   *
+   * The server's answer rather than the browser's: a selector that marked a
+   * method chosen because somebody clicked it would show a choice that the
+   * total beside it had not been told about yet.
+   */
+  shippingMethodId?: string
 
   notices: readonly QuoteNotice[]
 }

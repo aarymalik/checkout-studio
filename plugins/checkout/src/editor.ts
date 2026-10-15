@@ -1,6 +1,8 @@
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 
 import { orderSummaryProperties } from "./components/order-summary/properties"
+import { shippingSelectorProperties } from "./components/shipping-selector/properties"
+import { taxSummaryProperties } from "./components/tax-summary/properties"
 import { orderBumpProperties } from "./components/order-bump/properties"
 import { couponProperties } from "./components/coupon/properties"
 import { productCardProperties } from "./components/product-card/properties"
@@ -13,4 +15,6 @@ export const checkoutProperties: ReadonlyMap<string, readonly PropertyDefinition
   ["checkout.order-summary", orderSummaryProperties],
   ["checkout.coupon", couponProperties],
   ["checkout.order-bump", orderBumpProperties],
+  ["checkout.shipping-selector", shippingSelectorProperties],
+  ["checkout.tax-summary", taxSummaryProperties],
 ])
