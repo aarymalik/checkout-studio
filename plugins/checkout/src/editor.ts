@@ -1,6 +1,8 @@
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 
 import { orderSummaryProperties } from "./components/order-summary/properties"
+import { trustBadgesProperties } from "./components/trust-badges/properties"
+import { guaranteeBoxProperties } from "./components/guarantee-box/properties"
 import { shippingSelectorProperties } from "./components/shipping-selector/properties"
 import { taxSummaryProperties } from "./components/tax-summary/properties"
 import { orderBumpProperties } from "./components/order-bump/properties"
@@ -17,4 +19,6 @@ export const checkoutProperties: ReadonlyMap<string, readonly PropertyDefinition
   ["checkout.order-bump", orderBumpProperties],
   ["checkout.shipping-selector", shippingSelectorProperties],
   ["checkout.tax-summary", taxSummaryProperties],
+  ["checkout.trust-badges", trustBadgesProperties],
+  ["checkout.guarantee-box", guaranteeBoxProperties],
 ])

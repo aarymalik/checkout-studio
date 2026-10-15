@@ -1139,13 +1139,20 @@ when the offer is accepted _is_ animated, and collapses to nothing under
 
 Editable
 
-Icons
-
-Text
+Icons and Text _(one property — see below)_
 
 Layout
 
 Spacing
+
+Icons and text are a single property, because a badge is an icon _and_ its
+words: two parallel lists that must stay the same length drift the first time
+somebody deletes a row.
+
+Layout and Spacing are styles rather than props, which is what makes them
+responsive — three badges across on a desktop stack on a phone.
+
+The icons are decoration and marked `aria-hidden`. The words are what is read.
 
 ---
 
@@ -1162,6 +1169,13 @@ Description
 Background
 
 Border
+
+The title is deliberately not a heading. A guarantee is an aside rather than a
+section, and a heading here would place it in the page outline between the
+order and the payment. It is emphasised text inside a labelled `<aside>`.
+
+Background and Border are styles, so they are themeable and responsive like any
+other node's.
 
 ---
 
