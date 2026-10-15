@@ -2,6 +2,8 @@ import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { manifest } from "./manifest"
 import { orderSummary } from "./components/order-summary/definition"
+import { trustBadges } from "./components/trust-badges/definition"
+import { guaranteeBox } from "./components/guarantee-box/definition"
 import { shippingSelector } from "./components/shipping-selector/definition"
 import { taxSummary } from "./components/tax-summary/definition"
 import { orderBump } from "./components/order-bump/definition"
@@ -33,10 +35,22 @@ export const checkout: Plugin = {
     api.registerComponent(orderBump)
     api.registerComponent(shippingSelector)
     api.registerComponent(taxSummary)
+    api.registerComponent(trustBadges)
+    api.registerComponent(guaranteeBox)
   },
 }
 
-export { productCard, productList, orderSummary, coupon, orderBump, shippingSelector, taxSummary }
+export {
+  productCard,
+  productList,
+  orderSummary,
+  coupon,
+  orderBump,
+  shippingSelector,
+  taxSummary,
+  trustBadges,
+  guaranteeBox,
+}
 export { CheckoutProvider, useCheckout } from "./checkout/CheckoutProvider"
 export type { CheckoutProviderProps, CheckoutState } from "./checkout/CheckoutProvider"
 export { formatMoney } from "./checkout/money"

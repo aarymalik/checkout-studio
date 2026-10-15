@@ -696,6 +696,25 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
       ),
   },
   {
+    id: "trust",
+    covers: ["checkout.trust-badges", "checkout.guarantee-box"],
+    /*
+     * No quote and no cart. Neither of these reads one — they are the two
+     * components on a checkout page that say something without asking the
+     * server anything, and photographing them inside a checkout would suggest
+     * otherwise.
+     */
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["badges", "guarantee"] },
+          { id: "badges", type: "checkout.trust-badges" },
+          { id: "guarantee", type: "checkout.guarantee-box" },
+        ],
+        ["section"],
+      ),
+  },
+  {
     id: "order-summary",
     covers: ["checkout.order-summary"],
     cart: [{ nodeId: "summary", quantity: 1 }],

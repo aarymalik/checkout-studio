@@ -2419,8 +2419,37 @@ do not, and it never totals them — there is a test where the lines come to
 total. Its note is a sibling of the `<dl>` rather than a child, because a `<dl>`
 may hold only `<dt>`, `<dd>` and `<div>`.
 
-Still to do: trust and guarantee components, page-level validation, and the
-marketing plugin.
+**The trust components ship no JavaScript.** Neither reads a quote or
+remembers anything, so a published page renders both on the server and
+downloads not a byte for them — which is the right answer for a row whose job
+is to be there the moment the page arrives.
+
+Their icons are `aria-hidden`. Every badge carries its own words, so a glyph
+beside them repeats what was just read; an icon that says the same thing as the
+text next to it is noise read aloud.
+
+**A guarantee's title is not a heading.** It is an aside — reassurance beside
+the thing being bought, not a section of the document — and an `<h3>` would put
+it in the page outline between the order and the payment, where somebody
+navigating by headings meets it as though it were a step. It is emphasised text
+inside a labelled `<aside>` instead, so it is findable without pretending to be
+structure.
+
+**This plugin has its own five-glyph icon set**, and `core-content` has another.
+A plugin may reach the layers below it and never another plugin — they are
+independent so that a product built on this engine can ship one without the
+other. Five path strings is what that independence costs; a third plugin
+wanting the same glyphs is the moment to promote them to a shared layer rather
+than copy them again.
+
+Badges are one property rather than two parallel lists of icons and words: a
+badge is an icon _and_ its text, and two lists that must stay the same length
+drift the first time somebody deletes a row. The same decision core-forms made
+for a select's options, with the same caveat — the inspector's editor for a
+list arrives in Phase 12. Layout and Spacing are styles, so three badges across
+on a desktop stack on a phone.
+
+Still to do: page-level validation, and the marketing plugin.
 
 ### Exit Criteria
 
