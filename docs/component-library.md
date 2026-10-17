@@ -1238,13 +1238,23 @@ A rating of zero draws no stars rather than five empty ones. The stars are
 
 Editable
 
-Questions
+Questions and Answers _(one list — see below)_
 
-Answers
+Built on `<details>` and `<summary>`, so opening, keyboard operation, the
+expanded announcement and find-in-page are the browser's and the component
+ships no JavaScript.
 
-Icons
+Questions and answers are one list: a question without its answer is a
+disclosure that opens onto nothing, and two lists that must stay the same
+length drift the first time somebody deletes a row.
 
-Animation
+Icons is not editable — there is one, a chevron, and it says which state the
+disclosure is in. It turns through `details:open`, because the renderer's
+selector grammar drops attribute selectors.
+
+Animation is not built: a `<details>` cannot be animated open without scripting
+its height, which would make a static component interactive to decorate a
+transition.
 
 ---
 
@@ -1252,13 +1262,19 @@ Animation
 
 Editable
 
+Logos
+
 Columns
 
 Spacing
 
-Grayscale
+Grayscale and the hover effect are styles rather than toggles — they are what
+the thing looks like, and a merchant who wants full colour changes a filter.
 
-Hover Effect
+Every logo must carry the name of whoever it belongs to, and one without a name
+is not drawn: there is no honest alt text for a picture nobody labelled, and a
+claim a screen reader cannot read is a claim that is not being made to
+everybody. There are no default logos.
 
 ---
 
