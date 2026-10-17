@@ -80,6 +80,25 @@ export interface ComponentCase {
  * network, and the visual job runs without one. This is drawn by the browser
  * from the bytes in this file, so every platform draws the same square.
  */
+/** A stand-in logo: a wordless mark, drawn rather than fetched. */
+function logoOf(shape: string): string {
+  return (
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="24">${shape}</svg>`,
+    )
+  )
+}
+
+// A stand-in brand's own ink. Nothing in the product is drawn in it.
+// design-system-ignore: logo bytes, not interface colour.
+const LOGO_INK = "#111827"
+
+const LOGO_A = logoOf(`<rect x="2" y="6" width="92" height="12" rx="6" fill="${LOGO_INK}"/>`)
+const LOGO_B = logoOf(
+  `<circle cx="12" cy="12" r="9" fill="${LOGO_INK}"/><rect x="28" y="8" width="64" height="8" rx="4" fill="${LOGO_INK}"/>`,
+)
+
 // A stand-in product photograph. Nothing in the product is drawn in these.
 // design-system-ignore: photograph bytes, not interface colour.
 const WALLET_LEATHER = "#8b5e34"
@@ -774,6 +793,39 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
            */
           { id: "summary", type: "marketing.reviews", props: { rating: 3.5 } },
           { id: "quote", type: "marketing.testimonial", props: { company: "Acme" } },
+        ],
+        ["section"],
+      ),
+  },
+  {
+    id: "faq-and-logos",
+    covers: ["marketing.faq", "marketing.logo-wall"],
+    /*
+     * The disclosures are photographed closed, which is how a page arrives.
+     * The open state turns a chevron through `details:open`, and a screenshot
+     * of it would be a screenshot of one browser's support for a pseudo-class
+     * rather than of the component.
+     *
+     * The logos are drawn here rather than fetched: a screenshot that depended
+     * on a network is a screenshot that fails on its own.
+     */
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["logos", "questions"] },
+          {
+            id: "logos",
+            type: "marketing.logo-wall",
+            props: {
+              logos: [
+                { src: LOGO_A, label: "Northwind" },
+                { src: LOGO_B, label: "Globex" },
+                { src: LOGO_A, label: "Initech" },
+                { src: LOGO_B, label: "Umbrella" },
+              ],
+            },
+          },
+          { id: "questions", type: "marketing.faq" },
         ],
         ["section"],
       ),

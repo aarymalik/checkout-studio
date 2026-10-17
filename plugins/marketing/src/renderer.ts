@@ -1,6 +1,8 @@
 import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { countdown } from "./components/countdown/definition"
+import { faq } from "./components/faq/definition"
+import { logoWall } from "./components/logo-wall/definition"
 import { progressBar } from "./components/progress-bar/definition"
 import { reviews } from "./components/reviews/definition"
 import { testimonial } from "./components/testimonial/definition"
@@ -21,7 +23,9 @@ export const marketing: Plugin = {
     api.registerComponent(progressBar)
     api.registerComponent(testimonial)
     api.registerComponent(reviews)
+    api.registerComponent(faq)
+    api.registerComponent(logoWall)
   },
 }
 
-export { countdown, progressBar, testimonial, reviews }
+export { countdown, progressBar, testimonial, reviews, faq, logoWall }

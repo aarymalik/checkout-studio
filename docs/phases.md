@@ -2509,7 +2509,36 @@ reader's locale, because "1204 reviews" is a figure somebody has to parse and
 "1,204 reviews" is one they can read, and a count of none says nothing rather
 than "from 0 reviews".
 
-Still to do: FAQ and Logo Wall, and page-level validation.
+**The FAQ is `<details>`**, which is why it ships no JavaScript. Opening,
+keyboard operation, the expanded announcement and the browser's own
+find-in-page opening the right answer are all the element's and all free. A
+pair of divs with a click handler would need `aria-expanded`, `aria-controls`,
+a key handler, a focus ring and a tab stop, and would still spend bytes on a
+page whose budget is for taking a payment.
+
+Its chevron turns through **`details:open`** rather than `details[open]`. A
+pseudo-class survives the renderer's selector grammar and an attribute selector
+is dropped — widening the grammar for a chevron would widen it for the merchant
+CSS that Code Block accepts, which is the one place it must not be widened. On
+a browser too old for `:open` the chevron sits still and the disclosure works,
+which is the right way round. A test asserts the rule is written the emittable
+way, because the other spelling fails silently.
+
+Animation is absent: a `<details>` cannot be animated open without scripting
+its height, which would make a static component interactive in order to
+decorate a transition.
+
+**Every logo needs a name.** "As seen in" is a claim, and a claim a screen
+reader cannot read is a claim that is not being made to everybody — so a logo
+without a label is not drawn, because there is no honest alt text for a picture
+nobody named. There are no default logos either: a wall of invented brands is a
+claim the merchant has not made and one that would be easy to publish by
+accident.
+
+That completes the marketing plugin: Countdown, Progress Bar, Testimonial,
+Reviews, FAQ and Logo Wall, none of which knows what a cart is.
+
+Still to do: page-level validation.
 
 ### Exit Criteria
 

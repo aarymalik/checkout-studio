@@ -1,6 +1,8 @@
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 
 import { countdownProperties } from "./components/countdown/properties"
+import { faqProperties } from "./components/faq/properties"
+import { logoWallProperties } from "./components/logo-wall/properties"
 import { progressBarProperties } from "./components/progress-bar/properties"
 import { reviewsProperties } from "./components/reviews/properties"
 import { testimonialProperties } from "./components/testimonial/properties"
@@ -11,4 +13,6 @@ export const marketingProperties: ReadonlyMap<string, readonly PropertyDefinitio
   ["marketing.progress-bar", progressBarProperties],
   ["marketing.testimonial", testimonialProperties],
   ["marketing.reviews", reviewsProperties],
+  ["marketing.faq", faqProperties],
+  ["marketing.logo-wall", logoWallProperties],
 ])
