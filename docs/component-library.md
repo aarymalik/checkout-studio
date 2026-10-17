@@ -1276,6 +1276,17 @@ is not drawn: there is no honest alt text for a picture nobody labelled, and a
 claim a screen reader cannot read is a claim that is not being made to
 everybody. There are no default logos.
 
+**Known limitation — dark logos on a dark theme.** The images are the
+merchant's, and a dark wordmark muted to 70% all but disappears on a dark
+background. Inverting them for that colour mode is the usual answer and the
+plugin cannot do it: `descendantStyles` is a flat map of selectors with no way
+to express "when the page is dark", and the engine emits dark values by
+re-declaring tokens under an attribute selector on the root, which a
+component's own rules cannot reach. A merchant with a dark theme supplies logos
+that read on it. Fixing it properly needs either a colour-mode variant in
+`descendantStyles` or a token whose value differs by mode that a filter can
+read.
+
 ---
 
 ## Reviews
