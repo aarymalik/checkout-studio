@@ -1,6 +1,7 @@
 import type { Plugin, PluginApi } from "@checkout-studio/plugin-sdk"
 
 import { manifest } from "./manifest"
+import { checkoutValidators } from "./validators"
 import { orderSummary } from "./components/order-summary/definition"
 import { trustBadges } from "./components/trust-badges/definition"
 import { guaranteeBox } from "./components/guarantee-box/definition"
@@ -37,6 +38,8 @@ export const checkout: Plugin = {
     api.registerComponent(taxSummary)
     api.registerComponent(trustBadges)
     api.registerComponent(guaranteeBox)
+
+    for (const validator of checkoutValidators) api.registerDocumentValidator(validator)
   },
 }
 

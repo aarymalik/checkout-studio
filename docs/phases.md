@@ -2538,7 +2538,31 @@ accident.
 That completes the marketing plugin: Countdown, Progress Bar, Testimonial,
 Reviews, FAQ and Logo Wall, none of which knows what a cart is.
 
-Still to do: page-level validation.
+**Three page rules, and the line between an error and a warning.** It is
+whether a customer could be stuck or misled, not whether the merchant made a
+mistake.
+
+A control that changes a cart which cannot exist is **broken**, and blocks
+publishing: a Coupon on a page with nothing to discount accepts a code and
+applies it to nothing, and an Order Bump offers to add something to an order
+nobody can place. A component that only _shows_ a total is not broken by the
+same page — an Order Summary with an empty cart says the order is empty, which
+is true — so that is a **warning**: worth stopping to look at, not worth
+refusing.
+
+Two coupon fields are a warning too. Both write the same code into the same
+selections, so the second silently replaces the first and a customer who uses
+one and then the other sees one of them apparently do nothing. The page works,
+and which field to keep is the merchant's to say.
+
+Nothing runs these yet: the publish pre-flight is Phase 16, and they are
+registered exactly as core-forms' condition rule is. What is checked now is
+that they _reach the shipped registry_ — the studio's registry test names every
+document rule the build carries, and it failed until this plugin's three were
+added to it. A rule registered in a test harness while the product ships
+without it is the shape of a feature nothing reaches.
+
+Phase 11 is complete.
 
 ### Exit Criteria
 

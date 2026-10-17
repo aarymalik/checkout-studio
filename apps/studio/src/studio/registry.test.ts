@@ -49,6 +49,11 @@ describe("the studio's registry", () => {
       "core-content.heading-order",
       "core-embed.embed-beside-payment",
       "core-forms.condition-cycle",
+      // Three page-level rules for a checkout: whether anything on the page is
+      // for sale, and whether a coupon field is the only one.
+      "checkout.cart-without-product",
+      "checkout.total-without-product",
+      "checkout.duplicate-coupon",
     ])
   })
 
