@@ -754,6 +754,31 @@ export const COMPONENT_CASES: readonly ComponentCase[] = [
       ),
   },
   {
+    id: "social-proof",
+    covers: ["marketing.testimonial", "marketing.reviews"],
+    /*
+     * No mask and no clock: both of these draw what the merchant wrote. The
+     * stars are the reason they are photographed together — they are the same
+     * five paths in both, and a screenshot is the only thing that would notice
+     * if one of them stopped matching the other.
+     */
+    document: () =>
+      pageOf(
+        [
+          { id: "section", type: "core.section", children: ["summary", "quote"] },
+          /*
+           * Three and a half rather than the default 4.8. At sixteen pixels a
+           * star filled 96% of the way is indistinguishable from a full one,
+           * so a baseline of the default would not notice if the clipping
+           * broke entirely. A half star is the thing worth photographing.
+           */
+          { id: "summary", type: "marketing.reviews", props: { rating: 3.5 } },
+          { id: "quote", type: "marketing.testimonial", props: { company: "Acme" } },
+        ],
+        ["section"],
+      ),
+  },
+  {
     id: "order-summary",
     covers: ["checkout.order-summary"],
     cart: [{ nodeId: "summary", quantity: 1 }],

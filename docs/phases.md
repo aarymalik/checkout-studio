@@ -2485,7 +2485,31 @@ vendor-prefixed pseudo-elements no design system can reach. Its value is
 clamped at both ends, because a value above the maximum draws a bar wider than
 its track and a negative one draws it backwards out of the left-hand edge.
 
-Still to do: Testimonial, FAQ, Logo Wall and Reviews, and page-level validation.
+**Testimonial and Reviews share one star rating**, drawn from SVG paths rather
+than "★". The character is a font's idea of a star and every platform has a
+different one, so a baseline taken on macOS would never match the same page
+drawn on Linux. A fraction is a second row of filled stars clipped to a share
+of the row's width — which includes the gaps, so 4.8 of 5 fills about 76% of
+the last star rather than exactly 80%, a little over half a pixel at the size
+these are drawn, beside a figure that is always written out in full.
+
+The stars are `aria-hidden` in both, because a row of graphics read aloud is
+nothing. Each component writes the figure in words: Reviews shows it, and a
+Testimonial puts "Rated 5 out of 5" where only a screen reader finds it.
+
+A testimonial is a `<figure>` holding a `<blockquote>` and a `<figcaption>`,
+which is what HTML has for a quotation and the person it came from. A rating of
+nothing draws no stars at all rather than five empty ones — an empty row is a
+bad review, not an absent one — and nobody is attributed as "Founder at" or
+" at Acme" when only half the pair was filled in.
+
+Reviews is a summary rather than a list: a checkout page rendering a hundred
+reviews is a checkout page nobody finishes. Its count is grouped for the
+reader's locale, because "1204 reviews" is a figure somebody has to parse and
+"1,204 reviews" is one they can read, and a count of none says nothing rather
+than "from 0 reviews".
+
+Still to do: FAQ and Logo Wall, and page-level validation.
 
 ### Exit Criteria
 

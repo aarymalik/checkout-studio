@@ -1226,6 +1226,12 @@ Stars
 
 Company
 
+A `<figure>` holding a `<blockquote>` and a `<figcaption>`, which is what HTML
+has for a quotation and the person it came from.
+
+A rating of zero draws no stars rather than five empty ones. The stars are
+`aria-hidden` and the figure is given in words for a screen reader.
+
 ---
 
 ## FAQ
@@ -1260,13 +1266,23 @@ Hover Effect
 
 Editable
 
-Stars
+Rating _(the stars are drawn from it — see below)_
+
+Out of
 
 Source
 
 Count
 
-Rating
+A summary rather than a list: a checkout page rendering a hundred reviews is a
+checkout page nobody finishes.
+
+Stars are not a separate control. Two controls for one fact disagree the first
+time somebody changes one of them, so the stars are drawn from the rating. They
+are `aria-hidden`; the figure appears beside them as text.
+
+The count is grouped for the reader's locale, and a count of none says nothing
+rather than "from 0 reviews".
 
 ---
 
