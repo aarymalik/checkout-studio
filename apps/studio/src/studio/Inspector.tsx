@@ -1,42 +1,85 @@
 "use client"
 
-import {
-  Accordion,
-  AccordionHeader,
-  AccordionItem,
-  AccordionPanel,
-  Panel,
-  Splitter,
-} from "@checkout-studio/ui"
+import { Panel, Splitter } from "@checkout-studio/ui"
 import { LAYOUT } from "@checkout-studio/design-system"
-import { useShellActions, useShellLayout } from "@checkout-studio/editor"
+import {
+  PropertyInspector,
+  useEditorStore,
+  useEditorStoreApi,
+  useShellActions,
+  useShellLayout,
+  valuesFor,
+} from "@checkout-studio/editor"
+import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
+import type { ReactElement } from "react"
+
+import { propertiesFor } from "./properties"
 
 /**
  * The right inspector.
  *
- * The eleven sections from docs/ui-guidelines.md, as an accordion with one open.
- * Each section says what it will hold rather than showing a disabled control,
- * because a greyed slider teaches somebody that the product is broken while an
- * empty section tells them the truth.
+ * ## It builds itself
  *
- * The properties themselves need a selected node, which needs the state engine.
+ * The sections and the controls come from what the selected component
+ * registered. There is no branch on a type id here or in the panel, which is
+ * Phase 12's exit criterion: a component a plugin adds tomorrow gets an
+ * inspector without anybody editing this file.
+ *
+ * The definitions are assembled in `./properties` rather than reached for by
+ * the editor package, because a plugin and the editor are the same layer and
+ * neither may import the other.
+ *
+ * ## The primary selection
+ *
+ * `selection.ids` is ordered as selected and the first is the primary, which
+ * is what this shows. Editing several at once is a later slice; until then a
+ * multi-selection shows the first rather than nothing, because that is what
+ * the ordering is for.
  *
  * See docs/ui-guidelines.md § Inspector.
  */
 
-const SECTIONS = [
-  { id: "general", label: "General", waitingFor: "Name, tag and visibility." },
-  { id: "layout", label: "Layout", waitingFor: "Direction, alignment and sizing." },
-  { id: "spacing", label: "Spacing", waitingFor: "Padding, margin and gap." },
-  { id: "typography", label: "Typography", waitingFor: "Family, size, weight and leading." },
-  { id: "background", label: "Background", waitingFor: "Colour, gradient and image." },
-  { id: "border", label: "Border", waitingFor: "Width, style, colour and radius." },
-  { id: "effects", label: "Effects", waitingFor: "Shadow, blur and opacity." },
-  { id: "animation", label: "Animation", waitingFor: "Entrance, hover and scroll." },
-  { id: "responsive", label: "Responsive", waitingFor: "Per-breakpoint overrides." },
-  { id: "accessibility", label: "Accessibility", waitingFor: "Labels, roles and focus order." },
-  { id: "advanced", label: "Advanced", waitingFor: "Custom attributes and classes." },
-] as const
+/** The selected component's properties, and what it currently holds. */
+function Properties(): ReactElement {
+  const store = useEditorStoreApi()
+  const selected = useEditorStore((state) => {
+    const [first] = state.selection.ids
+
+    return first === undefined ? null : (state.document.nodes[first] ?? null)
+  })
+
+  if (selected === null) {
+    return <PropertyInspector definitions={[]} values={{}} onChange={() => undefined} empty />
+  }
+
+  const definitions = propertiesFor(selected.type)
+
+  function change(definition: PropertyDefinition, value: string | number | boolean | null): void {
+    if (selected === null) return
+
+    /*
+     * Which bag a value goes into is the definition's to say. The two writes
+     * group differently on purpose — `setProps` and `setStyles` each carry
+     * their own group key, so holding an arrow key down is one undo entry
+     * rather than forty.
+     */
+    if (definition.target === "prop") {
+      store.getState().setProps(selected.id, { [definition.key]: value })
+
+      return
+    }
+
+    store.getState().setStyles([selected.id], { [definition.key]: value })
+  }
+
+  return (
+    <PropertyInspector
+      definitions={definitions}
+      values={valuesFor(selected, definitions)}
+      onChange={change}
+    />
+  )
+}
 
 export function Inspector() {
   const layout = useShellLayout()
@@ -66,17 +109,7 @@ export function Inspector() {
         style={{ width: layout.rightWidth }}
         className="min-w-0"
       >
-        {/* One section open, per the guidelines: eleven open at once is a wall. */}
-        <Accordion type="single" defaultValue="general" collapsible>
-          {SECTIONS.map((section) => (
-            <AccordionItem key={section.id} value={section.id}>
-              <AccordionHeader>{section.label}</AccordionHeader>
-              <AccordionPanel>
-                <p className="text-caption text-foreground-muted">{section.waitingFor}</p>
-              </AccordionPanel>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <Properties />
       </Panel>
     </div>
   )

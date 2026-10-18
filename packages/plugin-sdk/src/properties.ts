@@ -235,23 +235,63 @@ export const propertyDefinition = base
   })
 
 /** Every property a component exposes. One key, once. */
+/**
+ * Whether a repeated key is repeated safely.
+ *
+ * One key may be declared more than once when each declaration is shown under
+ * a different answer to the *same* question — Embed's `id` is "Video ID" for
+ * YouTube and "Booking link" for Cal.com, and a single field labelled "ID"
+ * would be one nobody can fill in without guessing.
+ *
+ * The conditions have to watch one key and test different values, so at most
+ * one of them is ever on screen. Anything looser and the warning this rule
+ * exists for is true again: two controls writing the same key, and whichever
+ * is drawn last wins.
+ */
+function mutuallyExclusive(
+  properties: readonly { showWhen?: { key: string; equals?: unknown } | undefined }[],
+): boolean {
+  const watched = new Set<string>()
+  const values: unknown[] = []
+
+  for (const property of properties) {
+    const condition = property.showWhen
+
+    // No condition, or one that tests `not` rather than a value: two of those
+    // can both be true.
+    if (condition === undefined || condition.equals === undefined) return false
+
+    watched.add(condition.key)
+    values.push(condition.equals)
+  }
+
+  return watched.size === 1 && new Set(values).size === values.length
+}
+
 export const propertyDefinitions = z
   .array(propertyDefinition)
   .superRefine((properties, context) => {
-    const seen = new Set<string>()
+    const byIdentity = new Map<string, { index: number; property: (typeof properties)[number] }[]>()
 
     for (const [index, property] of properties.entries()) {
       const identity = `${property.target}:${property.key}`
+      const found = byIdentity.get(identity)
 
-      if (seen.has(identity)) {
+      if (found === undefined) byIdentity.set(identity, [{ index, property }])
+      else found.push({ index, property })
+    }
+
+    for (const declarations of byIdentity.values()) {
+      if (declarations.length < 2) continue
+      if (mutuallyExclusive(declarations.map((declaration) => declaration.property))) continue
+
+      for (const { index, property } of declarations.slice(1)) {
         context.addIssue({
           code: "custom",
-          message: `"${property.key}" is defined twice. The second one would win silently.`,
+          message: `"${property.key}" is defined twice. The second one would win silently — unless each declaration is shown by \`showWhen\` under a different value of one other property.`,
           path: [index, "key"],
         })
       }
-
-      seen.add(identity)
     }
   })
 

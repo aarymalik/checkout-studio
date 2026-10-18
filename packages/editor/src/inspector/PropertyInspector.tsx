@@ -1,0 +1,110 @@
+"use client"
+
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel } from "@checkout-studio/ui"
+import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
+import type { ReactElement } from "react"
+
+import { Control } from "./Control"
+import { sectionsFor } from "./sections"
+
+/**
+ * The inspector's panel, built from what a component registered.
+ *
+ * ## It is given its properties, never asked for them
+ *
+ * This package cannot see a plugin — they are the same layer, and a plugin may
+ * never be imported by the editor. So the application assembles the
+ * definitions from the plugins it installed and hands them in, which is also
+ * what makes the panel testable without a registry and what keeps "the engine
+ * knows nothing about checkout" true of the inspector too.
+ *
+ * ## Nothing in here is hardcoded per component
+ *
+ * There is no `if (type === "core.heading")` and there is nowhere to put one.
+ * A new component's inspector appears because the component registered
+ * properties, which is Phase 12's exit criterion stated as code.
+ *
+ * ## Two empty states, because they mean different things
+ *
+ * Nothing selected is "pick something". A selected component with no
+ * registered properties is "there is nothing to change here" — which is true
+ * of a Spacer, and is not a fault.
+ */
+
+export interface PropertyInspectorProps {
+  /** The properties the selected component registered, in registration order. */
+  definitions: readonly PropertyDefinition[]
+  /** What the node currently holds, keyed as the definitions are. */
+  values: Readonly<Record<string, unknown>>
+  onChange: (definition: PropertyDefinition, value: string | number | boolean | null) => void
+  /** Keys whose value differs across a multi-selection. */
+  mixedKeys?: ReadonlySet<string>
+  /** Nothing is selected. */
+  empty?: boolean
+  disabled?: boolean
+}
+
+export function PropertyInspector({
+  definitions,
+  values,
+  onChange,
+  mixedKeys,
+  empty = false,
+  disabled = false,
+}: PropertyInspectorProps): ReactElement {
+  if (empty) {
+    return (
+      <p className="p-4 text-small text-foreground-muted" data-inspector-state="no-selection">
+        Select something on the canvas to edit it.
+      </p>
+    )
+  }
+
+  const sections = sectionsFor(definitions, values)
+  const first = sections[0]
+
+  if (first === undefined) {
+    return (
+      <p className="p-4 text-small text-foreground-muted" data-inspector-state="no-properties">
+        This component has nothing to configure.
+      </p>
+    )
+  }
+
+  return (
+    // One open at a time, per docs/ui-guidelines.md: eleven open at once is a
+    // wall rather than a panel.
+    <Accordion type="single" defaultValue={first.group} collapsible>
+      {sections.map((section) => (
+        <AccordionItem key={section.group} value={section.group}>
+          <AccordionHeader>{section.group}</AccordionHeader>
+
+          <AccordionPanel>
+            <div className="flex flex-col gap-4 p-3">
+              {section.properties.map((definition, index) => (
+                <Control
+                  /*
+                   * The index too: one key may be declared more than once when
+                   * each is shown under a different answer to the same
+                   * question — Embed's `id` is "Video ID" for one service and
+                   * "Booking link" for another. Only one survives `isShown`,
+                   * but keying on the pair alone would be a collision waiting
+                   * for the day that stops being true.
+                   */
+                  key={`${definition.target}:${definition.key}:${String(index)}`}
+                  definition={definition}
+                  value={values[definition.key]}
+                  mixed={mixedKeys?.has(definition.key) === true}
+                  disabled={disabled}
+                  onChange={(next) => {
+                    onChange(definition, next)
+                  }}
+                />
+              ))}
+            </div>
+          </AccordionPanel>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  )
+}
