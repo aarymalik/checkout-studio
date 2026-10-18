@@ -1,12 +1,22 @@
 "use client"
 
-import { ColorPicker, Select, SelectOption, Switch } from "@checkout-studio/ui"
+import {
+  ColorPicker,
+  FieldDescription,
+  FieldLabel,
+  FieldShell,
+  Select,
+  SelectOption,
+  Switch,
+  cn,
+  inputVariants,
+} from "@checkout-studio/ui"
 import { isTokenReference } from "@checkout-studio/schema"
 import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import type { KeyboardEvent, ReactElement } from "react"
 
-import { DraftInput } from "./DraftInput"
+import { DraftInput, useDraft } from "./DraftInput"
 import { columnTracks, formatLength, parseColumns, parseLength } from "./length"
 
 /**
@@ -171,37 +181,15 @@ export function Control({
       }
 
       return (
-        <div className="flex items-end gap-2">
-          <DraftInput
-            {...shared}
-            type="number"
-            inputMode="decimal"
-            className="min-w-0 flex-1"
-            value={mixed || length === null ? "" : String(length.amount)}
-            {...(mixed ? { placeholder: "Mixed" } : {})}
-            accepts={(draft) => draft !== "" && Number.isFinite(Number(draft))}
-            onCommit={(draft) => {
-              onChange(formatLength(clamped(Number(draft), definition), unit ?? "px"))
-            }}
-          />
-
-          <Select
-            label={`${definition.label} unit`}
-            labelHidden
-            value={unit ?? "px"}
-            onValueChange={(next) => {
-              // Changing the unit keeps the number. Somebody switching px to
-              // rem means "the same figure in rem", not "start again".
-              onChange(formatLength(length?.amount ?? 0, next))
-            }}
-          >
-            {units.map((candidate) => (
-              <SelectOption key={candidate} value={candidate}>
-                {candidate}
-              </SelectOption>
-            ))}
-          </Select>
-        </div>
+        <LengthControl
+          definition={definition}
+          amount={mixed || length === null ? "" : String(length.amount)}
+          unit={unit ?? "px"}
+          units={units}
+          disabled={disabled}
+          mixed={mixed}
+          onChange={onChange}
+        />
       )
     }
 
@@ -272,6 +260,87 @@ export function Control({
     default:
       return <Unbuilt definition={definition} reason={`No ${definition.control} control yet.`} />
   }
+}
+
+/**
+ * A number and the unit it is in, on one line.
+ *
+ * The label is the row's, not the input's. Using `Input` here put its label,
+ * its box and its help in a column and left the unit picker beside the whole
+ * stack — so the picker floated a line above the number it belonged to, which
+ * is exactly how it looked in the product.
+ */
+function LengthControl({
+  definition,
+  amount,
+  unit,
+  units,
+  disabled,
+  mixed,
+  onChange,
+}: {
+  definition: PropertyDefinition
+  amount: string
+  unit: string
+  units: readonly string[]
+  disabled: boolean
+  mixed: boolean
+  onChange: (value: string) => void
+}): ReactElement {
+  const id = `ck-length-${definition.target}-${definition.key}`
+  const [draft, setDraft] = useDraft(amount)
+
+  return (
+    <FieldShell>
+      <FieldLabel htmlFor={id}>{definition.label}</FieldLabel>
+
+      <div className="flex items-center gap-2" data-inspector-row={definition.key}>
+        <input
+          id={id}
+          type="number"
+          inputMode="decimal"
+          disabled={disabled}
+          className={cn(inputVariants({ size: "md" }), "min-w-0 flex-1")}
+          value={draft}
+          {...(mixed ? { placeholder: "Mixed" } : {})}
+          {...(definition.min === undefined ? {} : { min: definition.min })}
+          {...(definition.max === undefined ? {} : { max: definition.max })}
+          onChange={(event) => {
+            const next = event.target.value
+
+            setDraft(next)
+
+            if (next === "" || !Number.isFinite(Number(next))) return
+
+            onChange(formatLength(clamped(Number(next), definition), unit))
+          }}
+        />
+
+        <Select
+          label={`${definition.label} unit`}
+          labelHidden
+          size="md"
+          value={unit}
+          disabled={disabled}
+          onValueChange={(next) => {
+            // The number survives the unit. Somebody switching px to rem means
+            // the same figure in rem, not start again.
+            onChange(formatLength(Number(draft === "" ? 0 : draft), next))
+          }}
+        >
+          {units.map((candidate) => (
+            <SelectOption key={candidate} value={candidate}>
+              {candidate}
+            </SelectOption>
+          ))}
+        </Select>
+      </div>
+
+      {definition.help === undefined ? null : (
+        <FieldDescription>{definition.help}</FieldDescription>
+      )}
+    </FieldShell>
+  )
 }
 
 /** A value that came from the design system, shown rather than edited. */

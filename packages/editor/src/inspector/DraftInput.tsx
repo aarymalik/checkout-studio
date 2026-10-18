@@ -46,6 +46,25 @@ export interface DraftInputProps {
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
 }
 
+/**
+ * The draft, and the resync.
+ *
+ * Separated from the box so a control that lays out its own markup — a length,
+ * which has to put a unit picker beside the input rather than beside the whole
+ * labelled stack — gets the same behaviour without reimplementing it.
+ */
+export function useDraft(value: string): [string, (next: string) => void] {
+  const [draft, setDraft] = useState(value)
+  const seen = useRef(value)
+
+  if (value !== seen.current) {
+    seen.current = value
+    setDraft(value)
+  }
+
+  return [draft, setDraft]
+}
+
 export function DraftInput({
   label,
   description,
@@ -61,13 +80,7 @@ export function DraftInput({
   className,
   onKeyDown,
 }: DraftInputProps): ReactElement {
-  const [draft, setDraft] = useState(value)
-  const seen = useRef(value)
-
-  if (value !== seen.current) {
-    seen.current = value
-    setDraft(value)
-  }
+  const [draft, setDraft] = useDraft(value)
 
   return (
     <Input

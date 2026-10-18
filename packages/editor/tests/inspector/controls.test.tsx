@@ -100,6 +100,28 @@ describe("a length control", () => {
     expect(onChange).toHaveBeenLastCalledWith("24px")
   })
 
+  it("puts the unit beside the number, under one label", () => {
+    /*
+     * What this looked like in the product before it was fixed: the unit
+     * picker floated a line above the number it belonged to.
+     *
+     * `Input` lays its label, its box and its help out in a column, so a
+     * picker placed beside *it* is beside the whole stack. The row is the
+     * number and the unit; the label is the row's.
+     */
+    const { container } = render(<Control definition={GAP} value="16px" onChange={vi.fn()} />)
+
+    const row = container.querySelector('[data-inspector-row="gap"]')
+
+    expect(row).not.toBeNull()
+    expect(row?.contains(screen.getByLabelText("Gap"))).toBe(true)
+    expect(row?.contains(screen.getByRole("combobox"))).toBe(true)
+
+    // The visible one is the row's; the unit picker's own is hidden, so the
+    // number is named once rather than twice.
+    expect(screen.getByText("Gap").tagName).toBe("LABEL")
+  })
+
   it("keeps the number when the unit changes", async () => {
     /*
      * Somebody switching px to rem means "the same figure in rem", not "start
