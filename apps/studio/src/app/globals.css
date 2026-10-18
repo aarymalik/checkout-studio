@@ -10,6 +10,17 @@
 @import "@checkout-studio/design-system/tailwind/tokens.css";
 @import "@checkout-studio/design-system/css/reset.css";
 
-/* Tell Tailwind where to look for class names. */
+/*
+ * Tell Tailwind where to look for class names.
+ *
+ * Every package whose source reaches this application's screen has to be
+ * listed. A class used only in a package that is missing from this list
+ * produces no CSS at all, and the component renders as unstyled markup — which
+ * is not a build error, a type error or a test failure. The inspector's
+ * four-side spacing control was the first thing to notice: `grid-cols-4`
+ * appears nowhere in this app or in `ui`, so the four boxes stacked down the
+ * panel at full width.
+ */
 @source "../../src";
 @source "../../../../packages/ui/src";
+@source "../../../../packages/editor/src";
