@@ -1,8 +1,13 @@
 "use client"
 
-import { Input, Select, SelectOption, Switch } from "@checkout-studio/ui"
+import { ColorPicker, Select, SelectOption, Switch } from "@checkout-studio/ui"
+import { isTokenReference } from "@checkout-studio/schema"
+import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import type { KeyboardEvent, ReactElement } from "react"
+
+import { DraftInput } from "./DraftInput"
+import { columnTracks, formatLength, parseColumns, parseLength } from "./length"
 
 /**
  * One control, chosen by what the property asked for.
@@ -93,14 +98,18 @@ export function Control({
 
     case "number":
       return (
-        <Input
+        <DraftInput
           {...shared}
           type="number"
           inputMode="decimal"
           value={mixed || typeof value !== "number" ? "" : String(value)}
-          placeholder={mixed ? "Mixed" : undefined}
+          {...(mixed ? { placeholder: "Mixed" } : {})}
           {...(definition.min === undefined ? {} : { min: definition.min })}
           {...(definition.max === undefined ? {} : { max: definition.max })}
+          accepts={(draft) => draft !== "" && Number.isFinite(Number(draft))}
+          onCommit={(draft) => {
+            onChange(clamped(Number(draft), definition))
+          }}
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
             if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return
 
@@ -117,48 +126,182 @@ export function Control({
 
             onChange(clamped(nudged(from, by), definition))
           }}
-          onChange={(event) => {
-            const next = event.target.value
-
-            /*
-             * An empty box is not zero. Clearing a number to type a new one
-             * would otherwise write 0 into the document on the way past, and
-             * every clear would be an undo entry saying the size became
-             * nothing.
-             */
-            if (next === "") return
-
-            const parsed = Number(next)
-
-            // Invalid input is refused and the previous value stands.
-            if (!Number.isFinite(parsed)) return
-
-            onChange(clamped(parsed, definition))
-          }}
         />
       )
 
     case "text":
       return (
-        <Input
+        <DraftInput
           {...shared}
           type="text"
           value={mixed || typeof value !== "string" ? "" : value}
-          placeholder={mixed ? "Mixed" : undefined}
-          onChange={(event) => {
-            onChange(event.target.value)
+          {...(mixed ? { placeholder: "Mixed" } : {})}
+          accepts={() => true}
+          onCommit={(draft) => {
+            onChange(draft)
+          }}
+        />
+      )
+
+    case "dimension":
+    case "spacing":
+    case "radius": {
+      /*
+       * A reference to the design system is shown and not edited. Most style
+       * values in this product are one — a grid's default gap is
+       * `{spacing.5}` — and parsing that as a number gives NaN, which written
+       * back would replace the reference with a literal nobody chose. The
+       * picker that changes it is the next slice; losing it quietly is not an
+       * acceptable way to wait for one.
+       */
+      if (typeof value === "string" && isTokenReference(value)) {
+        return <Token definition={definition} value={value} />
+      }
+
+      const length = parseLength(value)
+      const units = definition.units ?? ["px"]
+      const unit = length?.unit === undefined || length.unit === "" ? units[0] : length.unit
+
+      if (value !== undefined && value !== null && value !== "" && length === null) {
+        // `auto`, `fit-content`, a calc — real values this control cannot show
+        // as a number. Saying so beats rounding them to nothing.
+        return (
+          <Unbuilt definition={definition} reason={`${String(value)} is not a plain length.`} />
+        )
+      }
+
+      return (
+        <div className="flex items-end gap-2">
+          <DraftInput
+            {...shared}
+            type="number"
+            inputMode="decimal"
+            className="min-w-0 flex-1"
+            value={mixed || length === null ? "" : String(length.amount)}
+            {...(mixed ? { placeholder: "Mixed" } : {})}
+            accepts={(draft) => draft !== "" && Number.isFinite(Number(draft))}
+            onCommit={(draft) => {
+              onChange(formatLength(clamped(Number(draft), definition), unit ?? "px"))
+            }}
+          />
+
+          <Select
+            label={`${definition.label} unit`}
+            labelHidden
+            value={unit ?? "px"}
+            onValueChange={(next) => {
+              // Changing the unit keeps the number. Somebody switching px to
+              // rem means "the same figure in rem", not "start again".
+              onChange(formatLength(length?.amount ?? 0, next))
+            }}
+          >
+            {units.map((candidate) => (
+              <SelectOption key={candidate} value={candidate}>
+                {candidate}
+              </SelectOption>
+            ))}
+          </Select>
+        </div>
+      )
+    }
+
+    case "columns": {
+      const count = parseColumns(value)
+
+      return (
+        <DraftInput
+          {...shared}
+          type="number"
+          inputMode="numeric"
+          value={mixed || count === null ? "" : String(count)}
+          {...(mixed ? { placeholder: "Mixed" } : {})}
+          min={definition.min ?? 1}
+          {...(definition.max === undefined ? {} : { max: definition.max })}
+          accepts={(draft) => Number.isInteger(Number(draft)) && Number(draft) >= 1}
+          onCommit={(draft) => {
+            // Stored as the track list it means, which is what the renderer
+            // reads and what the merchant never has to think about.
+            onChange(columnTracks(clamped(Number(draft), definition)))
+          }}
+        />
+      )
+    }
+
+    case "color": {
+      if (typeof value === "string" && isTokenReference(value)) {
+        return <Token definition={definition} value={value} />
+      }
+
+      return (
+        <ColorPicker
+          label={definition.label}
+          {...(definition.help === undefined ? {} : { description: definition.help })}
+          disabled={disabled}
+          // A colour the merchant is choosing, not one this interface is drawn in.
+          // design-system-ignore: the picker needs somewhere to start.
+          value={typeof value === "string" && value !== "" ? value : "#000000"}
+          onChange={(hex) => {
+            onChange(hex)
+          }}
+        />
+      )
+    }
+
+    case "url":
+      return (
+        <DraftInput
+          {...shared}
+          type="text"
+          inputMode="url"
+          value={mixed || typeof value !== "string" ? "" : value}
+          {...(mixed ? { placeholder: "Mixed" } : {})}
+          /*
+           * The draft is whatever is being typed; only a safe address reaches
+           * the document. `safeHref` is the same check the components use
+           * before a value reaches an `href`, so what the inspector stores and
+           * what a page renders cannot drift — and a `javascript:` URL is
+           * never written at all, not written and sanitised later.
+           */
+          accepts={(draft) => draft === "" || safeHref(draft) !== null}
+          onCommit={(draft) => {
+            onChange(draft)
           }}
         />
       )
 
     default:
-      return (
-        <div data-inspector-unbuilt={definition.control}>
-          <p className="text-small text-foreground">{definition.label}</p>
-          <p className="text-caption text-foreground-muted">
-            {`No ${definition.control} control yet.`}
-          </p>
-        </div>
-      )
+      return <Unbuilt definition={definition} reason={`No ${definition.control} control yet.`} />
   }
+}
+
+/** A value that came from the design system, shown rather than edited. */
+function Token({
+  definition,
+  value,
+}: {
+  definition: PropertyDefinition
+  value: string
+}): ReactElement {
+  return (
+    <div data-inspector-token={definition.key}>
+      <p className="text-small text-foreground">{definition.label}</p>
+      <p className="text-caption text-foreground-muted">{`From the theme: ${value}`}</p>
+    </div>
+  )
+}
+
+/** Something this panel cannot edit yet, said plainly. */
+function Unbuilt({
+  definition,
+  reason,
+}: {
+  definition: PropertyDefinition
+  reason: string
+}): ReactElement {
+  return (
+    <div data-inspector-unbuilt={definition.control}>
+      <p className="text-small text-foreground">{definition.label}</p>
+      <p className="text-caption text-foreground-muted">{reason}</p>
+    </div>
+  )
 }
