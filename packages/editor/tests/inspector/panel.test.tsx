@@ -18,7 +18,7 @@ const PROPERTIES = defineProperties([
     max: 6,
   },
   { key: "hidden", target: "prop", label: "Hidden", group: "General", control: "toggle" },
-  { key: "gap", target: "style", label: "Gap", group: "Spacing", control: "dimension" },
+  { key: "shade", target: "style", label: "Shadow", group: "Effects", control: "shadow" },
 ])
 
 function panel(
@@ -40,7 +40,7 @@ describe("what the panel is built from", () => {
 
     expect(screen.getByText("General")).toBeVisible()
     expect(screen.getByText("Typography")).toBeVisible()
-    expect(screen.getByText("Spacing")).toBeVisible()
+    expect(screen.getByText("Effects")).toBeVisible()
   })
 
   it("puts the sections in the order the SDK lists them, whatever order they arrive in", () => {
@@ -159,7 +159,7 @@ describe("what a node currently holds", () => {
       parentId: null,
       children: [],
       props: { title: "Hello" },
-      styles: { desktop: { base: { gap: "8px" } } },
+      styles: { desktop: { base: { shade: "0 1px 2px #0001" } } },
       visibility: { hidden: false },
       animations: [],
       metadata: {},
@@ -169,7 +169,7 @@ describe("what a node currently holds", () => {
       title: "Hello",
       level: undefined,
       hidden: undefined,
-      gap: "8px",
+      shade: "0 1px 2px #0001",
     })
   })
 })
@@ -187,10 +187,10 @@ describe("a control nobody has built yet", () => {
      */
     const { container } = panel()
 
-    await userEvent.click(screen.getByText("Spacing"))
+    await userEvent.click(screen.getByText("Effects"))
 
-    expect(container.querySelector('[data-inspector-unbuilt="dimension"]')).not.toBeNull()
-    expect(screen.getByText("No dimension control yet.")).toBeVisible()
+    expect(container.querySelector('[data-inspector-unbuilt="shadow"]')).not.toBeNull()
+    expect(screen.getByText("No shadow control yet.")).toBeVisible()
   })
 
   it("does not stop the controls around it rendering", () => {

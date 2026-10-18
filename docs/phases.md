@@ -2732,6 +2732,29 @@ declaration is shown under a different value of one other property, which is
 exactly the case where its own reasoning — "the second would win silently" —
 does not apply.
 
+**Four more controls**: a length with its unit picked apart from its number, a
+column count stored as the track list it means, a colour, and an address. That
+is 136 of the 150 properties the shipped components register; what is left asks
+for an asset, a shadow, a gradient, a border or markup.
+
+**A token is shown, not edited.** Most style values in this product are
+references — a grid's default gap is `{spacing.5}` — and parsing one as a
+number gives `NaN`, which written back would replace a reference to the design
+system with a literal nobody chose. The picker that changes a token is the next
+slice; losing one quietly is not an acceptable way to wait for it.
+
+**Every typed control holds a draft**, and this is the bug the tests found. The
+box is controlled, so a control that refuses an invalid value snaps back to the
+old one and the next keystroke lands on the end of it: clearing 16 to type 24
+wrote `1624`, and the field could not be emptied at all. The draft is what is
+being typed; it goes upward only when it parses, which also keeps a half-typed
+URL out of the undo history. It resyncs when the document moves underneath it,
+so the box follows an undo rather than fighting it.
+
+An address is refused rather than stored and cleaned later. `safeHref` is the
+same check the components use before a value reaches an `href`, so what the
+inspector stores and what a page renders cannot drift.
+
 Still to do in this phase: the remaining controls, the token picker, per-property
 reset, responsive overrides, search, multi-selection, and the Theme panel.
 

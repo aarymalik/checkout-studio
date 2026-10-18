@@ -36,3 +36,19 @@ if (!("ResizeObserver" in globalThis)) {
     disconnect(): void {}
   }
 }
+
+/*
+ * What a Radix overlay asks the platform for.
+ *
+ * The inspector's controls are the library's, and a `Select` opens by
+ * capturing a pointer and scrolling its list into view. jsdom implements
+ * neither, so without these the listbox never opens and the failure reads as a
+ * broken control rather than a missing API. `packages/ui` has had the same
+ * four since its own tests were written.
+ */
+Element.prototype.scrollIntoView ??= function scrollIntoView(): void {}
+Element.prototype.hasPointerCapture ??= function hasPointerCapture(): boolean {
+  return false
+}
+Element.prototype.setPointerCapture ??= function setPointerCapture(): void {}
+Element.prototype.releasePointerCapture ??= function releasePointerCapture(): void {}
