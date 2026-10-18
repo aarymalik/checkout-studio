@@ -9,22 +9,29 @@ import {
   normalizeHex,
   roundHsl,
 } from "@checkout-studio/design-system"
-import { Input } from "./Input"
+import { inputVariants } from "./Input"
 import { Slider } from "./Slider"
-import { FieldLabel } from "./field"
+import { FieldError, FieldLabel, FieldShell } from "./field"
 import { Popover, PopoverContent, PopoverTrigger } from "../overlays/Popover"
 import { cn } from "../lib/cn"
 
 /**
  * A colour picker.
  *
- * Built from sliders and a hex field rather than the usual two-dimensional
- * gradient square. A drag area reports a colour only to someone who can see it
- * and use a pointer: there is no keyboard equivalent to "a bit further up and
- * to the left", and no way to announce where the handle is. Hue, saturation and
- * lightness each move on their own axis, in steps, with the value shown — which
- * is operable by anyone, and is what the numeric fields in a design tool exist
- * to provide anyway.
+ * Built from sliders and a hex field rather than a two-dimensional gradient
+ * square of our own. A drag area drawn here would report a colour only to
+ * someone who can see it and use a pointer: there is no keyboard equivalent to
+ * "a bit further up and to the left", and no way to announce where the handle
+ * is. Hue, saturation and lightness each move on their own axis, in steps, with
+ * the value shown — which is operable by anyone.
+ *
+ * There is also a real `input[type=color]`, which is the other half of the same
+ * argument. Picking a red means seeing the reds, and sliders are a poor way to
+ * browse: the platform already has a picker with a gradient square, an
+ * eyedropper and the colours somebody used last, and that one is keyboard
+ * operable, translated and maintained by somebody else. Opening it is a click
+ * on the swatch; whatever comes back lands in the hex field and the sliders at
+ * once.
  *
  * The value is a hex colour, because that is what a theme stores. HSL is how
  * the reader moves it.
@@ -52,6 +59,7 @@ export function ColorPicker({
   disabled = false,
 }: ColorPickerProps) {
   const id = useId()
+  const hexId = useId()
   const hsl = roundHsl(hexToHsl(value))
 
   /*
@@ -130,15 +138,61 @@ export function ColorPicker({
             formatValue={([current]) => `${current ?? 0}%`}
           />
 
-          <Input
-            label="Hex"
-            value={text}
-            onChange={(event) => commit(event.target.value)}
-            onBlur={() => setDraft(null)}
-            spellCheck={false}
-            className="font-code"
-            {...(draft !== null && !isHexColor(draft) ? { error: HEX_HINT } : {})}
-          />
+          {/*
+           * The system picker, and the hex it writes.
+           *
+           * Three sliders can reach every colour and none of them is how
+           * anybody chooses one: picking a red means seeing the reds. The
+           * swatch is a real `input[type=color]`, so clicking it opens
+           * whatever the platform offers — the saturation square, the
+           * eyedropper, the recent colours — and whatever comes back lands in
+           * the hex field and the sliders at the same time.
+           *
+           * Native rather than a square drawn here: it is keyboard operable,
+           * it is translated, and it has an eyedropper this project would
+           * otherwise have to ask for a permission to build.
+           */}
+          <FieldShell>
+            <FieldLabel htmlFor={hexId}>Hex</FieldLabel>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                aria-label={`${label}, system colour picker`}
+                disabled={disabled}
+                // A fallback for a value that is not yet a colour, rather than
+                // a decision about how this interface looks.
+                // design-system-ignore: the swatch needs somewhere to start.
+                value={isHexColor(value) ? normalizeHex(value) : "#000000"}
+                onChange={(event) => {
+                  setDraft(null)
+                  onChange(normalizeHex(event.target.value))
+                }}
+                className={cn(
+                  "h-control-md w-10 shrink-0 cursor-pointer p-1",
+                  "rounded-control border border-border-strong bg-surface",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              />
+
+              <input
+                id={hexId}
+                value={text}
+                onChange={(event) => commit(event.target.value)}
+                onBlur={() => setDraft(null)}
+                spellCheck={false}
+                disabled={disabled}
+                className={cn(inputVariants({ size: "md" }), "min-w-0 flex-1 font-code")}
+                {...(draft !== null && !isHexColor(draft)
+                  ? { "aria-invalid": true, "aria-describedby": `${hexId}-hint` }
+                  : {})}
+              />
+            </div>
+
+            {draft !== null && !isHexColor(draft) ? (
+              <FieldError id={`${hexId}-hint`}>{HEX_HINT}</FieldError>
+            ) : null}
+          </FieldShell>
 
           {presets === undefined ? null : (
             <div className="flex flex-col gap-2">
