@@ -1,4 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react"
+import { EditorProvider } from "@checkout-studio/editor"
+import { createDocument } from "@checkout-studio/schema"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
@@ -45,14 +47,30 @@ function press(binding: KeyBinding): void {
  * registry and the frame are in one document together.
  */
 
+/*
+ * Inside an `EditorProvider`, because the shell is. The inspector builds
+ * itself from the selected node's registered properties, so it needs a
+ * document to have a selection in — rendering the shell without one was
+ * testing an arrangement the product does not have.
+ */
 function renderShell(layout: ShellLayout = DEFAULT_LAYOUT) {
   return render(
-    <StudioShell
-      projectName="Spring Sale"
-      initialLayout={layout}
-      userKeymap={DEFAULT_KEYMAP}
-      platform="mac"
-    />,
+    <EditorProvider
+      document={createDocument({
+        projectId: "prj_shell",
+        pageId: "pag_shell",
+        themeId: "theme_default",
+        random: () => 0.5,
+      })}
+      baseVersion={1}
+    >
+      <StudioShell
+        projectName="Spring Sale"
+        initialLayout={layout}
+        userKeymap={DEFAULT_KEYMAP}
+        platform="mac"
+      />
+    </EditorProvider>,
   )
 }
 
@@ -117,30 +135,20 @@ describe("StudioShell", () => {
 
     // The eleven from docs/ui-guidelines.md, with one open: eleven open at once
     // is a wall rather than an inspector.
-    it("shows the eleven inspector sections, with one open", () => {
+    it("asks for a selection rather than drawing eleven empty sections", () => {
+      /*
+       * It used to show all eleven, each saying what it would one day hold.
+       * The inspector now builds itself from what the selected component
+       * registered, so with nothing selected there is nothing to build and it
+       * says so — a panel of empty headings is a panel somebody searches
+       * rather than reads.
+       */
       renderShell()
+
       const inspector = screen.getByRole("region", { name: "Inspector" })
-      const sections = [
-        "General",
-        "Layout",
-        "Spacing",
-        "Typography",
-        "Background",
-        "Border",
-        "Effects",
-        "Animation",
-        "Responsive",
-        "Accessibility",
-        "Advanced",
-      ]
 
-      for (const section of sections) {
-        expect(within(inspector).getByRole("button", { name: section })).toBeInTheDocument()
-      }
-
-      expect(within(inspector).getAllByRole("button", { expanded: false })).toHaveLength(
-        sections.length - 1,
-      )
+      expect(within(inspector).getByText(/Select something on the canvas/)).toBeVisible()
+      expect(within(inspector).queryByRole("button", { name: "Border" })).toBeNull()
     })
 
     it("offers the six sidebar tabs", () => {
@@ -161,12 +169,22 @@ describe("StudioShell", () => {
 
     it("uses the platform it was told about, not the one it is running on", () => {
       render(
-        <StudioShell
-          projectName="Spring Sale"
-          initialLayout={DEFAULT_LAYOUT}
-          userKeymap={DEFAULT_KEYMAP}
-          platform="other"
-        />,
+        <EditorProvider
+          document={createDocument({
+            projectId: "prj_shell",
+            pageId: "pag_shell",
+            themeId: "theme_default",
+            random: () => 0.5,
+          })}
+          baseVersion={1}
+        >
+          <StudioShell
+            projectName="Spring Sale"
+            initialLayout={DEFAULT_LAYOUT}
+            userKeymap={DEFAULT_KEYMAP}
+            platform="other"
+          />
+        </EditorProvider>,
       )
 
       expect(screen.getByRole("button", { name: /Search · Ctrl\+K/ })).toBeInTheDocument()

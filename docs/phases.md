@@ -2701,6 +2701,40 @@ pnpm test --filter=@checkout-studio/editor -t "inspector" --coverage
 pnpm test:e2e --filter=studio -g "inspector"
 ```
 
+**The inspector builds itself.** The panel takes property definitions and
+renders sections; it has never heard of a heading, a coupon or a countdown.
+There is no branch on a type id in it and nowhere to put one, which is this
+phase's exit criterion stated as code rather than as an intention.
+
+The definitions are handed to it rather than fetched. `@checkout-studio/editor`
+cannot import a plugin — same layer, and the rule is what keeps a second
+product shipping without this one's components — so the application assembles
+them from the plugins it installed, exactly as it assembles the renderer
+registry. The `./editor` halves, not `./renderer`, which is what keeps them out
+of the published bundle.
+
+Section order comes from `PROPERTY_GROUPS` rather than a copy of it: a second
+list to keep in step would one day disagree, and the panel would quietly drop a
+section nobody could find. A group nothing belongs to draws no section.
+
+**A control nobody has built yet says so.** The four built here are text,
+number, toggle and select. A kind this does not draw renders as its label and a
+sentence — a text box over a shadow writes the wrong shape into the document,
+and a disabled slider teaches somebody the product is broken.
+
+**Importing the editor halves found a module that had never been loadable.**
+`core-embed` declares `id` once per provider, each with its own label — "Video
+ID" for one service, "Booking link" for another — and each shown by a
+`showWhen` so only one is ever on screen. The SDK refused duplicate keys
+outright, so `plugin-core-embed/editor` threw at module scope and nothing had
+ever imported it to find out. The rule now allows a repeated key when every
+declaration is shown under a different value of one other property, which is
+exactly the case where its own reasoning — "the second would win silently" —
+does not apply.
+
+Still to do in this phase: the remaining controls, the token picker, per-property
+reset, responsive overrides, search, multi-selection, and the Theme panel.
+
 ### Exit Criteria
 
 ```

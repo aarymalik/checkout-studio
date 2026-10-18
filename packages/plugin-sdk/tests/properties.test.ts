@@ -114,6 +114,60 @@ describe("what it refuses", () => {
     expect(() => parse(property(), property())).toThrow(/defined twice/)
   })
 
+  it("the same key twice where only one of them is conditional", () => {
+    // One unconditional declaration is always on screen, so it is always in a
+    // fight with the other.
+    expect(() =>
+      parse(property(), property({ showWhen: { key: "provider", equals: "youtube" } })),
+    ).toThrow(/defined twice/)
+  })
+
+  it("the same key twice under conditions that can both be true", () => {
+    expect(() =>
+      parse(
+        property({ showWhen: { key: "provider", equals: "youtube" } }),
+        property({ showWhen: { key: "kind", equals: "video" } }),
+      ),
+    ).toThrow(/defined twice/)
+  })
+
+  it("the same key twice under the same value of one question", () => {
+    expect(() =>
+      parse(
+        property({ showWhen: { key: "provider", equals: "youtube" } }),
+        property({ showWhen: { key: "provider", equals: "youtube" } }),
+      ),
+    ).toThrow(/defined twice/)
+  })
+
+  it("the same key twice where one tests `not`, which two of can both be true", () => {
+    expect(() =>
+      parse(
+        property({ showWhen: { key: "provider", equals: "youtube" } }),
+        property({ showWhen: { key: "provider", not: "vimeo" } }),
+      ),
+    ).toThrow(/defined twice/)
+  })
+})
+
+describe("what it allows", () => {
+  it("one key declared once per answer to the same question", () => {
+    /*
+     * Embed's `id` is "Video ID" for YouTube and "Booking link" for Cal.com,
+     * and a single field labelled "ID" would be one nobody can fill in without
+     * guessing. At most one is ever on screen, so nothing wins silently — and
+     * this rule rejected it until the inspector tried to import the module and
+     * found it had never been loadable.
+     */
+    expect(() =>
+      parse(
+        property({ showWhen: { key: "provider", equals: "youtube" } }),
+        property({ showWhen: { key: "provider", equals: "vimeo" } }),
+        property({ showWhen: { key: "provider", equals: "cal" } }),
+      ),
+    ).not.toThrow()
+  })
+
   it("a group that is not one of the inspector's sections", () => {
     // A typo would otherwise be a section of one appearing in the panel.
     expect(() => parse(property({ group: "Typograhpy" }))).toThrow()
