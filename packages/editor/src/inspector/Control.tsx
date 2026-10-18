@@ -16,7 +16,11 @@ import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import type { KeyboardEvent, ReactElement } from "react"
 
+import { useRef, useState } from "react"
+
 import { DraftInput, useDraft } from "./DraftInput"
+import { CORNER_LABELS, SIDE_LABELS, EMPTY_SIDES, formatSides, parseSides } from "./sides"
+import type { Sides } from "./sides"
 import { columnTracks, formatLength, parseColumns, parseLength } from "./length"
 
 /**
@@ -153,9 +157,30 @@ export function Control({
         />
       )
 
-    case "dimension":
     case "spacing":
     case "radius": {
+      /*
+       * Four values, not one. These were drawn as a single length, so setting
+       * a padding wrote the same number to every side with no way to set one —
+       * and a padding of `16px 8px` read back as nothing at all, because a
+       * shorthand is not a length.
+       */
+      if (typeof value === "string" && isTokenReference(value)) {
+        return <Token definition={definition} value={value} />
+      }
+
+      return (
+        <SidesControl
+          definition={definition}
+          sides={parseSides(value) ?? EMPTY_SIDES}
+          corners={definition.control === "radius"}
+          disabled={disabled}
+          onChange={onChange}
+        />
+      )
+    }
+
+    case "dimension": {
       /*
        * A reference to the design system is shown and not edited. Most style
        * values in this product are one — a grid's default gap is
@@ -260,6 +285,120 @@ export function Control({
     default:
       return <Unbuilt definition={definition} reason={`No ${definition.control} control yet.`} />
   }
+}
+
+/**
+ * Four boxes, one per side.
+ *
+ * Each takes text rather than a number, because the three things that go in
+ * one are a length, `auto` and `0` — a control that only took numbers would
+ * refuse two of them. What is written back is the shortest shorthand that
+ * means the four: a padding of 16 everywhere is `16px`, not `16px 16px 16px
+ * 16px`, because the first is what somebody would have typed.
+ *
+ * Every box is labelled with its side in full for a screen reader and with a
+ * letter on screen, since four fields each saying "Padding top" is a column of
+ * text with no room left for the values.
+ */
+function SidesControl({
+  definition,
+  sides,
+  corners,
+  disabled,
+  onChange,
+}: {
+  definition: PropertyDefinition
+  sides: Sides
+  corners: boolean
+  disabled: boolean
+  onChange: (value: string) => void
+}): ReactElement {
+  const boxes = corners ? CORNER_LABELS : SIDE_LABELS
+
+  return (
+    <FieldShell>
+      <FieldLabel>{definition.label}</FieldLabel>
+
+      <div className="grid grid-cols-4 gap-2" data-inspector-sides={definition.key}>
+        {boxes.map((box) => (
+          <SideBox
+            key={box.key}
+            name={`${definition.label} ${box.label.toLowerCase()}`}
+            short={box.short}
+            value={sides[box.key]}
+            disabled={disabled}
+            onChange={(next) => {
+              onChange(formatSides({ ...sides, [box.key]: next }))
+            }}
+          />
+        ))}
+      </div>
+
+      {definition.help === undefined ? null : (
+        <FieldDescription>{definition.help}</FieldDescription>
+      )}
+    </FieldShell>
+  )
+}
+
+/** One side, with its letter under it. */
+function SideBox({
+  name,
+  short,
+  value,
+  disabled,
+  onChange,
+}: {
+  name: string
+  short: string
+  value: string
+  disabled: boolean
+  onChange: (value: string) => void
+}): ReactElement {
+  const [draft, setDraft] = useState(value)
+  const [editing, setEditing] = useState(false)
+  const seen = useRef(value)
+
+  /*
+   * The box is not overwritten while somebody is typing in it.
+   *
+   * Committing one side rewrites the whole shorthand, and the shorthand comes
+   * back parsed — an empty box returns as `0`, so the next keystroke landed on
+   * the end of it and clearing the left side to type `4px` produced `04px`.
+   * A field being typed into is the one thing that must not be resynced.
+   */
+  if (!editing && value !== seen.current) {
+    seen.current = value
+    setDraft(value)
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <input
+        aria-label={name}
+        disabled={disabled}
+        className={cn(inputVariants({ size: "sm" }), "w-full min-w-0 text-center")}
+        value={draft}
+        onFocus={() => {
+          setEditing(true)
+        }}
+        onBlur={() => {
+          setEditing(false)
+          // Back to what the document actually holds, which may be tidier than
+          // what was typed: `8px 8px 8px 8px` comes back as `8px`.
+          seen.current = value
+          setDraft(value)
+        }}
+        onChange={(event) => {
+          setDraft(event.target.value)
+          onChange(event.target.value)
+        }}
+      />
+      <span aria-hidden className="text-caption text-foreground-muted">
+        {short}
+      </span>
+    </div>
+  )
 }
 
 /**

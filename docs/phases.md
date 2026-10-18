@@ -2755,6 +2755,31 @@ An address is refused rather than stored and cleaned later. `safeHref` is the
 same check the components use before a value reaches an `href`, so what the
 inspector stores and what a page renders cannot drift.
 
+**Padding and margin are four sides, and were being drawn as one length.**
+`control: "spacing"` and `control: "radius"` were routed into the single-length
+control, so setting a padding wrote the same number to every side with no way
+to set one of them — and a padding of `16px 8px` read back as nothing at all,
+because a shorthand is not a length. Each is four boxes now, and what is
+written back is the shortest form that means them: a padding of 16 everywhere
+is `16px`, not `16px 16px 16px 16px`.
+
+Each box takes text rather than a number, because the three things that go in
+one are a length, `auto` and `0`. A value with brackets in it is one value:
+splitting `calc(100% - 8px)` on every space would read it as three sides.
+
+A box is not overwritten while somebody is typing in it. Committing one side
+rewrites the whole shorthand and the shorthand comes back parsed — an empty box
+returns as `0`, so clearing the left side to type `4px` produced `04px`. The
+same shape of bug as the draft, one level up.
+
+**The colour picker offers the platform's own.** Sliders can reach every colour
+and none of them is how anybody browses for one. The swatch beside the hex
+field is a real `input[type=color]`, so the gradient square, the eyedropper and
+the recently used colours are the platform's to provide — keyboard operable and
+translated, which a square drawn here would not be. That was the reason the
+square was refused in the first place; this is the other half of the same
+argument rather than a reversal of it.
+
 Still to do in this phase: the remaining controls, the token picker, per-property
 reset, responsive overrides, search, multi-selection, and the Theme panel.
 

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { describe, expect, it, vi } from "vitest"
@@ -41,6 +41,36 @@ describe("ColorPicker", () => {
     expect(screen.getByRole("slider", { name: "Hue" })).toBeInTheDocument()
     expect(screen.getByRole("slider", { name: "Saturation" })).toBeInTheDocument()
     expect(screen.getByRole("slider", { name: "Lightness" })).toBeInTheDocument()
+  })
+
+  it("offers the platform's own picker as well", async () => {
+    /*
+     * The other half of the argument above. Sliders can reach every colour and
+     * none of them is how anybody browses for one — so the swatch beside the
+     * hex field is a real `input[type=color]`, and the gradient square, the
+     * eyedropper and the recently used colours are the platform's to provide.
+     */
+    render(<Editable />)
+
+    await open()
+
+    const native = screen.getByLabelText(/system colour picker/)
+
+    expect(native).toHaveAttribute("type", "color")
+    expect(native).toHaveValue("#2563eb")
+  })
+
+  it("writes what the platform picker returns into the hex field", async () => {
+    render(<Editable />)
+
+    await open()
+
+    const native = screen.getByLabelText(/system colour picker/)
+
+    fireEvent.change(native, { target: { value: "#ff0000" } })
+
+    expect(screen.getByLabelText("Hex")).toHaveValue("#ff0000")
+    expect(screen.getByRole("slider", { name: "Hue" })).toHaveAttribute("aria-valuenow", "0")
   })
 
   it("reads the current colour into its sliders", async () => {

@@ -1,0 +1,133 @@
+/**
+ * The four sides of a padding, a margin or a radius.
+ *
+ * ## Why this exists
+ *
+ * `padding` and `margin` register as `control: "spacing"` and a radius as
+ * `control: "radius"`, and both were being drawn as a single length — so
+ * setting a padding wrote one value to all four sides and there was no way to
+ * set one of them. The shorthand was never read back either, which meant
+ * opening a component whose padding was `16px 8px` showed nothing at all.
+ *
+ * ## The shorthand, both ways
+ *
+ * CSS takes one value for all four, two for vertical and horizontal, three for
+ * top / horizontal / bottom, and four in clock order. Written back, the
+ * shortest form that means the same thing — a padding of 16 on every side is
+ * `16px`, not `16px 16px 16px 16px`, because the first is what somebody would
+ * have typed and what the next person will read.
+ *
+ * ## What a side may hold
+ *
+ * Text, not a number. `auto` is a margin, `0` is a length, and a value from the
+ * theme is a reference — a control that only took numbers would refuse two of
+ * the three.
+ */
+
+export interface Sides {
+  top: string
+  right: string
+  bottom: string
+  left: string
+}
+
+export const EMPTY_SIDES: Sides = { top: "", right: "", bottom: "", left: "" }
+
+/**
+ * Splits on the spaces between values, leaving the ones inside brackets alone.
+ *
+ * `calc(100% - 8px)` has two spaces in it and is one value. Splitting on every
+ * space would read it as three sides and silently turn a working padding into
+ * nonsense.
+ */
+function parts(value: string): readonly string[] {
+  const found: string[] = []
+  let depth = 0
+  let current = ""
+
+  for (const character of value.trim()) {
+    if (character === "(") depth += 1
+    if (character === ")") depth -= 1
+
+    if (/\s/.test(character) && depth === 0) {
+      if (current !== "") found.push(current)
+      current = ""
+      continue
+    }
+
+    current += character
+  }
+
+  if (current !== "") found.push(current)
+
+  return found
+}
+
+export function parseSides(value: unknown): Sides | null {
+  if (typeof value !== "string") return null
+
+  const found = parts(value)
+  const [first, second, third, fourth] = found
+
+  if (first === undefined) return null
+
+  switch (found.length) {
+    case 1:
+      return { top: first, right: first, bottom: first, left: first }
+    case 2:
+      return {
+        top: first,
+        right: second as string,
+        bottom: first,
+        left: second as string,
+      }
+    case 3:
+      return {
+        top: first,
+        right: second as string,
+        bottom: third as string,
+        left: second as string,
+      }
+    case 4:
+      return {
+        top: first,
+        right: second as string,
+        bottom: third as string,
+        left: fourth as string,
+      }
+    default:
+      return null
+  }
+}
+
+/** The shortest shorthand that means these four. */
+export function formatSides(sides: Sides): string {
+  const { top, right, bottom, left } = {
+    top: sides.top === "" ? "0" : sides.top,
+    right: sides.right === "" ? "0" : sides.right,
+    bottom: sides.bottom === "" ? "0" : sides.bottom,
+    left: sides.left === "" ? "0" : sides.left,
+  }
+
+  if (top === right && right === bottom && bottom === left) return top
+  if (top === bottom && left === right) return `${top} ${right}`
+  if (left === right) return `${top} ${right} ${bottom}`
+
+  return `${top} ${right} ${bottom} ${left}`
+}
+
+/** What each box is called, in the order CSS writes them. */
+export const SIDE_LABELS: readonly { key: keyof Sides; label: string; short: string }[] = [
+  { key: "top", label: "Top", short: "T" },
+  { key: "right", label: "Right", short: "R" },
+  { key: "bottom", label: "Bottom", short: "B" },
+  { key: "left", label: "Left", short: "L" },
+]
+
+/** A radius is four corners, in the same clock order CSS uses. */
+export const CORNER_LABELS: readonly { key: keyof Sides; label: string; short: string }[] = [
+  { key: "top", label: "Top left", short: "TL" },
+  { key: "right", label: "Top right", short: "TR" },
+  { key: "bottom", label: "Bottom right", short: "BR" },
+  { key: "left", label: "Bottom left", short: "BL" },
+]
