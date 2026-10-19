@@ -43,6 +43,13 @@ export function parseLength(value: unknown): Length | null {
 }
 
 export function formatLength(amount: number, unit: string): string {
+  /*
+   * `auto` is offered as a unit — a margin's units are px, rem, % and auto —
+   * and it has no number in front of it. Written as `0auto` it is not a
+   * value at all, and the declaration is dropped in silence.
+   */
+  if (unit === "auto") return "auto"
+
   return `${String(amount)}${unit}`
 }
 

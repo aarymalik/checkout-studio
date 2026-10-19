@@ -20,7 +20,7 @@ import type { KeyboardEvent, ReactElement } from "react"
 import { useRef, useState } from "react"
 
 import { DraftInput, useDraft } from "./DraftInput"
-import { CORNER_LABELS, SIDE_LABELS, EMPTY_SIDES, formatSides, parseSides } from "./sides"
+import { CORNER_LABELS, EMPTY_SIDES, SIDE_LABELS, longhandFor, parseSides } from "./sides"
 import { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
 import type { Sides } from "./sides"
 import { columnTracks, formatLength, parseColumns, parseLength } from "./length"
@@ -42,7 +42,14 @@ import { columnTracks, formatLength, parseColumns, parseLength } from "./length"
 export interface ControlProps {
   definition: PropertyDefinition
   value: unknown
-  onChange: (value: string | number | boolean | null) => void
+  /**
+   * Reports a new value, and optionally the key it belongs to.
+   *
+   * A side writes its own longhand — `paddingLeft` rather than `padding` —
+   * because writing the shorthand replaces all four sides at once, which is
+   * how changing a left padding used to flatten the top and bottom.
+   */
+  onChange: (value: string | number | boolean | null, key?: string) => void
   /**
    * The theme whose tokens this property may hold.
    *
@@ -418,27 +425,72 @@ function SidesControl({
   sides: Sides
   corners: boolean
   disabled: boolean
-  onChange: (value: string) => void
+  onChange: (value: string, key?: string) => void
 }): ReactElement {
   const boxes = corners ? CORNER_LABELS : SIDE_LABELS
+  const units = definition.units ?? ["px", "rem", "%"]
+
+  /*
+   * One unit for the property rather than one per side. Four unit pickers in a
+   * row leaves no room for the numbers, and a padding in three different units
+   * is not a thing anybody sets on purpose.
+   */
+  const unit =
+    boxes
+      .map((box) => parseLength(sides[box.key])?.unit)
+      .find((found) => found !== undefined && found !== "") ??
+    units[0] ??
+    "px"
+
+  function write(side: keyof Sides, value: string): void {
+    // The side's own longhand, so the other three are left alone. Falls back to
+    // the shorthand for a property that has no longhands.
+    onChange(value, longhandFor(definition.key, side) ?? definition.key)
+  }
 
   return (
     <FieldShell>
       <FieldLabel>{definition.label}</FieldLabel>
 
-      <div className="grid grid-cols-4 gap-2" data-inspector-sides={definition.key}>
-        {boxes.map((box) => (
-          <SideBox
-            key={box.key}
-            name={`${definition.label} ${box.label.toLowerCase()}`}
-            short={box.short}
-            value={sides[box.key]}
-            disabled={disabled}
-            onChange={(next) => {
-              onChange(formatSides({ ...sides, [box.key]: next }))
-            }}
-          />
-        ))}
+      <div className="flex items-end gap-2">
+        <div className="grid flex-1 grid-cols-4 gap-2" data-inspector-sides={definition.key}>
+          {boxes.map((box) => (
+            <SideBox
+              key={box.key}
+              name={`${definition.label} ${box.label.toLowerCase()}`}
+              short={box.short}
+              value={sides[box.key]}
+              unit={unit}
+              disabled={disabled}
+              onChange={(next) => {
+                write(box.key, next)
+              }}
+            />
+          ))}
+        </div>
+
+        <Select
+          label={`${definition.label} unit`}
+          labelHidden
+          size="sm"
+          value={unit}
+          disabled={disabled}
+          onValueChange={(next) => {
+            // Every numeric side moves to the new unit at once; a side holding
+            // `auto` is left alone, because `auto` is not a length.
+            for (const box of boxes) {
+              const length = parseLength(sides[box.key])
+
+              if (length !== null) write(box.key, formatLength(length.amount, next))
+            }
+          }}
+        >
+          {units.map((candidate) => (
+            <SelectOption key={candidate} value={candidate}>
+              {candidate}
+            </SelectOption>
+          ))}
+        </Select>
       </div>
 
       {definition.help === undefined ? null : (
@@ -448,35 +500,61 @@ function SidesControl({
   )
 }
 
-/** One side, with its letter under it. */
+/**
+ * One side, with its letter under it.
+ *
+ * A number box when the value is a length, which is what gives it the stepper
+ * arrows and the keyboard — the thing a Gap had and these did not. Text when
+ * it holds something a number box would refuse, which for a margin is `auto`.
+ *
+ * A bare number is committed with the property's unit. Typing `1` used to
+ * store `1`, which is not a valid CSS length, so the declaration was dropped
+ * and the padding silently fell back to the component's default — which looks
+ * exactly like every side changing at once.
+ */
 function SideBox({
   name,
   short,
   value,
+  unit,
   disabled,
   onChange,
 }: {
   name: string
   short: string
   value: string
+  unit: string
   disabled: boolean
   onChange: (value: string) => void
 }): ReactElement {
-  const [draft, setDraft] = useState(value)
+  const length = parseLength(value)
+  const numeric = value === "" || length !== null
+  const [draft, setDraft] = useState(
+    numeric ? (length === null ? "" : String(length.amount)) : value,
+  )
   const [editing, setEditing] = useState(false)
   const seen = useRef(value)
 
   /*
-   * The box is not overwritten while somebody is typing in it.
-   *
-   * Committing one side rewrites the whole shorthand, and the shorthand comes
-   * back parsed — an empty box returns as `0`, so the next keystroke landed on
-   * the end of it and clearing the left side to type `4px` produced `04px`.
-   * A field being typed into is the one thing that must not be resynced.
+   * The box is not overwritten while somebody is typing in it. Committing one
+   * side re-reads the whole property, and what comes back is normalised — an
+   * empty box returns as `0`, so the next keystroke landed on the end of it.
    */
   if (!editing && value !== seen.current) {
     seen.current = value
-    setDraft(value)
+    const next = parseLength(value)
+
+    setDraft(next === null ? value : String(next.amount))
+  }
+
+  function commit(next: string): void {
+    setDraft(next)
+
+    if (next === "") return
+
+    // A bare number takes the property's unit; anything else goes as written,
+    // so `auto` and `calc(...)` survive.
+    onChange(Number.isFinite(Number(next)) ? formatLength(Number(next), unit) : next)
   }
 
   return (
@@ -484,6 +562,8 @@ function SideBox({
       <input
         aria-label={name}
         disabled={disabled}
+        type={numeric ? "number" : "text"}
+        inputMode={numeric ? "decimal" : "text"}
         className={cn(inputVariants({ size: "sm" }), "w-full min-w-0 text-center")}
         value={draft}
         onFocus={() => {
@@ -491,14 +571,29 @@ function SideBox({
         }}
         onBlur={() => {
           setEditing(false)
-          // Back to what the document actually holds, which may be tidier than
-          // what was typed: `8px 8px 8px 8px` comes back as `8px`.
           seen.current = value
-          setDraft(value)
+
+          const current = parseLength(value)
+
+          setDraft(current === null ? value : String(current.amount))
+        }}
+        onKeyDown={(event) => {
+          if (!numeric || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return
+
+          /*
+           * The browser steps a number box by one and knows nothing about
+           * shift or alt. docs/phases.md asks for ±1, ±10 and ±0.1 on every
+           * control that takes a number, and these are four of them.
+           */
+          event.preventDefault()
+
+          const from = Number(draft === "" ? 0 : draft)
+          const by = stepFor(event) * (event.key === "ArrowUp" ? 1 : -1)
+
+          commit(String(nudged(Number.isFinite(from) ? from : 0, by)))
         }}
         onChange={(event) => {
-          setDraft(event.target.value)
-          onChange(event.target.value)
+          commit(event.target.value)
         }}
       />
       <span aria-hidden className="text-caption text-foreground-muted">

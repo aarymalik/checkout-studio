@@ -117,6 +117,21 @@ describe("a property following the theme", () => {
 })
 
 describe("detaching", () => {
+  it("gives a spacing token a unit, because the scale is numbers", async () => {
+    /*
+     * `{spacing.6}` is 32, not "32px". Detached as a bare number it is not a
+     * valid CSS length at all, so the declaration was dropped and the value
+     * fell back to the component's default — which looks like the control
+     * doing nothing.
+     */
+    const onChange = control(GAP, "{spacing.6}")
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Gap" }))
+    await userEvent.click(screen.getByRole("option", { name: "Custom value…" }))
+
+    expect(onChange).toHaveBeenLastCalledWith("32px")
+  })
+
   it("keeps what the token was worth", async () => {
     /*
      * A detach that cleared the value would read as the control emptying

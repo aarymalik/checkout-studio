@@ -37,7 +37,12 @@ export interface PropertyInspectorProps {
   definitions: readonly PropertyDefinition[]
   /** What the node currently holds, keyed as the definitions are. */
   values: Readonly<Record<string, unknown>>
-  onChange: (definition: PropertyDefinition, value: string | number | boolean | null) => void
+  onChange: (
+    definition: PropertyDefinition,
+    value: string | number | boolean | null,
+    /** The key to write, when it is not the definition's own — a side writes its longhand. */
+    key?: string,
+  ) => void
   /** Keys whose value differs across a multi-selection. */
   mixedKeys?: ReadonlySet<string>
   /**
@@ -106,8 +111,8 @@ export function PropertyInspector({
                   {...(theme === undefined ? {} : { theme })}
                   mixed={mixedKeys?.has(definition.key) === true}
                   disabled={disabled}
-                  onChange={(next) => {
-                    onChange(definition, next)
+                  onChange={(next, key) => {
+                    onChange(definition, next, key)
                   }}
                 />
               ))}

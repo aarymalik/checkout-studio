@@ -6,7 +6,7 @@ import { useState } from "react"
 import type { ReactElement } from "react"
 import { describe, expect, it, vi } from "vitest"
 
-import { Control, formatSides, parseSides } from "../../src/inspector"
+import { Control, effectiveSides, formatSides, parseSides } from "../../src/inspector"
 
 const PADDING = defineProperties([
   {
@@ -69,17 +69,30 @@ describe("writing a shorthand", () => {
   })
 })
 
-function sides(definition: PropertyDefinition, initial: string, onChange = vi.fn()) {
+/**
+ * The control, wired the way the application wires it.
+ *
+ * A style bag rather than one string: the control writes a side's own longhand
+ * — `paddingLeft` rather than `padding` — and reads back whatever any of the
+ * four shapes set. A harness that held a single shorthand would be testing the
+ * bug this fixes.
+ */
+function sides(
+  definition: PropertyDefinition,
+  initial: Record<string, string>,
+  onChange = vi.fn(),
+  defaults: Record<string, string> = {},
+) {
   function Harness(): ReactElement {
-    const [value, setValue] = useState(initial)
+    const [own, setOwn] = useState<Record<string, string>>(initial)
 
     return (
       <Control
         definition={definition}
-        value={value}
-        onChange={(next) => {
-          setValue(String(next))
-          onChange(next)
+        value={formatSides(effectiveSides(definition.key, own, defaults))}
+        onChange={(next, key) => {
+          setOwn((current) => ({ ...current, [key ?? definition.key]: String(next) }))
+          onChange(next, key)
         }}
       />
     )
@@ -91,46 +104,79 @@ function sides(definition: PropertyDefinition, initial: string, onChange = vi.fn
 }
 
 describe("a padding control", () => {
-  it("offers one box per side", () => {
+  it("offers one box per side, reading whichever shape set it", () => {
     /*
-     * The bug this fixes: padding was drawn as a single length, so one number
-     * went to all four sides and there was no way to set one of them.
+     * A Section ships four `paddingTop`-style defaults; other components ship
+     * one `padding`. Reading only the shorthand left half the library showing
+     * empty boxes beside a canvas that plainly had padding on it.
      */
-    sides(PADDING, "16px 8px")
+    sides(PADDING, {}, vi.fn(), {
+      paddingTop: "64px",
+      paddingRight: "24px",
+      paddingBottom: "64px",
+      paddingLeft: "24px",
+    })
 
-    expect(screen.getByLabelText("Padding top")).toHaveValue("16px")
-    expect(screen.getByLabelText("Padding right")).toHaveValue("8px")
-    expect(screen.getByLabelText("Padding bottom")).toHaveValue("16px")
-    expect(screen.getByLabelText("Padding left")).toHaveValue("8px")
+    expect(screen.getByLabelText("Padding top")).toHaveValue(64)
+    expect(screen.getByLabelText("Padding right")).toHaveValue(24)
   })
 
-  it("changes one side without touching the others", async () => {
-    const onChange = sides(PADDING, "16px")
+  it("reads a shorthand too", () => {
+    sides(PADDING, { padding: "16px 8px 4px 2px" })
+
+    expect(screen.getByLabelText("Padding top")).toHaveValue(16)
+    expect(screen.getByLabelText("Padding bottom")).toHaveValue(4)
+  })
+
+  it("writes the side's own longhand, leaving the others alone", async () => {
+    /*
+     * The bug: writing the `padding` shorthand replaced all four defaults at
+     * once, so setting a left padding flattened the top and bottom to nothing.
+     */
+    const onChange = sides(PADDING, {}, vi.fn(), { padding: "16px" })
 
     await userEvent.clear(screen.getByLabelText("Padding left"))
-    await userEvent.type(screen.getByLabelText("Padding left"), "4px")
+    await userEvent.type(screen.getByLabelText("Padding left"), "4")
 
-    expect(onChange).toHaveBeenLastCalledWith("16px 16px 16px 4px")
+    expect(onChange).toHaveBeenLastCalledWith("4px", "paddingLeft")
+    expect(screen.getByLabelText("Padding top")).toHaveValue(16)
   })
 
-  it("takes auto, which a number box would refuse", async () => {
-    const onChange = sides(PADDING, "0")
+  it("gives a bare number the property's unit", async () => {
+    /*
+     * Typing `1` stored `1`, which is not a valid CSS length — so the whole
+     * declaration was dropped and the padding fell back to the component's
+     * default, which looks exactly like every side changing at once.
+     */
+    const onChange = sides(PADDING, { padding: "16px" })
 
     await userEvent.clear(screen.getByLabelText("Padding right"))
-    await userEvent.type(screen.getByLabelText("Padding right"), "auto")
+    await userEvent.type(screen.getByLabelText("Padding right"), "1")
 
-    expect(onChange).toHaveBeenLastCalledWith("0 auto 0 0")
+    expect(onChange).toHaveBeenLastCalledWith("1px", "paddingRight")
   })
 
-  it("reads a shorthand back, which the old control could not", () => {
-    // A component whose padding was `16px 8px` showed an empty box, because a
-    // shorthand is not a length.
-    sides(PADDING, "16px 8px 4px 2px")
+  it("steps with the arrow keys, which a text box could not", async () => {
+    const onChange = sides(PADDING, { padding: "16px" })
 
-    expect(screen.getByLabelText("Padding top")).toHaveValue("16px")
-    expect(screen.getByLabelText("Padding right")).toHaveValue("8px")
-    expect(screen.getByLabelText("Padding bottom")).toHaveValue("4px")
-    expect(screen.getByLabelText("Padding left")).toHaveValue("2px")
+    screen.getByLabelText("Padding top").focus()
+    await userEvent.keyboard("{ArrowUp}")
+
+    expect(onChange).toHaveBeenLastCalledWith("17px", "paddingTop")
+
+    await userEvent.keyboard("{Shift>}{ArrowUp}{/Shift}")
+
+    expect(onChange).toHaveBeenLastCalledWith("27px", "paddingTop")
+  })
+
+  it("takes auto through the unit, which is where a margin offers it", async () => {
+    // A number box cannot hold `auto`, and `0auto` is not a value at all.
+    const onChange = sides(PADDING, { padding: "16px" })
+
+    await userEvent.click(screen.getByRole("combobox"))
+    await userEvent.click(screen.getByRole("option", { name: "auto" }))
+
+    expect(onChange).toHaveBeenLastCalledWith("auto", "paddingLeft")
   })
 
   it("shows a token rather than four empty boxes", () => {
@@ -143,10 +189,14 @@ describe("a padding control", () => {
 })
 
 describe("a radius control", () => {
-  it("names its boxes as corners, because that is what they are", () => {
-    sides(RADIUS, "4px")
+  it("names its boxes as corners, and writes the matching longhand", async () => {
+    const onChange = sides(RADIUS, { borderRadius: "4px" })
 
-    expect(screen.getByLabelText("Radius top left")).toHaveValue("4px")
-    expect(screen.getByLabelText("Radius bottom right")).toHaveValue("4px")
+    expect(screen.getByLabelText("Radius top left")).toHaveValue(4)
+
+    await userEvent.clear(screen.getByLabelText("Radius bottom right"))
+    await userEvent.type(screen.getByLabelText("Radius bottom right"), "8")
+
+    expect(onChange).toHaveBeenLastCalledWith("8px", "borderBottomRightRadius")
   })
 })
