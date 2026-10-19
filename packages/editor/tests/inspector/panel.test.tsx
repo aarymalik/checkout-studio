@@ -225,6 +225,16 @@ describe("changing a value", () => {
 
     await userEvent.type(screen.getByLabelText("Title"), "H")
 
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ key: "title" }), "H")
+    // A third argument names the key to write, and only a side control sends
+    // one — so this asserts the parts rather than the whole call.
+    const [definition, value, key] = onChange.mock.calls.at(-1) as [
+      { key: string },
+      string,
+      string | undefined,
+    ]
+
+    expect(definition.key).toBe("title")
+    expect(value).toBe("H")
+    expect(key).toBeUndefined()
   })
 })

@@ -66,7 +66,15 @@ export function pathOf(value: unknown): string | null {
 export function resolved(theme: CheckoutTheme, path: string): string {
   const value = readToken(theme, path)
 
-  return value === undefined ? "" : String(value)
+  if (value === undefined) return ""
+
+  /*
+   * The spacing scale is numbers — `{spacing.6}` is 32, not "32px". Detaching
+   * one gave a bare number, which is not a valid CSS length, so the
+   * declaration was dropped and the value silently fell back to the
+   * component's default.
+   */
+  return typeof value === "number" ? `${String(value)}px` : String(value)
 }
 
 /** What the picker calls a token: `colors.primary` rather than `{colors.primary}`. */

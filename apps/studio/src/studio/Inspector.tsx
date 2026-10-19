@@ -15,6 +15,7 @@ import type { CheckoutTheme } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
 import { propertiesFor } from "./properties"
+import { registry } from "./registry"
 
 /**
  * The right inspector.
@@ -54,9 +55,22 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
   }
 
   const definitions = propertiesFor(selected.type)
+  /*
+   * The component's own defaults are stage two of the cascade, and most of
+   * what a fresh node shows comes from there rather than from the node. The
+   * panel read only the node and so showed empty boxes beside a canvas that
+   * plainly had padding on it.
+   */
+  const component = registry.get(selected.type)
 
-  function change(definition: PropertyDefinition, value: string | number | boolean | null): void {
+  function change(
+    definition: PropertyDefinition,
+    value: string | number | boolean | null,
+    key?: string,
+  ): void {
     if (selected === null) return
+
+    const written = key ?? definition.key
 
     /*
      * Which bag a value goes into is the definition's to say. The two writes
@@ -65,18 +79,21 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
      * rather than forty.
      */
     if (definition.target === "prop") {
-      store.getState().setProps(selected.id, { [definition.key]: value })
+      store.getState().setProps(selected.id, { [written]: value })
 
       return
     }
 
-    store.getState().setStyles([selected.id], { [definition.key]: value })
+    store.getState().setStyles([selected.id], { [written]: value })
   }
 
   return (
     <PropertyInspector
       definitions={definitions}
-      values={valuesFor(selected, definitions)}
+      values={valuesFor(selected, definitions, {
+        ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
+        ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
+      })}
       {...(theme === null ? {} : { theme })}
       onChange={change}
     />

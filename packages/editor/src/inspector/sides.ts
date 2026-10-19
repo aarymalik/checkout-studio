@@ -131,3 +131,71 @@ export const CORNER_LABELS: readonly { key: keyof Sides; label: string; short: s
   { key: "bottom", label: "Bottom right", short: "BR" },
   { key: "left", label: "Bottom left", short: "BL" },
 ]
+
+/**
+ * The four longhand keys a shorthand property stands for.
+ *
+ * ## Why the control writes these and not the shorthand
+ *
+ * A Section ships `paddingTop`, `paddingRight`, `paddingBottom` and
+ * `paddingLeft` as separate defaults, and registers a `padding` property. The
+ * control was reading and writing `padding`, which meant two things went
+ * wrong at once: the boxes were empty, because nothing had ever set the key
+ * they read; and typing into one box wrote a shorthand that replaced all four
+ * defaults, so changing the left padding flattened the top and bottom to
+ * nothing.
+ *
+ * Writing the longhand changes the side somebody asked about and leaves the
+ * other three where they were.
+ *
+ * Both shapes exist across the shipped components — five set a shorthand and
+ * four set longhands — so reading has to understand both.
+ */
+export const LONGHANDS: Readonly<Record<string, readonly [string, string, string, string]>> = {
+  padding: ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"],
+  margin: ["marginTop", "marginRight", "marginBottom", "marginLeft"],
+  borderRadius: [
+    "borderTopLeftRadius",
+    "borderTopRightRadius",
+    "borderBottomRightRadius",
+    "borderBottomLeftRadius",
+  ],
+}
+
+const ORDER: readonly (keyof Sides)[] = ["top", "right", "bottom", "left"]
+
+/** The longhand key for one side of a property, or null when it has none. */
+export function longhandFor(key: string, side: keyof Sides): string | null {
+  return LONGHANDS[key]?.[ORDER.indexOf(side)] ?? null
+}
+
+/**
+ * What each side is actually worth, from whichever shape set it.
+ *
+ * In order: the node's own longhand, the node's shorthand, the component's
+ * default longhand, the component's default shorthand. The first that says
+ * anything wins, which is the cascade this panel is a window onto.
+ */
+export function effectiveSides(
+  key: string,
+  own: Readonly<Record<string, unknown>>,
+  defaults: Readonly<Record<string, unknown>>,
+): Sides {
+  const fromOwn = parseSides(own[key])
+  const fromDefault = parseSides(defaults[key])
+  const sides: Record<keyof Sides, string> = { ...EMPTY_SIDES }
+
+  for (const side of ORDER) {
+    const longhand = longhandFor(key, side)
+    const candidates = [
+      longhand === null ? undefined : own[longhand],
+      fromOwn?.[side],
+      longhand === null ? undefined : defaults[longhand],
+      fromDefault?.[side],
+    ]
+
+    sides[side] = String(candidates.find((value) => value !== undefined && value !== "") ?? "")
+  }
+
+  return sides
+}
