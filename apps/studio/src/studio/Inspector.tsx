@@ -11,6 +11,7 @@ import {
   valuesFor,
 } from "@checkout-studio/editor"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
+import type { CheckoutTheme } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
 import { propertiesFor } from "./properties"
@@ -40,7 +41,7 @@ import { propertiesFor } from "./properties"
  */
 
 /** The selected component's properties, and what it currently holds. */
-function Properties(): ReactElement {
+function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
   const store = useEditorStoreApi()
   const selected = useEditorStore((state) => {
     const [first] = state.selection.ids
@@ -76,12 +77,13 @@ function Properties(): ReactElement {
     <PropertyInspector
       definitions={definitions}
       values={valuesFor(selected, definitions)}
+      {...(theme === null ? {} : { theme })}
       onChange={change}
     />
   )
 }
 
-export function Inspector() {
+export function Inspector({ theme }: { theme: CheckoutTheme | null }) {
   const layout = useShellLayout()
   const actions = useShellActions()
 
@@ -109,7 +111,7 @@ export function Inspector() {
         style={{ width: layout.rightWidth }}
         className="min-w-0"
       >
-        <Properties />
+        <Properties theme={theme} />
       </Panel>
     </div>
   )

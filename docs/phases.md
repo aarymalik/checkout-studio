@@ -2780,8 +2780,30 @@ translated, which a square drawn here would not be. That was the reason the
 square was refused in the first place; this is the other half of the same
 argument rather than a reversal of it.
 
-Still to do in this phase: the remaining controls, the token picker, per-property
-reset, responsive overrides, search, multi-selection, and the Theme panel.
+**The token picker closes the dead end.** A property that can hold a reference
+was showing "From the theme: {spacing.5}" and refusing to be edited — honest,
+and a place where the panel stopped. It is now a picker listing the tokens
+valid for that property: a colour is offered the theme's colours, a length the
+spacing scale and then the radii, and nothing is offered the sixty tokens it
+cannot use.
+
+While a token is set, the picker _is_ the control. There is nothing to type,
+because the value is "whatever the theme says" — and the number box that used
+to sit there showed `NaN` and wrote a literal over the reference the moment
+anybody touched it.
+
+**Detaching keeps what the token was worth.** Choosing "Custom value" replaces
+the reference with what it currently resolves to, so the page does not change
+the instant a property stops following the theme; only its future does. A
+detach that cleared the value would read as the control emptying itself.
+Reattaching is choosing a token again.
+
+The theme is handed to the panel rather than reached for, like the definitions
+before it: a panel that fetched one could not be rendered without a store, and
+without a theme it simply offers literals.
+
+Still to do in this phase: the remaining controls, per-property reset,
+responsive overrides, search, multi-selection, and the Theme panel.
 
 ### Exit Criteria
 

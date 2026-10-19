@@ -14,12 +14,14 @@ import {
 import { isTokenReference } from "@checkout-studio/schema"
 import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
+import type { CheckoutTheme } from "@checkout-studio/schema"
 import type { KeyboardEvent, ReactElement } from "react"
 
 import { useRef, useState } from "react"
 
 import { DraftInput, useDraft } from "./DraftInput"
 import { CORNER_LABELS, SIDE_LABELS, EMPTY_SIDES, formatSides, parseSides } from "./sides"
+import { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
 import type { Sides } from "./sides"
 import { columnTracks, formatLength, parseColumns, parseLength } from "./length"
 
@@ -41,6 +43,14 @@ export interface ControlProps {
   definition: PropertyDefinition
   value: unknown
   onChange: (value: string | number | boolean | null) => void
+  /**
+   * The theme whose tokens this property may hold.
+   *
+   * Passed rather than read: a theme belongs to the document being edited, and
+   * a panel that reached for one would be a panel that cannot be rendered
+   * without a store.
+   */
+  theme?: CheckoutTheme
   /** True when several nodes are selected and they do not agree. */
   mixed?: boolean
   disabled?: boolean
@@ -67,7 +77,23 @@ function clamped(value: number, definition: PropertyDefinition): number {
   return definition.max === undefined ? low : Math.min(low, definition.max)
 }
 
-export function Control({
+export function Control(props: ControlProps): ReactElement {
+  const { definition, theme } = props
+
+  /*
+   * A property that can hold a token is wrapped in the picker, whatever its
+   * control is. The wrapper decides whether the literal control is shown at
+   * all: while a token is set, the value *is* the reference, and a number box
+   * over it would be a box showing `NaN` — which is what this used to do.
+   */
+  if (theme !== undefined && takesTokens(definition.control)) {
+    return <Tokenised {...props} theme={theme} />
+  }
+
+  return <Literal {...props} />
+}
+
+function Literal({
   definition,
   value,
   onChange,
@@ -285,6 +311,87 @@ export function Control({
     default:
       return <Unbuilt definition={definition} reason={`No ${definition.control} control yet.`} />
   }
+}
+
+/**
+ * A property that may follow the theme, and the control for when it does not.
+ *
+ * ## Two states, one list
+ *
+ * While the value is a reference, the picker is the control: there is nothing
+ * to type, because the value is "whatever the theme says". Choosing "Custom
+ * value" replaces the reference with what it currently resolves to — so the
+ * page does not change the moment a property stops following the theme, which
+ * is the difference between detaching and clearing.
+ *
+ * Once detached the ordinary control is shown, with the picker under it offering
+ * the way back. Reattaching is choosing a token again.
+ *
+ * ## Why the literal control is hidden while a token is set
+ *
+ * It was not, and that was the bug: a number box asked to show `{spacing.5}`
+ * showed nothing, and anything typed into it replaced a reference to the design
+ * system with a literal nobody chose. The three read-only notices this replaces
+ * were the holding position.
+ */
+function Tokenised(props: ControlProps & { theme: CheckoutTheme }): ReactElement {
+  const { definition, value, onChange, disabled = false, theme } = props
+  const path = pathOf(value)
+  const tokens = tokensFor(theme, definition.control)
+
+  const CUSTOM = "__custom"
+
+  function choose(next: string): void {
+    if (next !== CUSTOM) {
+      onChange(referenceFor(next))
+
+      return
+    }
+
+    // Detaching keeps what it was worth. A detach that cleared the value would
+    // read as the control emptying itself.
+    onChange(path === null ? "" : resolved(theme, path))
+  }
+
+  if (path !== null) {
+    return (
+      <Select
+        label={definition.label}
+        description={`From the theme — ${resolved(theme, path)}`}
+        value={path}
+        disabled={disabled}
+        onValueChange={choose}
+      >
+        {tokens.map((candidate) => (
+          <SelectOption key={candidate} value={candidate}>
+            {candidate}
+          </SelectOption>
+        ))}
+        <SelectOption value={CUSTOM}>Custom value…</SelectOption>
+      </Select>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2" data-inspector-detached={definition.key}>
+      <Literal {...props} />
+
+      <Select
+        label={`Use a theme token for ${definition.label}`}
+        labelHidden
+        size="sm"
+        placeholder="Use a theme token…"
+        disabled={disabled}
+        onValueChange={choose}
+      >
+        {tokens.map((candidate) => (
+          <SelectOption key={candidate} value={candidate}>
+            {candidate}
+          </SelectOption>
+        ))}
+      </Select>
+    </div>
+  )
 }
 
 /**
