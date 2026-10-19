@@ -152,11 +152,73 @@ describe("a length control", () => {
     expect(screen.queryByRole("spinbutton")).toBeNull()
   })
 
-  it("says so for a length it cannot show as a number", () => {
-    const { container } = render(<Control definition={GAP} value="auto" onChange={vi.fn()} />)
+  it.each(["auto", "none"])("shows %s in the unit picker, with no number", (value) => {
+    /*
+     * The bug the inspector gallery photographed: a Section's Max width read
+     * "none is not a plain length." `max-width: none` is what the component
+     * ships, so the panel was calling the product's own default a mistake —
+     * and offering no way forward, since the row became a notice.
+     *
+     * A keyword is a unit. That is where somebody looks for "stop capping it",
+     * and it is the only place it can go, because it has no number.
+     */
+    render(<Control definition={GAP} value={value} onChange={vi.fn()} />)
 
-    expect(container.querySelector('[data-inspector-unbuilt="dimension"]')).not.toBeNull()
-    expect(screen.getByText(/auto is not a plain length/)).toBeVisible()
+    expect(screen.getByRole("combobox")).toHaveTextContent(value)
+    expect(screen.getByLabelText("Gap")).toHaveValue(null)
+    expect(screen.queryByText(/not a plain length/)).toBeNull()
+  })
+
+  it("takes the property's first real unit when a number is typed over a keyword", async () => {
+    /*
+     * The box stays live. Typing into a max width of `none` means "cap it at
+     * this", and `formatLength(800, "none")` is `none` — so the figure would
+     * disappear as it was typed. The alternative, a box disabled while the
+     * unit is a keyword, photographed as an ordinary empty box: a control that
+     * looks ready and does nothing is worse than no control at all.
+     */
+    const onChange = control(GAP, "none")
+
+    await userEvent.type(screen.getByLabelText("Gap"), "8")
+
+    expect(onChange).toHaveBeenLastCalledWith("8px")
+  })
+
+  it("offers a keyword the property does not list, rather than dropping it", () => {
+    // GAP lists px, rem and % — a document holding `fit-content` still shows
+    // it, instead of being silently read as the first unit in the list.
+    render(<Control definition={GAP} value="fit-content" onChange={vi.fn()} />)
+
+    expect(screen.getByRole("combobox")).toHaveTextContent("fit-content")
+  })
+
+  it("takes a number again when a unit is picked over a keyword", async () => {
+    const onChange = control(GAP, "none")
+
+    await userEvent.click(screen.getByRole("combobox"))
+    await userEvent.click(screen.getByRole("option", { name: "rem" }))
+
+    expect(onChange).toHaveBeenLastCalledWith("0rem")
+  })
+
+  it("edits an expression as the expression it is", async () => {
+    /*
+     * `calc(100% - 8px)` is one value and no part of it is a number a spinner
+     * could hold. Typing it is the only way to edit it; reporting it as not a
+     * length would be reporting a working value as a mistake.
+     */
+    const onChange = vi.fn()
+
+    render(<Control definition={GAP} value="calc(100% - 8px)" onChange={onChange} />)
+
+    const box = screen.getByLabelText("Gap")
+
+    expect(box).toHaveValue("calc(100% - 8px)")
+
+    await userEvent.clear(box)
+    await userEvent.type(box, "clamp(1rem, 2vw, 3rem)")
+
+    expect(onChange).toHaveBeenLastCalledWith("clamp(1rem, 2vw, 3rem)")
   })
 
   it("can be cleared and retyped, which a controlled box otherwise cannot", async () => {
@@ -232,6 +294,74 @@ const COLUMNS = one({
   control: "columns",
   min: 1,
   max: 6,
+})
+
+const LEVEL = one({
+  key: "level",
+  target: "prop",
+  label: "Level",
+  group: "General",
+  control: "select",
+  // The numbers a Heading actually registers, not strings that would have
+  // made this test pass without the product working.
+  options: [1, 2, 3, 4, 5, 6].map((value) => ({ value, label: `Heading ${String(value)}` })),
+})
+
+describe("a select control", () => {
+  it("shows the option a numeric value means", () => {
+    /*
+     * Photographed before it was found: a freshly inserted Heading read
+     * "Select…" under Level, though its default is the number 2. An option's
+     * value is a primitive and a `<select>` deals in text, so the two never
+     * matched.
+     */
+    control(LEVEL, 2)
+
+    expect(screen.getByRole("combobox")).toHaveTextContent("Heading 2")
+  })
+
+  it("writes the option back as the type it was declared with", async () => {
+    /*
+     * The worse half of the same fault. Choosing a level wrote the string
+     * "3", and the renderer coerces anything that is not one of its six
+     * numbers to 2 — so picking a heading level changed nothing on the canvas
+     * and the panel gave no sign of it.
+     */
+    const onChange = control(LEVEL, 2)
+
+    await userEvent.click(screen.getByRole("combobox"))
+    await userEvent.click(screen.getByRole("option", { name: "Heading 3" }))
+
+    expect(onChange).toHaveBeenLastCalledWith(3)
+    expect(screen.getByRole("combobox")).toHaveTextContent("Heading 3")
+  })
+
+  it("leaves a string option a string", async () => {
+    const alignment = one({
+      key: "textAlign",
+      target: "style",
+      label: "Alignment",
+      group: "Typography",
+      control: "select",
+      options: [
+        { value: "start", label: "Start" },
+        { value: "center", label: "Centre" },
+      ],
+    })
+
+    const onChange = control(alignment, "start")
+
+    await userEvent.click(screen.getByRole("combobox"))
+    await userEvent.click(screen.getByRole("option", { name: "Centre" }))
+
+    expect(onChange).toHaveBeenLastCalledWith("center")
+  })
+
+  it("says Mixed rather than showing one selection's answer", () => {
+    render(<Control definition={LEVEL} value={2} mixed onChange={vi.fn()} />)
+
+    expect(screen.getByRole("combobox")).toHaveTextContent("Mixed")
+  })
 })
 
 describe("a columns control", () => {

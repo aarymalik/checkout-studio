@@ -42,13 +42,42 @@ export function parseLength(value: unknown): Length | null {
   return Number.isFinite(amount) ? { amount, unit: match[2] ?? "" } : null
 }
 
+/**
+ * The values that sit where a unit sits and take no number.
+ *
+ * `margin: auto` and `max-width: none` are lengths in every sense that matters
+ * to a person laying out a page — they belong in the unit picker, because that
+ * is where somebody looks for "and now stop capping it". Written as `0auto` or
+ * `0none` they are not values at all and the declaration is dropped in
+ * silence, which is why `formatLength` has to know about them.
+ *
+ * Only `auto` was handled before, as a special case in that function. A
+ * Section ships `max-width: none`, so the one value the component itself
+ * chooses fell straight through the control.
+ */
+export const KEYWORD_UNITS: readonly string[] = [
+  "auto",
+  "none",
+  "fit-content",
+  "max-content",
+  "min-content",
+]
+
+export function isKeywordUnit(unit: string): boolean {
+  return KEYWORD_UNITS.includes(unit)
+}
+
+/** The keyword a value is, if it is exactly one of them. */
+export function keywordLength(value: unknown): string | null {
+  if (typeof value !== "string") return null
+
+  const trimmed = value.trim()
+
+  return isKeywordUnit(trimmed) ? trimmed : null
+}
+
 export function formatLength(amount: number, unit: string): string {
-  /*
-   * `auto` is offered as a unit — a margin's units are px, rem, % and auto —
-   * and it has no number in front of it. Written as `0auto` it is not a
-   * value at all, and the declaration is dropped in silence.
-   */
-  if (unit === "auto") return "auto"
+  if (isKeywordUnit(unit)) return unit
 
   return `${String(amount)}${unit}`
 }

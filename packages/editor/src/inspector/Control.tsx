@@ -23,7 +23,14 @@ import { DraftInput, useDraft } from "./DraftInput"
 import { CORNER_LABELS, EMPTY_SIDES, SIDE_LABELS, longhandFor, parseSides } from "./sides"
 import { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
 import type { Sides } from "./sides"
-import { columnTracks, formatLength, parseColumns, parseLength } from "./length"
+import {
+  columnTracks,
+  formatLength,
+  isKeywordUnit,
+  keywordLength,
+  parseColumns,
+  parseLength,
+} from "./length"
 
 /**
  * One control, chosen by what the property asked for.
@@ -104,6 +111,13 @@ function Literal({
   definition,
   value,
   onChange,
+  /*
+   * Taken here too, though the picker above has already been decided. A side
+   * holding a token still has to show what that token is worth — the four
+   * boxes of a padding are not one value, so the wrapper cannot stand in for
+   * them.
+   */
+  theme,
   mixed = false,
   disabled = false,
 }: ControlProps): ReactElement {
@@ -125,23 +139,41 @@ function Literal({
         />
       )
 
-    case "select":
+    case "select": {
+      const options = definition.options ?? []
+
+      /*
+       * Matched as text, written back as it was declared.
+       *
+       * An option's value is a primitive, not a string: a Heading's levels are
+       * the numbers 1 to 6 and its default is the number 2. A list of options
+       * is text by the time it reaches a `<select>`, so comparing the two
+       * directly showed "Select…" over a heading that plainly had a level —
+       * and choosing one then wrote the *string* "3", which the renderer does
+       * not recognise and coerces back to 2. Picking a heading level did
+       * nothing at all, and the panel showed nothing to suggest otherwise.
+       */
+      const selected = options.find((option) => String(option.value) === String(value))
+
       return (
         <Select
           {...shared}
-          {...(mixed || typeof value !== "string" ? {} : { value })}
+          {...(mixed || selected === undefined ? {} : { value: String(selected.value) })}
           placeholder={mixed ? "Mixed" : "Select…"}
           onValueChange={(next) => {
-            onChange(next)
+            const chosen = options.find((option) => String(option.value) === next)
+
+            onChange(chosen === undefined ? next : chosen.value)
           }}
         >
-          {(definition.options ?? []).map((option) => (
+          {options.map((option) => (
             <SelectOption key={String(option.value)} value={String(option.value)}>
               {option.label}
             </SelectOption>
           ))}
         </Select>
       )
+    }
 
     case "number":
       return (
@@ -208,6 +240,7 @@ function Literal({
           sides={parseSides(value) ?? EMPTY_SIDES}
           corners={definition.control === "radius"}
           disabled={disabled}
+          {...(theme === undefined ? {} : { theme })}
           onChange={onChange}
         />
       )
@@ -226,15 +259,57 @@ function Literal({
         return <Token definition={definition} value={value} />
       }
 
-      const length = parseLength(value)
       const units = definition.units ?? ["px"]
+
+      /*
+       * A keyword belongs in the unit picker, with no number in front of it.
+       *
+       * This control used to refuse one: a Section's Max width read "none is
+       * not a plain length", which is a complaint about the value the
+       * component itself ships. Telling somebody their value is wrong when it
+       * is the one we gave them reads as broken, and it offered no way back to
+       * it either — `none` was in no unit list, so a width once typed could
+       * never be uncapped again.
+       */
+      const keyword = keywordLength(value)
+
+      if (keyword !== null) {
+        return (
+          <LengthControl
+            definition={definition}
+            amount=""
+            unit={keyword}
+            /*
+             * Appended when the property does not list it, so a value already
+             * in a document is shown rather than swapped for the first unit in
+             * the list behind somebody's back.
+             */
+            units={units.includes(keyword) ? units : [...units, keyword]}
+            disabled={disabled}
+            mixed={mixed}
+            onChange={onChange}
+          />
+        )
+      }
+
+      const length = parseLength(value)
       const unit = length?.unit === undefined || length.unit === "" ? units[0] : length.unit
 
       if (value !== undefined && value !== null && value !== "" && length === null) {
-        // `auto`, `fit-content`, a calc — real values this control cannot show
-        // as a number. Saying so beats rounding them to nothing.
+        /*
+         * A `calc`, a `clamp`, a `var` — one value, and no part of it a number
+         * a spinner could hold. It is edited as the expression it is, which
+         * keeps it intact; the alternative is a control that reports a real
+         * value as a mistake.
+         */
         return (
-          <Unbuilt definition={definition} reason={`${String(value)} is not a plain length.`} />
+          <DraftInput
+            {...shared}
+            type="text"
+            value={String(value)}
+            accepts={() => true}
+            onCommit={onChange}
+          />
         )
       }
 
@@ -419,12 +494,14 @@ function SidesControl({
   sides,
   corners,
   disabled,
+  theme,
   onChange,
 }: {
   definition: PropertyDefinition
   sides: Sides
   corners: boolean
   disabled: boolean
+  theme?: CheckoutTheme
   onChange: (value: string, key?: string) => void
 }): ReactElement {
   const boxes = corners ? CORNER_LABELS : SIDE_LABELS
@@ -441,6 +518,30 @@ function SidesControl({
       .find((found) => found !== undefined && found !== "") ??
     units[0] ??
     "px"
+
+  /**
+   * What a side holding a theme token shows.
+   *
+   * A Section's padding is four references — `{spacing.6}` on each side — and
+   * a box 56 pixels wide rendered that as the text `{spac`. Four of them in a
+   * row, unreadable and meaning nothing to the person reading them.
+   *
+   * The number the theme resolves to is shown instead, as a placeholder rather
+   * than a value: the box is empty, so typing starts a number instead of
+   * landing inside a reference, and muted text is how every other tool in this
+   * category says "this came from somewhere else, and you can override it".
+   * Which is exactly what typing does — the node has no padding of its own,
+   * and the longhand this writes is its first.
+   */
+  function placeholderFor(side: keyof Sides): string | undefined {
+    const path = pathOf(sides[side])
+
+    if (path === null || theme === undefined) return undefined
+
+    const length = parseLength(resolved(theme, path))
+
+    return length === null ? undefined : String(length.amount)
+  }
 
   function write(side: keyof Sides, value: string): void {
     // The side's own longhand, so the other three are left alone. Falls back to
@@ -460,19 +561,24 @@ function SidesControl({
        */}
       <div className="flex items-start gap-2">
         <div className="grid flex-1 grid-cols-4 gap-2" data-inspector-sides={definition.key}>
-          {boxes.map((box) => (
-            <SideBox
-              key={box.key}
-              name={`${definition.label} ${box.label.toLowerCase()}`}
-              short={box.short}
-              value={sides[box.key]}
-              unit={unit}
-              disabled={disabled}
-              onChange={(next) => {
-                write(box.key, next)
-              }}
-            />
-          ))}
+          {boxes.map((box) => {
+            const placeholder = placeholderFor(box.key)
+
+            return (
+              <SideBox
+                key={box.key}
+                name={`${definition.label} ${box.label.toLowerCase()}`}
+                short={box.short}
+                value={sides[box.key]}
+                unit={unit}
+                disabled={disabled}
+                {...(placeholder === undefined ? {} : { placeholder })}
+                onChange={(next) => {
+                  write(box.key, next)
+                }}
+              />
+            )
+          })}
         </div>
 
         <Select
@@ -524,6 +630,7 @@ function SideBox({
   value,
   unit,
   disabled,
+  placeholder,
   onChange,
 }: {
   name: string
@@ -531,12 +638,17 @@ function SideBox({
   value: string
   unit: string
   disabled: boolean
+  /** The theme's number, when this side follows a token rather than a value. */
+  placeholder?: string
   onChange: (value: string) => void
 }): ReactElement {
   const length = parseLength(value)
-  const numeric = value === "" || length !== null
+  // A reference is shown as its resolved number behind an empty box, so it is
+  // neither typed into nor rendered as `{spac`.
+  const token = placeholder !== undefined && isTokenReference(value)
+  const numeric = token || value === "" || length !== null
   const [draft, setDraft] = useState(
-    numeric ? (length === null ? "" : String(length.amount)) : value,
+    token ? "" : numeric ? (length === null ? "" : String(length.amount)) : value,
   )
   const [editing, setEditing] = useState(false)
   const seen = useRef(value)
@@ -550,7 +662,7 @@ function SideBox({
     seen.current = value
     const next = parseLength(value)
 
-    setDraft(next === null ? value : String(next.amount))
+    setDraft(token ? "" : next === null ? value : String(next.amount))
   }
 
   function commit(next: string): void {
@@ -572,6 +684,7 @@ function SideBox({
         inputMode={numeric ? "decimal" : "text"}
         className={cn(inputVariants({ size: "sm" }), "w-full min-w-0 text-center")}
         value={draft}
+        {...(placeholder === undefined ? {} : { placeholder })}
         onFocus={() => {
           setEditing(true)
         }}
@@ -637,6 +750,22 @@ function LengthControl({
   const id = `ck-length-${definition.target}-${definition.key}`
   const [draft, setDraft] = useDraft(amount)
 
+  /*
+   * What a typed number is measured in.
+   *
+   * The unit on screen, except when it is a keyword — `none` and `auto` take
+   * no number, so `formatLength(800, "none")` is `none` and the figure would
+   * vanish as it was typed. Typing into a max width of `none` means "cap it at
+   * this", so the first real unit in the property's list is what it means.
+   *
+   * The alternative was a box disabled whenever the unit was a keyword, which
+   * photographed as an ordinary empty box: a control that looks ready and does
+   * nothing is worse than no control.
+   */
+  const typed = isKeywordUnit(unit)
+    ? (units.find((candidate) => !isKeywordUnit(candidate)) ?? "px")
+    : unit
+
   return (
     <FieldShell>
       <FieldLabel htmlFor={id}>{definition.label}</FieldLabel>
@@ -659,7 +788,7 @@ function LengthControl({
 
             if (next === "" || !Number.isFinite(Number(next))) return
 
-            onChange(formatLength(clamped(Number(next), definition), unit))
+            onChange(formatLength(clamped(Number(next), definition), typed))
           }}
         />
 

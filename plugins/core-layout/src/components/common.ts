@@ -29,7 +29,12 @@ export const maxWidth: PropertyDefinitionInput = {
   label: "Max width",
   group: "Layout",
   control: "dimension",
-  units: ["px", "rem", "%", "ch"],
+  /*
+   * `none` is a unit here because it is what a Section ships, and because
+   * uncapping a width again is a thing somebody does. Without it in the list
+   * the default was unreachable the moment anybody typed a number.
+   */
+  units: ["px", "rem", "%", "ch", "none"],
   help: "Caps how wide the content gets on a large screen.",
   responsive: true,
 }
