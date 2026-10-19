@@ -2,6 +2,7 @@
 
 import { Accordion, AccordionHeader, AccordionItem, AccordionPanel } from "@checkout-studio/ui"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
+import type { CheckoutTheme } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
 import { Control } from "./Control"
@@ -39,6 +40,13 @@ export interface PropertyInspectorProps {
   onChange: (definition: PropertyDefinition, value: string | number | boolean | null) => void
   /** Keys whose value differs across a multi-selection. */
   mixedKeys?: ReadonlySet<string>
+  /**
+   * The theme whose tokens these properties may hold.
+   *
+   * Absent means no picker: the panel still works, it just offers literals —
+   * which is what a test rendering it without a document gets.
+   */
+  theme?: CheckoutTheme
   /** Nothing is selected. */
   empty?: boolean
   disabled?: boolean
@@ -49,6 +57,7 @@ export function PropertyInspector({
   values,
   onChange,
   mixedKeys,
+  theme,
   empty = false,
   disabled = false,
 }: PropertyInspectorProps): ReactElement {
@@ -94,6 +103,7 @@ export function PropertyInspector({
                   key={`${definition.target}:${definition.key}:${String(index)}`}
                   definition={definition}
                   value={values[definition.key]}
+                  {...(theme === undefined ? {} : { theme })}
                   mixed={mixedKeys?.has(definition.key) === true}
                   disabled={disabled}
                   onChange={(next) => {

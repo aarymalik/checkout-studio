@@ -154,7 +154,7 @@ function Frame({
       <div className="flex min-h-0 flex-1">
         <Sidebar panels={panels} />
         <CanvasArea theme={theme} />
-        <Inspector />
+        <Inspector theme={theme} />
       </div>
 
       <StatusBar status={saveStatus} />

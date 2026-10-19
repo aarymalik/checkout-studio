@@ -1,6 +1,6 @@
 import { EditorProvider, ShellProvider, useEditorStoreApi } from "@checkout-studio/editor"
 import type { EditorStoreApi } from "@checkout-studio/editor"
-import { createDocument } from "@checkout-studio/schema"
+import { createDocument, defaultTheme } from "@checkout-studio/schema"
 import { TooltipProvider } from "@checkout-studio/ui"
 import { act, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -25,7 +25,7 @@ function mount(): { store: EditorStoreApi } {
   function Capture(): ReactElement {
     captured = useEditorStoreApi()
 
-    return <Inspector />
+    return <Inspector theme={defaultTheme} />
   }
 
   render(
