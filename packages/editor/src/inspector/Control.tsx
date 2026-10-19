@@ -452,7 +452,13 @@ function SidesControl({
     <FieldShell>
       <FieldLabel>{definition.label}</FieldLabel>
 
-      <div className="flex items-end gap-2">
+      {/*
+       * Aligned to the top, not the bottom. Each side is a box with its letter
+       * underneath, so the column's bottom is the letter — and a unit picker
+       * aligned to that sat a row below the numbers it belongs to. The boxes
+       * and the picker are the same height, so their tops line up exactly.
+       */}
+      <div className="flex items-start gap-2">
         <div className="grid flex-1 grid-cols-4 gap-2" data-inspector-sides={definition.key}>
           {boxes.map((box) => (
             <SideBox
