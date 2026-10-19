@@ -625,12 +625,52 @@ Templates
 ## In practice
 
 `pnpm test:visual` runs `apps/studio/playwright.visual.config.ts` against the
-gallery at `/design`, which exists only outside production. Two suites:
+gallery at `/design`, which exists only outside production. Three suites:
 `gallery.spec.ts` photographs the interface components, `components.spec.ts`
-photographs the plugin components through the renderer, at three breakpoints.
-A unit test beside each case list asserts that every component the library
+photographs the plugin components through the renderer, at three breakpoints,
+and `inspector.spec.ts` photographs the property panel. A unit test beside each
+of the two component case lists asserts that every component the library
 exports, and every type the registry holds, appears in a case — so a new
 component cannot arrive unphotographed.
+
+## The inspector is photographed because its faults are invisible to tests
+
+Three faults in the panel shipped in a row, and no test could have caught any
+of them: jsdom has no layout, so eleven hundred tests passed while a unit
+picker sat a row below the numbers it belonged to, and passed again while a
+four-column grid of spacing boxes rendered as four stacked blocks because the
+class produced no CSS at all. Every one was found by somebody looking at the
+screen.
+
+The gallery at `/design/inspector` renders the real panel — through
+`propertiesFor` and `valuesFor` with the shipped registry, never definitions
+written for the picture — against a freshly inserted node, which is the state
+where every value comes from the component's own defaults.
+
+A case names a component **and a section**. The panel keeps one section open at
+a time, so a case that did not say which one it wanted photographed whichever
+opened by itself, and the four-side spacing boxes stayed behind a closed header
+in every picture.
+
+The first four pictures found four defects that the test suite, the type
+checker and the linter all passed: a Max width reading "none is not a plain
+length" about a Section's own default, four padding boxes each rendering
+`{spac` where a theme reference had been cut off, a Level reading "Select…"
+over a heading whose level was 2, and — behind that last one — a select that
+wrote the string `"3"` where the renderer expects the number, so picking a
+heading level did nothing at all.
+
+### This suite allows no diff at all
+
+The rest of the suite allows two changed pixels in a thousand, which is right
+for a page of product where a hairline of antialiasing on a shadow is not a
+regression. It is also enough to hide a whole word: the Level fix changed
+"Select…" to "Heading 2" and the suite went on passing against the old picture.
+
+A panel is text and boxes, and a word is the smallest thing worth catching in
+one, so `inspector.spec.ts` passes `maxDiffPixels: 0`. The per-pixel colour
+tolerance from the config still applies, so antialiasing that merely shifts a
+shade is not a changed pixel.
 
 ## Baselines are per platform
 
