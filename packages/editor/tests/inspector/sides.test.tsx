@@ -6,7 +6,18 @@ import { useState } from "react"
 import type { ReactElement } from "react"
 import { describe, expect, it, vi } from "vitest"
 
+import { defaultTheme } from "@checkout-studio/schema"
+import type { CheckoutTheme } from "@checkout-studio/schema"
+
 import { Control, effectiveSides, formatSides, parseSides } from "../../src/inspector"
+
+/** What a Section ships: four sides, every one of them a reference. */
+const SECTION_PADDING = {
+  paddingTop: "{spacing.9}",
+  paddingBottom: "{spacing.9}",
+  paddingLeft: "{spacing.5}",
+  paddingRight: "{spacing.5}",
+}
 
 const PADDING = defineProperties([
   {
@@ -82,6 +93,7 @@ function sides(
   initial: Record<string, string>,
   onChange = vi.fn(),
   defaults: Record<string, string> = {},
+  theme?: CheckoutTheme,
 ) {
   function Harness(): ReactElement {
     const [own, setOwn] = useState<Record<string, string>>(initial)
@@ -90,6 +102,7 @@ function sides(
       <Control
         definition={definition}
         value={formatSides(effectiveSides(definition.key, own, defaults))}
+        {...(theme === undefined ? {} : { theme })}
         onChange={(next, key) => {
           setOwn((current) => ({ ...current, [key ?? definition.key]: String(next) }))
           onChange(next, key)
@@ -185,6 +198,61 @@ describe("a padding control", () => {
     )
 
     expect(container.querySelector('[data-inspector-token="padding"]')).not.toBeNull()
+  })
+})
+
+describe("a side that follows the theme", () => {
+  it("shows what the token is worth, not the reference", () => {
+    /*
+     * Found by photographing the panel: a Section's padding is four
+     * references, and a box 56 pixels wide rendered `{spacing.9}` as the text
+     * `{spac`. Four of those in a row, unreadable, and meaning nothing to the
+     * person reading them.
+     *
+     * The scale is `[0, 4, 8, 12, 16, 24, 32, 40, 48, 64, …]`, so the ninth
+     * step is 64 and the fifth is 24.
+     */
+    sides(PADDING, {}, vi.fn(), SECTION_PADDING, defaultTheme)
+
+    expect(screen.getByLabelText("Padding top")).toHaveAttribute("placeholder", "64")
+    expect(screen.getByLabelText("Padding left")).toHaveAttribute("placeholder", "24")
+  })
+
+  it("leaves the box empty, so typing starts a number rather than landing in a reference", async () => {
+    /*
+     * A placeholder rather than a value, which is the difference between "this
+     * is yours" and "this came from the theme" — and the reason the first
+     * keystroke does not append itself to `{spacing.9}`.
+     */
+    const onChange = sides(PADDING, {}, vi.fn(), SECTION_PADDING, defaultTheme)
+
+    expect(screen.getByLabelText("Padding top")).toHaveValue(null)
+
+    await userEvent.type(screen.getByLabelText("Padding top"), "8")
+
+    expect(onChange).toHaveBeenLastCalledWith("8px", "paddingTop")
+  })
+
+  it("overrides only the side that was typed in", async () => {
+    // The other three still follow the theme, and still say so.
+    sides(PADDING, {}, vi.fn(), SECTION_PADDING, defaultTheme)
+
+    await userEvent.type(screen.getByLabelText("Padding top"), "8")
+
+    expect(screen.getByLabelText("Padding top")).toHaveValue(8)
+    expect(screen.getByLabelText("Padding bottom")).toHaveAttribute("placeholder", "64")
+    expect(screen.getByLabelText("Padding bottom")).toHaveValue(null)
+  })
+
+  it("shows the reference as text when there is no theme to resolve it against", () => {
+    /*
+     * A panel rendered without a document has no theme — the alternative to
+     * showing the reference is showing an empty box, which would read as a
+     * padding of nothing.
+     */
+    sides(PADDING, {}, vi.fn(), SECTION_PADDING)
+
+    expect(screen.getByLabelText("Padding top")).toHaveValue("{spacing.9}")
   })
 })
 
