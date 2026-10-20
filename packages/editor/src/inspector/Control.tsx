@@ -11,6 +11,7 @@ import {
   cn,
   inputVariants,
 } from "@checkout-studio/ui"
+import { isHexColor } from "@checkout-studio/design-system"
 import { isTokenReference } from "@checkout-studio/schema"
 import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
@@ -58,6 +59,12 @@ export interface ControlProps {
    */
   onChange: (value: string | number | boolean | null, key?: string) => void
   /**
+   * Puts this property back to what the component ships, when the node holds
+   * a value of its own. Absent means the panel cannot reset — a gallery
+   * rendering a panel with nowhere to write is the ordinary case.
+   */
+  onReset?: (() => void) | undefined
+  /**
    * The theme whose tokens this property may hold.
    *
    * Passed rather than read: a theme belongs to the document being edited, and
@@ -92,7 +99,7 @@ function clamped(value: number, definition: PropertyDefinition): number {
 }
 
 export function Control(props: ControlProps): ReactElement {
-  const { definition, theme } = props
+  const { definition, theme, onReset } = props
 
   /*
    * A property that can hold a token is wrapped in the picker, whatever its
@@ -100,11 +107,65 @@ export function Control(props: ControlProps): ReactElement {
    * all: while a token is set, the value *is* the reference, and a number box
    * over it would be a box showing `NaN` — which is what this used to do.
    */
-  if (theme !== undefined && takesTokens(definition.control)) {
-    return <Tokenised {...props} theme={theme} />
-  }
+  const control =
+    theme !== undefined && takesTokens(definition.control) ? (
+      <Tokenised {...props} theme={theme} />
+    ) : (
+      <Literal {...props} />
+    )
 
-  return <Literal {...props} />
+  if (onReset === undefined) return control
+
+  return (
+    <div className="flex flex-col gap-1" data-inspector-overridden={definition.key}>
+      {control}
+
+      <Reset definition={definition} onReset={onReset} />
+    </div>
+  )
+}
+
+/**
+ * Put it back to what the component ships.
+ *
+ * ## Rendered, not revealed on hover
+ *
+ * Shown whenever the property is overridden, rather than appearing under the
+ * pointer. A control that exists only on hover cannot be reached by a keyboard
+ * or on a touch screen, and docs/accessibility.md does not have an exception
+ * for things that would otherwise look tidy. It is quiet instead of hidden:
+ * caption-sized and muted, under the control it belongs to.
+ *
+ * ## It says what it will do
+ *
+ * The accessible name carries the property, because "Reset" eleven times in a
+ * panel is eleven buttons a screen reader cannot tell apart.
+ */
+function Reset({
+  definition,
+  onReset,
+}: {
+  definition: PropertyDefinition
+  onReset: () => void
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      data-inspector-reset={definition.key}
+      className={cn(
+        "self-start rounded-tight text-caption text-foreground-muted",
+        // The ring is the reset's, unlayered, so every focusable thing in the
+        // product agrees. `outline-none` removes the browser's own and nothing
+        // here tries to draw a second one.
+        "transition-colors duration-fast ease-standard outline-none",
+        "hover:text-foreground",
+      )}
+      onClick={onReset}
+    >
+      <span aria-hidden="true">Reset</span>
+      <span className="sr-only">{`Reset ${definition.label} to the component's default`}</span>
+    </button>
+  )
 }
 
 function Literal({
@@ -351,6 +412,30 @@ function Literal({
     case "color": {
       if (typeof value === "string" && isTokenReference(value)) {
         return <Token definition={definition} value={value} />
+      }
+
+      /*
+       * A colour this picker cannot hold, edited as the text it is.
+       *
+       * `red`, `rgb(0 0 0 / 50%)`, `currentColor` — all valid CSS, none of
+       * them hex, and the picker needs hex to place its sliders. Handing it
+       * one of these does not degrade, it *throws*: `parseHex` raises on
+       * anything that is not three or six hex digits, and a control that
+       * throws takes the whole inspector down rather than one row.
+       *
+       * Found by a test fixture holding `red`, which is exactly how a document
+       * imported from somewhere else would hold it.
+       */
+      if (typeof value === "string" && value !== "" && !isHexColor(value)) {
+        return (
+          <DraftInput
+            {...shared}
+            type="text"
+            value={value}
+            accepts={() => true}
+            onCommit={onChange}
+          />
+        )
       }
 
       return (

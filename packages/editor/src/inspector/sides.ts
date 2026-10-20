@@ -170,6 +170,21 @@ export function longhandFor(key: string, side: keyof Sides): string | null {
 }
 
 /**
+ * Every key a property's value can be hiding under.
+ *
+ * One padding is up to five keys: the shorthand and the four longhands, in any
+ * mixture, because a Section ships longhands while other components ship a
+ * shorthand and the control writes longhands. A reset that removed only the
+ * one key the definition is named after would leave the other four behind and
+ * read as a button that does nothing.
+ */
+export function shapesOf(key: string): readonly string[] {
+  const longhands = LONGHANDS[key]
+
+  return longhands === undefined ? [key] : [key, ...longhands]
+}
+
+/**
  * What each side is actually worth, from whichever shape set it.
  *
  * In order: the node's own longhand, the node's shorthand, the component's

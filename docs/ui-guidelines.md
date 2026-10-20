@@ -433,6 +433,29 @@ Accordion based.
 
 Only one expanded by default.
 
+## Reset
+
+A property the node holds itself offers a reset. One it inherits does not —
+resetting a value nobody changed is a button that does nothing, and a panel
+where every row carries one says nothing about which rows have been touched.
+
+Rendered, not revealed on hover. A control that appears only under the pointer
+cannot be reached by a keyboard or on a touch screen, so it is quiet rather
+than hidden: caption-sized and muted, under the control it belongs to.
+
+Its accessible name carries the property. Eleven buttons called "Reset" are
+eleven buttons a screen reader cannot tell apart.
+
+Reset **deletes** the node's value; it does not write the default back. The two
+look identical on screen and mean different things — a written-back default
+stops tracking the component, so a later change to that default, or to the
+theme token it references, no longer reaches the node. What reset restores is
+inheritance.
+
+A property stored under more than one key is cleared under all of them. One
+padding is up to five keys, and a reset that removed only the shorthand would
+leave four longhands behind and read as a button that does nothing.
+
 ---
 
 # Inputs

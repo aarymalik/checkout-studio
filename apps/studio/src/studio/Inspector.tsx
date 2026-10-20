@@ -7,6 +7,8 @@ import {
   useEditorStore,
   useEditorStoreApi,
   useShellActions,
+  ownKeys,
+  shapesOf,
   useShellLayout,
   valuesFor,
 } from "@checkout-studio/editor"
@@ -87,6 +89,34 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
     store.getState().setStyles([selected.id], { [written]: value })
   }
 
+  /**
+   * Put a property back to what the component ships.
+   *
+   * A delete, not a write of the default. Writing it back would look the same
+   * and mean something else: the node would then hold that value itself, so a
+   * later change to the component's default — or to the theme token it
+   * references — would stop reaching it. What a reset restores is inheritance.
+   *
+   * A side clears every shape it could be hiding under, because one padding is
+   * up to five keys and leaving four behind is a button that does nothing.
+   */
+  function reset(definition: PropertyDefinition): void {
+    if (selected === null) return
+
+    const keys =
+      definition.control === "spacing" || definition.control === "radius"
+        ? shapesOf(definition.key)
+        : [definition.key]
+
+    if (definition.target === "prop") {
+      store.getState().clearProps(selected.id, keys)
+
+      return
+    }
+
+    store.getState().clearStyles([selected.id], keys)
+  }
+
   return (
     <PropertyInspector
       definitions={definitions}
@@ -95,7 +125,9 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
         ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
       })}
       {...(theme === null ? {} : { theme })}
+      overridden={ownKeys(selected, definitions)}
       onChange={change}
+      onReset={reset}
     />
   )
 }

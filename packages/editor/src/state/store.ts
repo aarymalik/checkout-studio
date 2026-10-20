@@ -64,6 +64,21 @@ export interface EditorActions {
     styles: StyleProperties,
     where?: { breakpoint?: Breakpoint; state?: StyleState },
   ) => TreeResult
+  /**
+   * Remove props and styles a node holds, rather than overwrite them.
+   *
+   * The inspector's per-property reset. Writing the component's default back
+   * would look the same on screen and mean something different: the node would
+   * then hold that value itself, so a later change to the component's default
+   * — or to the theme token it references — would stop reaching it. What reset
+   * restores is inheritance, which only a delete can do.
+   */
+  clearProps: (id: string, keys: readonly string[]) => TreeResult
+  clearStyles: (
+    ids: readonly string[],
+    keys: readonly string[],
+    where?: { breakpoint?: Breakpoint; state?: StyleState },
+  ) => TreeResult
   setLocked: (ids: readonly string[], locked: boolean) => TreeResult
   setHidden: (ids: readonly string[], hidden: boolean) => TreeResult
   rename: (id: string, name: string) => TreeResult
@@ -163,6 +178,19 @@ const ZOOM_MAX = 4
  * and the server's copy is the next thing to try — docs/error-handling.md
  * § State Corruption Recovery.
  */
+/**
+ * A copy without those keys.
+ *
+ * `delete` on a draft would do, but these bags are shared structurally with
+ * the history stack: mutating one in place would reach back into entries that
+ * are supposed to be what the document used to be.
+ */
+function omit<T extends Record<string, unknown>>(bag: T, keys: readonly string[]): T {
+  const remove = new Set(keys)
+
+  return Object.fromEntries(Object.entries(bag).filter(([key]) => !remove.has(key))) as T
+}
+
 function recoveryFor(document: CheckoutSchema, at: number): RecoveryState {
   const problems = findProblems(document)
 
@@ -411,6 +439,49 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
           // step, and editing a different node starts a new one.
           { label: "Edit", groupKey: `props:${id}` },
         ),
+
+      clearProps: (id, keys) =>
+        apply(
+          updateNode(get().document, id, (node) => ({
+            ...node,
+            props: omit(node.props, keys) as Node["props"],
+          })),
+          // Not grouped. A reset is one deliberate act, and collapsing two of
+          // them into one undo entry would take back a property nobody asked
+          // to get back.
+          { label: "Reset" },
+        ),
+
+      clearStyles: (ids, keys, where = {}) => {
+        const breakpoint = where.breakpoint ?? get().viewport.breakpoint
+        const state = where.state ?? get().selection.editingState
+
+        return apply(
+          forEach(ids, (document, id) =>
+            updateNode(document, id, (node) => {
+              const held = node.styles[breakpoint]?.[state]
+
+              /*
+               * Nothing there to remove, so nothing is written. The obvious
+               * spelling — falling back to `{}` and omitting from that — looks
+               * harmless and quietly adds `mobile: { base: {} }` to a node
+               * that had no mobile styles, for every reset at a breakpoint it
+               * never had.
+               */
+              if (held === undefined) return node
+
+              return {
+                ...node,
+                styles: {
+                  ...node.styles,
+                  [breakpoint]: { ...node.styles[breakpoint], [state]: omit(held, keys) },
+                },
+              }
+            }),
+          ),
+          { label: "Reset" },
+        )
+      },
 
       setStyles: (ids, styles, where = {}) => {
         const breakpoint = where.breakpoint ?? get().viewport.breakpoint

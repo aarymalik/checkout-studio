@@ -46,6 +46,17 @@ export interface PropertyInspectorProps {
   /** Keys whose value differs across a multi-selection. */
   mixedKeys?: ReadonlySet<string>
   /**
+   * Keys the node holds itself, rather than inherits from the component.
+   *
+   * Only these are offered a reset, because resetting a value that is already
+   * the component's own default is a button that does nothing — and a panel
+   * where every property carries one says nothing about which have been
+   * changed. `ownKeys` works this out from the node.
+   */
+  overridden?: ReadonlySet<string>
+  /** Puts a property back to the component's default. Absent means no reset. */
+  onReset?: (definition: PropertyDefinition) => void
+  /**
    * The theme whose tokens these properties may hold.
    *
    * Absent means no picker: the panel still works, it just offers literals —
@@ -62,6 +73,8 @@ export function PropertyInspector({
   values,
   onChange,
   mixedKeys,
+  overridden,
+  onReset,
   theme,
   empty = false,
   disabled = false,
@@ -110,6 +123,13 @@ export function PropertyInspector({
                   value={values[definition.key]}
                   {...(theme === undefined ? {} : { theme })}
                   mixed={mixedKeys?.has(definition.key) === true}
+                  {...(onReset === undefined || overridden?.has(definition.key) !== true
+                    ? {}
+                    : {
+                        onReset: () => {
+                          onReset(definition)
+                        },
+                      })}
                   disabled={disabled}
                   onChange={(next, key) => {
                     onChange(definition, next, key)

@@ -434,4 +434,31 @@ describe("a colour control", () => {
 
     expect(container.querySelector('[data-inspector-token="backgroundColor"]')).not.toBeNull()
   })
+
+  it.each(["red", "rgb(0 0 0 / 50%)", "currentColor"])(
+    "edits %s as text rather than taking the panel down",
+    async (value) => {
+      /*
+       * All valid CSS, none of them hex, and the picker needs hex to place its
+       * sliders. Handing it one of these does not degrade — `parseHex` throws
+       * on anything that is not three or six hex digits, so one row's value
+       * took the whole inspector with it.
+       *
+       * A document imported from somewhere else is how a colour arrives
+       * written this way.
+       */
+      const onChange = vi.fn()
+
+      render(<Control definition={FILL} value={value} onChange={onChange} />)
+
+      const box = screen.getByLabelText("Background")
+
+      expect(box).toHaveValue(value)
+
+      await userEvent.clear(box)
+      await userEvent.type(box, "teal")
+
+      expect(onChange).toHaveBeenLastCalledWith("teal")
+    },
+  )
 })
