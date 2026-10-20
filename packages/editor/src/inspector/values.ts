@@ -1,7 +1,7 @@
 import type { Breakpoint, Node, StyleState } from "@checkout-studio/schema"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 
-import { effectiveSides, formatSides } from "./sides"
+import { effectiveSides, formatSides, shapesOf } from "./sides"
 
 /**
  * What a node currently holds for the properties it registered.
@@ -74,4 +74,40 @@ export function valuesFor(
   }
 
   return values
+}
+
+/**
+ * The properties this node holds itself, rather than inherits.
+ *
+ * What the inspector's reset is offered for, and the only thing that
+ * distinguishes "24px because somebody typed it" from "24px because the
+ * component ships it" — `valuesFor` deliberately collapses the two, since what
+ * a panel shows is what is in effect.
+ *
+ * Read with exactly the rules `valuesFor` reads by, including the one that
+ * matters most here: a side counts as held when *any* of its shapes is
+ * present. A node with only `paddingLeft` of its own has overridden its
+ * padding, and a reset that did not offer itself there would strand the one
+ * side somebody changed.
+ */
+export function ownKeys(
+  node: Node,
+  definitions: readonly PropertyDefinition[],
+): ReadonlySet<string> {
+  const held = new Set<string>()
+  const styles = node.styles[BASE_BREAKPOINT]?.[BASE_STATE] ?? {}
+
+  for (const definition of definitions) {
+    const bag: Readonly<Record<string, unknown>> =
+      definition.target === "prop" ? node.props : styles
+
+    const keys =
+      definition.control === "spacing" || definition.control === "radius"
+        ? shapesOf(definition.key)
+        : [definition.key]
+
+    if (keys.some((key) => bag[key] !== undefined)) held.add(definition.key)
+  }
+
+  return held
 }

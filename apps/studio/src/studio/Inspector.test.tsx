@@ -9,6 +9,7 @@ import type { ReactElement } from "react"
 
 import { Inspector } from "./Inspector"
 import { PROPERTIES, propertiesFor } from "./properties"
+import { registry } from "./registry"
 
 /**
  * The inspector, against the components the build actually ships.
@@ -174,5 +175,92 @@ describe("the inspector, against a real component", () => {
     await userEvent.keyboard("{ArrowUp}{ArrowUp}{ArrowUp}")
 
     expect(store.getState().history.past.length - before).toBeLessThanOrEqual(1)
+  })
+})
+
+describe("putting a property back", () => {
+  /** The property a Heading's text is, whatever the plugin calls it. */
+  function textProperty() {
+    const text = propertiesFor("core.heading").find(
+      (property) => property.control === "text" && property.target === "prop",
+    )
+
+    if (text === undefined) throw new Error("The heading registered no text property.")
+
+    return text
+  }
+
+  it("offers no reset for a value that came from the component", () => {
+    const { store } = mount()
+
+    place(store, "core.heading")
+
+    expect(screen.queryByRole("button", { name: /^Reset/ })).toBeNull()
+  })
+
+  it("offers one once the node holds a value of its own", async () => {
+    const { store } = mount()
+
+    place(store, "core.heading")
+
+    await userEvent.type(screen.getByLabelText(textProperty().label), "!")
+
+    expect(
+      screen.getByRole("button", {
+        name: `Reset ${textProperty().label} to the component's default`,
+      }),
+    ).toBeVisible()
+  })
+
+  it("removes the value rather than writing the default in its place", async () => {
+    /*
+     * The distinction the whole slice turns on. Both leave the same words on
+     * screen; only one leaves the node still following the component, so a
+     * later change to that default — or to the theme token behind it — still
+     * reaches this node.
+     */
+    const { store } = mount()
+    const id = place(store, "core.heading")
+    const text = textProperty()
+
+    await userEvent.type(screen.getByLabelText(text.label), "!")
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }))
+
+    expect(text.key in (store.getState().document.nodes[id]?.props ?? {})).toBe(false)
+  })
+
+  it("puts the component's own value back on screen", async () => {
+    const { store } = mount()
+
+    place(store, "core.heading")
+
+    const text = textProperty()
+    const shipped = registry.get("core.heading")?.defaultProps?.[text.key]
+
+    // Narrowed rather than cast: a prop value may be a boolean, which is not
+    // something a text box can hold — and if that is ever what a Heading ships
+    // for its text, this test should say so rather than coerce it.
+    if (typeof shipped !== "string") throw new Error("The heading's text default is not a string.")
+
+    await userEvent.type(screen.getByLabelText(text.label), "!")
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }))
+
+    expect(screen.getByLabelText(text.label)).toHaveValue(shipped)
+    expect(screen.queryByRole("button", { name: /^Reset/ })).toBeNull()
+  })
+
+  it("can be undone", async () => {
+    const { store } = mount()
+    const id = place(store, "core.heading")
+    const text = textProperty()
+
+    await userEvent.type(screen.getByLabelText(text.label), "!")
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }))
+
+    act(() => {
+      store.getState().undo()
+    })
+
+    expect(store.getState().document.nodes[id]?.props[text.key]).toContain("!")
   })
 })

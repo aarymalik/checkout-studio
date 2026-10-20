@@ -652,6 +652,12 @@ a time, so a case that did not say which one it wanted photographed whichever
 opened by itself, and the four-side spacing boxes stayed behind a closed header
 in every picture.
 
+A case may also give the node values **of its own**. Everything else in the
+gallery is a freshly inserted node, which is the right subject for most of the
+panel and the wrong one for anything that appears only once somebody has
+changed something — the per-property reset exists only on an overridden
+property, so a gallery of fresh nodes would photograph it never.
+
 The first four pictures found four defects that the test suite, the type
 checker and the linter all passed: a Max width reading "none is not a plain
 length" about a Section's own default, four padding boxes each rendering

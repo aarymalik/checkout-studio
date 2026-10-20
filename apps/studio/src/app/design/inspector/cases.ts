@@ -35,6 +35,16 @@ export interface InspectorCase {
   type: string
   /** The section to open, when the one that opens by itself is not the point. */
   section?: string
+  /**
+   * What the node holds of its own, for a case about an overridden property.
+   *
+   * Everything else here is a freshly inserted node, where every value comes
+   * from the component's defaults. That is the right subject for most of the
+   * panel and the wrong one for the reset, which exists only where somebody
+   * has changed something — a gallery of fresh nodes would photograph it
+   * never.
+   */
+  own?: { props?: Record<string, unknown>; styles?: Record<string, unknown> }
   /** What it is here to show, for somebody browsing rather than diffing. */
   shows: string
 }
@@ -50,6 +60,20 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     type: "core.section",
     section: "Spacing",
     shows: "Padding and margin as four boxes each, with the unit level with the numbers.",
+  },
+  {
+    id: "section-overridden",
+    type: "core.section",
+    section: "Spacing",
+    /*
+     * A literal, and it has to be one. This case exists to photograph a value
+     * somebody typed rather than one that came from the theme — a token here
+     * would be the opposite of the subject, and the panel would draw it muted
+     * with no reset beside it.
+     */
+    // design-system-ignore: the point of the case is a value off the scale.
+    own: { styles: { paddingTop: "12px" } },
+    shows: "One side typed by hand — its own value in black, and the reset that gives it back.",
   },
   {
     id: "heading",

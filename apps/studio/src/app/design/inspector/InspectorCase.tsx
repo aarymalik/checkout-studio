@@ -1,6 +1,6 @@
 "use client"
 
-import { PropertyInspector, valuesFor } from "@checkout-studio/editor"
+import { PropertyInspector, ownKeys, valuesFor } from "@checkout-studio/editor"
 import { defaultTheme } from "@checkout-studio/schema"
 import type { Node } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
@@ -8,6 +8,7 @@ import type { ReactElement } from "react"
 import { propertiesFor } from "@/studio/properties"
 import { registry } from "@/studio/registry"
 import { INSPECTOR_CASES } from "./cases"
+import type { InspectorCase as Case } from "./cases"
 
 /**
  * One panel, built the way the studio builds it.
@@ -23,14 +24,14 @@ import { INSPECTOR_CASES } from "./cases"
  * where every value comes from the component's own defaults — the stage of the
  * cascade the panel was not reading until recently.
  */
-function freshNode(type: string): Node {
+function freshNode(type: string, own: Case["own"] = {}): Node {
   return {
     id: "nod_gallery",
     type,
     parentId: null,
     children: [],
-    props: {},
-    styles: {},
+    props: own.props ?? {},
+    styles: own.styles === undefined ? {} : { desktop: { base: own.styles } },
     visibility: { hidden: false },
     animations: [],
     metadata: { locked: false },
@@ -42,7 +43,7 @@ export function InspectorCase({ id }: { id: string }): ReactElement {
 
   if (current === undefined) return <p>No case named {id}.</p>
 
-  const node = freshNode(current.type)
+  const node = freshNode(current.type, current.own)
   const definitions = propertiesFor(current.type)
   const component = registry.get(current.type)
 
@@ -55,8 +56,10 @@ export function InspectorCase({ id }: { id: string }): ReactElement {
           ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
         })}
         theme={defaultTheme}
+        overridden={ownKeys(node, definitions)}
         /* Nothing is edited here: a gallery that wrote would need a store. */
         onChange={() => undefined}
+        onReset={() => undefined}
       />
     </div>
   )
