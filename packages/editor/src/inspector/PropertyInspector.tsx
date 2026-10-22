@@ -2,7 +2,7 @@
 
 import { Accordion, AccordionHeader, AccordionItem, AccordionPanel } from "@checkout-studio/ui"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
-import type { CheckoutTheme } from "@checkout-studio/schema"
+import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
 import { Control } from "./Control"
@@ -57,6 +57,17 @@ export interface PropertyInspectorProps {
   /** Puts a property back to the component's default. Absent means no reset. */
   onReset?: (definition: PropertyDefinition) => void
   /**
+   * The breakpoint being edited.
+   *
+   * The panel shows what is in force here, which at tablet means the tablet
+   * override or the desktop value behind it. Only properties that asked to be
+   * responsive are per-breakpoint: a prop cannot be, since the document stores
+   * overrides for styles only, and a style that did not ask is edited at the
+   * base wherever the canvas happens to be — so neither is described as having
+   * an override.
+   */
+  breakpoint?: Breakpoint
+  /**
    * The theme whose tokens these properties may hold.
    *
    * Absent means no picker: the panel still works, it just offers literals —
@@ -75,6 +86,7 @@ export function PropertyInspector({
   mixedKeys,
   overridden,
   onReset,
+  breakpoint,
   theme,
   empty = false,
   disabled = false,
@@ -129,6 +141,9 @@ export function PropertyInspector({
                         onReset: () => {
                           onReset(definition)
                         },
+                        ...(breakpoint === undefined || definition.responsive !== true
+                          ? {}
+                          : { breakpoint }),
                       })}
                   disabled={disabled}
                   onChange={(next, key) => {

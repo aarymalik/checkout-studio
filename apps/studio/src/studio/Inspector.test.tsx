@@ -178,6 +178,127 @@ describe("the inspector, against a real component", () => {
   })
 })
 
+describe("editing one breakpoint", () => {
+  // The property a Section's padding is, which is responsive and is a side —
+  // so it exercises the override and the four shapes at once.
+  function responsiveStyle() {
+    const style = propertiesFor("core.section").find(
+      (property) => property.key === "padding" && property.responsive === true,
+    )
+
+    if (style === undefined) throw new Error("A Section no longer has a responsive padding.")
+
+    return style
+  }
+
+  function showing(store: EditorStoreApi, breakpoint: "desktop" | "tablet" | "mobile") {
+    act(() => {
+      store.getState().setBreakpoint(breakpoint)
+    })
+  }
+
+  // The panel keeps one section open at a time, and a Section opens on Layout.
+  // Without this the padding boxes are not in the document at all, and every
+  // assertion below would be about an element that was never rendered.
+  async function open(group: string) {
+    await userEvent.click(screen.getByRole("button", { name: group }))
+  }
+
+  it("writes the base while the canvas is at desktop", async () => {
+    const { store } = mount()
+    const id = place(store, "core.section")
+    const style = responsiveStyle()
+
+    await open(style.group)
+    await userEvent.type(screen.getByLabelText(`${style.label} top`), "8")
+
+    const styles = store.getState().document.nodes[id]?.styles
+
+    expect(styles?.desktop?.base?.["paddingTop"]).toBe("8px")
+    expect(styles?.tablet).toBeUndefined()
+  })
+
+  it("writes an override while the canvas is at tablet, leaving the base alone", async () => {
+    const { store } = mount()
+    const id = place(store, "core.section")
+    const style = responsiveStyle()
+
+    showing(store, "tablet")
+
+    await open(style.group)
+    await userEvent.type(screen.getByLabelText(`${style.label} top`), "8")
+
+    const styles = store.getState().document.nodes[id]?.styles
+
+    expect(styles?.tablet?.base?.["paddingTop"]).toBe("8px")
+    expect(styles?.desktop?.base?.["paddingTop"]).toBeUndefined()
+  })
+
+  it("offers to remove the override, and removing it leaves the base standing", async () => {
+    const { store } = mount()
+    const id = place(store, "core.section")
+    const style = responsiveStyle()
+
+    // A desktop value first, then a tablet one over the top of it.
+    await open(style.group)
+    await userEvent.type(screen.getByLabelText(`${style.label} top`), "8")
+
+    showing(store, "tablet")
+
+    await userEvent.type(screen.getByLabelText(`${style.label} top`), "4")
+
+    expect(screen.getByText("Set for tablet")).toBeVisible()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: `Remove the tablet override for ${style.label}` }),
+    )
+
+    const styles = store.getState().document.nodes[id]?.styles
+
+    expect(styles?.tablet?.base?.["paddingTop"]).toBeUndefined()
+    expect(styles?.desktop?.base?.["paddingTop"]).toBe("8px")
+  })
+
+  it("shows the wider value where this breakpoint has nothing, and calls it no override", async () => {
+    const { store } = mount()
+
+    place(store, "core.section")
+
+    const style = responsiveStyle()
+
+    await open(style.group)
+    await userEvent.type(screen.getByLabelText(`${style.label} top`), "8")
+
+    showing(store, "mobile")
+
+    // The desktop value is what the page uses at mobile, so it is what the
+    // panel shows — and there is no mobile override to offer to remove.
+    expect(screen.getByLabelText(`${style.label} top`)).toHaveValue(8)
+    expect(screen.queryByText("Set for mobile")).toBeNull()
+  })
+
+  it("keeps a prop global, wherever the canvas is", async () => {
+    // The document stores per-breakpoint overrides for styles only, so a prop
+    // edited at tablet is edited everywhere — and must not be described as a
+    // tablet override.
+    const { store } = mount()
+    const id = place(store, "core.heading")
+
+    const text = propertiesFor("core.heading").find(
+      (property) => property.control === "text" && property.target === "prop",
+    )
+
+    if (text === undefined) throw new Error("The heading registered no text property.")
+
+    showing(store, "tablet")
+
+    await userEvent.type(screen.getByLabelText(text.label), "!")
+
+    expect(store.getState().document.nodes[id]?.props[text.key]).toContain("!")
+    expect(screen.queryByText("Set for tablet")).toBeNull()
+  })
+})
+
 describe("putting a property back", () => {
   /** The property a Heading's text is, whatever the plugin calls it. */
   function textProperty() {

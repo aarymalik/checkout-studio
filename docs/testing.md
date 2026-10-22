@@ -652,6 +652,10 @@ a time, so a case that did not say which one it wanted photographed whichever
 opened by itself, and the four-side spacing boxes stayed behind a closed header
 in every picture.
 
+A case may also name the **breakpoint** it is edited at, and give the node
+values at more than one of them — an override is only legible beside the value
+it overrides, so the tablet case holds both.
+
 A case may also give the node values **of its own**. Everything else in the
 gallery is a freshly inserted node, which is the right subject for most of the
 panel and the wrong one for anything that appears only once somebody has
