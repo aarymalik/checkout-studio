@@ -42,15 +42,16 @@
     "@checkout-studio/config": "workspace:*",
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
+    "@types/node": "26.6.2",
     "dependency-cruiser": "18.4.0",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
     "husky": "9.1.7",
     "lint-staged": "17.5.1",
     "prettier": "3.9.8",
     "turbo": "2.11.2",
     "typescript": "5.9.3",
-    "@types/node": "26.6.2",
-    "eslint": "10.11.0",
-    "globals": "17.12.0"
+    "vite": "8.3.5"
   },
   "lint-staged": {
     "*.{ts,tsx,mts,cts}": [
