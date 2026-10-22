@@ -20,4 +20,4 @@ export {
 export type { Sides } from "./sides"
 export type { Defaults } from "./values"
 export type { InspectorSection } from "./sections"
-export { BASE_BREAKPOINT, BASE_STATE, ownKeys, valuesFor } from "./values"
+export { BASE_BREAKPOINT, BASE_STATE, ownKeys, stylesAt, valuesFor } from "./values"

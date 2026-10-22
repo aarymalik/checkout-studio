@@ -15,7 +15,7 @@ import { isHexColor } from "@checkout-studio/design-system"
 import { isTokenReference } from "@checkout-studio/schema"
 import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
-import type { CheckoutTheme } from "@checkout-studio/schema"
+import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
 import type { KeyboardEvent, ReactElement } from "react"
 
 import { useRef, useState } from "react"
@@ -64,6 +64,14 @@ export interface ControlProps {
    * rendering a panel with nowhere to write is the ordinary case.
    */
   onReset?: (() => void) | undefined
+  /**
+   * The breakpoint being edited, when it is not the base.
+   *
+   * Only the reset reads it, and only to say which "back" it means: removing
+   * an override puts the wider breakpoint's value back, not the component's
+   * default.
+   */
+  breakpoint?: Breakpoint | undefined
   /**
    * The theme whose tokens this property may hold.
    *
@@ -120,20 +128,41 @@ export function Control(props: ControlProps): ReactElement {
     <div className="flex flex-col gap-1" data-inspector-overridden={definition.key}>
       {control}
 
-      <Reset definition={definition} onReset={onReset} />
+      <Reset definition={definition} breakpoint={props.breakpoint} onReset={onReset} />
     </div>
   )
 }
 
+/** What a narrow breakpoint is called, for the indicator and the button's name. */
+const BREAKPOINT_NAMES: Readonly<Record<string, string>> = {
+  tablet: "tablet",
+  mobile: "mobile",
+}
+
 /**
- * Put it back to what the component ships.
+ * Put it back — and say which "back" is meant.
+ *
+ * ## Two meanings, one gesture
+ *
+ * At the base breakpoint this removes the node's own value and the component's
+ * default comes back. At a narrow one it removes the *override* and the wider
+ * breakpoint's value comes back. Both are the same call on the store, because
+ * both are "delete whatever this breakpoint holds" — but they are not the same
+ * sentence, and a button that said "reset to the default" while putting the
+ * desktop value back would be describing something that did not happen.
+ *
+ * ## The indicator is the same fact
+ *
+ * docs/phases.md asks for an override indicator on overridden properties only.
+ * That is this row: it is rendered exactly when the property holds something
+ * at this breakpoint, so the words beside the button are the indicator rather
+ * than a second thing to keep in step with it.
  *
  * ## Rendered, not revealed on hover
  *
- * Shown whenever the property is overridden, rather than appearing under the
- * pointer. A control that exists only on hover cannot be reached by a keyboard
- * or on a touch screen, and docs/accessibility.md does not have an exception
- * for things that would otherwise look tidy. It is quiet instead of hidden:
+ * A control that exists only on hover cannot be reached by a keyboard or on a
+ * touch screen, and docs/accessibility.md does not have an exception for
+ * things that would otherwise look tidy. It is quiet instead of hidden:
  * caption-sized and muted, under the control it belongs to.
  *
  * ## It says what it will do
@@ -143,28 +172,62 @@ export function Control(props: ControlProps): ReactElement {
  */
 function Reset({
   definition,
+  breakpoint,
   onReset,
 }: {
   definition: PropertyDefinition
+  breakpoint?: Breakpoint | undefined
   onReset: () => void
 }): ReactElement {
+  const narrow = breakpoint === undefined ? undefined : BREAKPOINT_NAMES[breakpoint]
+
   return (
-    <button
-      type="button"
-      data-inspector-reset={definition.key}
-      className={cn(
-        "self-start rounded-tight text-caption text-foreground-muted",
-        // The ring is the reset's, unlayered, so every focusable thing in the
-        // product agrees. `outline-none` removes the browser's own and nothing
-        // here tries to draw a second one.
-        "transition-colors duration-fast ease-standard outline-none",
-        "hover:text-foreground",
+    <div className="flex items-center gap-2">
+      {narrow === undefined ? null : (
+        <>
+          <span
+            data-inspector-override={definition.key}
+            className="text-caption text-foreground-muted"
+          >
+            {`Set for ${narrow}`}
+          </span>
+
+          {/* The two ran together as one phrase in the first picture of this
+              row — "Set for tablet Remove" — with nothing to say which half
+              was the button. Decoration, so it is not read aloud as a word. */}
+          <span aria-hidden="true" className="text-caption text-foreground-muted">
+            ·
+          </span>
+        </>
       )}
-      onClick={onReset}
-    >
-      <span aria-hidden="true">Reset</span>
-      <span className="sr-only">{`Reset ${definition.label} to the component's default`}</span>
-    </button>
+
+      <button
+        type="button"
+        data-inspector-reset={definition.key}
+        // Not muted, where the indicator beside it is. The contrast is what
+        // says which half is the control: `ghost` is the product's quiet
+        // button and it reads in `text-foreground` for the same reason.
+        //
+        // It also marks the rows somebody has changed, which is the one piece
+        // of emphasis this panel earns — every other row stays flat.
+        className={cn(
+          "self-start rounded-tight text-caption text-foreground",
+          // The ring is the reset's, unlayered, so every focusable thing in the
+          // product agrees. `outline-none` removes the browser's own and nothing
+          // here tries to draw a second one.
+          "transition-colors duration-fast ease-standard outline-none",
+          "hover:underline",
+        )}
+        onClick={onReset}
+      >
+        <span aria-hidden="true">{narrow === undefined ? "Reset" : "Remove"}</span>
+        <span className="sr-only">
+          {narrow === undefined
+            ? `Reset ${definition.label} to the component's default`
+            : `Remove the ${narrow} override for ${definition.label}`}
+        </span>
+      </button>
+    </div>
   )
 }
 

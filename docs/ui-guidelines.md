@@ -456,6 +456,32 @@ A property stored under more than one key is cleared under all of them. One
 padding is up to five keys, and a reset that removed only the shorthand would
 leave four longhands behind and read as a button that does nothing.
 
+## Breakpoints
+
+The panel edits the breakpoint the canvas is showing, and shows what is in
+force there: the override at this breakpoint, else the next wider one, else
+the component's default. That is the order a browser applies them in — desktop
+is the base and the narrower breakpoints are `max-width` queries — and a panel
+that resolved it differently would be showing a number the page does not use.
+
+Only a property that asked to be responsive is per-breakpoint. A prop never
+can be, since the document stores overrides for styles only, and a style whose
+definition did not ask is edited at the base wherever the canvas happens to
+be. Neither is described as having an override.
+
+**A property set at this breakpoint is marked, and only then.** The mark and
+the reset are the same row, because they are the same fact: this breakpoint
+holds something of its own.
+
+Reset means the narrower thing here. At the base it puts the component's
+default back; at tablet it removes the override and the desktop value returns.
+The button says which — "Reset" against "Remove" — because a button promising
+the default while restoring the desktop value would be describing something
+that did not happen.
+
+A property showing an inherited value has nothing to reset at this breakpoint.
+Offering it would suggest the value belongs here when it does not.
+
 ---
 
 # Inputs

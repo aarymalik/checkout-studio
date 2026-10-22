@@ -7,13 +7,14 @@ import {
   useEditorStore,
   useEditorStoreApi,
   useShellActions,
+  BASE_BREAKPOINT,
   ownKeys,
   shapesOf,
   useShellLayout,
   valuesFor,
 } from "@checkout-studio/editor"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
-import type { CheckoutTheme } from "@checkout-studio/schema"
+import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
 import { propertiesFor } from "./properties"
@@ -51,6 +52,13 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
 
     return first === undefined ? null : (state.document.nodes[first] ?? null)
   })
+  /*
+   * The breakpoint the canvas is showing. Editing at tablet writes a tablet
+   * override, which is the whole of Phase 12's step 6 — and it comes from the
+   * viewport rather than from a control of the panel's own, because the thing
+   * being edited should be the thing on screen.
+   */
+  const breakpoint = useEditorStore((state) => state.viewport.breakpoint)
 
   if (selected === null) {
     return <PropertyInspector definitions={[]} values={{}} onChange={() => undefined} empty />
@@ -86,7 +94,20 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
       return
     }
 
-    store.getState().setStyles([selected.id], { [written]: value })
+    store.getState().setStyles([selected.id], { [written]: value }, { breakpoint: at(definition) })
+  }
+
+  /**
+   * Which breakpoint a style belongs to.
+   *
+   * The one on screen, if the property asked to be responsive. If it did not,
+   * the base — the component declared the value is not per-breakpoint, and an
+   * editor that wrote a tablet override anyway would create something it never
+   * offered to show, since the panel would go on reading that property from
+   * the base wherever the canvas was.
+   */
+  function at(definition: PropertyDefinition): Breakpoint {
+    return definition.responsive === true ? breakpoint : BASE_BREAKPOINT
   }
 
   /**
@@ -114,18 +135,24 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
       return
     }
 
-    store.getState().clearStyles([selected.id], keys)
+    store.getState().clearStyles([selected.id], keys, { breakpoint: at(definition) })
   }
 
   return (
     <PropertyInspector
       definitions={definitions}
-      values={valuesFor(selected, definitions, {
-        ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
-        ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
-      })}
+      values={valuesFor(
+        selected,
+        definitions,
+        {
+          ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
+          ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
+        },
+        breakpoint,
+      )}
       {...(theme === null ? {} : { theme })}
-      overridden={ownKeys(selected, definitions)}
+      overridden={ownKeys(selected, definitions, breakpoint)}
+      breakpoint={breakpoint}
       onChange={change}
       onReset={reset}
     />
