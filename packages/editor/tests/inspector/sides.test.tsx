@@ -256,6 +256,35 @@ describe("a side that follows the theme", () => {
   })
 })
 
+describe("four sides the selection disagrees about", () => {
+  it("says so once, where the word fits", () => {
+    /*
+     * Photographed before it was fixed: `placeholder="Mixed"` in a box 56
+     * pixels wide renders as "Mi›", four times over, which reads as a glitch
+     * rather than as a value. The word goes on the label row and the boxes
+     * carry a dash.
+     */
+    render(<Control definition={PADDING} value="16px" mixed onChange={vi.fn()} />)
+
+    expect(screen.getByText("Mixed")).toBeVisible()
+
+    for (const side of ["top", "right", "bottom", "left"]) {
+      const box = screen.getByLabelText(`Padding ${side}`)
+
+      // `null` rather than "": an empty number input has no value at all.
+      expect(box).toHaveValue(null)
+      expect(box).toHaveAttribute("placeholder", "–")
+    }
+  })
+
+  it("shows no value at all, rather than the first one's", () => {
+    render(<Control definition={PADDING} value="16px 8px" mixed onChange={vi.fn()} />)
+
+    expect(screen.queryByDisplayValue("16")).toBeNull()
+    expect(screen.queryByDisplayValue("8")).toBeNull()
+  })
+})
+
 describe("a radius control", () => {
   it("names its boxes as corners, and writes the matching longhand", async () => {
     const onChange = sides(RADIUS, { borderRadius: "4px" })

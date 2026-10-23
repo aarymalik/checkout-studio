@@ -435,6 +435,18 @@ describe("a colour control", () => {
     expect(container.querySelector('[data-inspector-token="backgroundColor"]')).not.toBeNull()
   })
 
+  it("says Mixed rather than showing one selection's colour", () => {
+    /*
+     * A swatch cannot say "several colours". Showing the first node's would
+     * read as though they all had it — until the first keystroke made that
+     * true.
+     */
+    render(<Control definition={FILL} value="#2563eb" mixed onChange={vi.fn()} />)
+
+    expect(screen.getByLabelText("Background")).toHaveValue("")
+    expect(screen.getByLabelText("Background")).toHaveAttribute("placeholder", "Mixed")
+  })
+
   it.each(["red", "rgb(0 0 0 / 50%)", "currentColor"])(
     "edits %s as text rather than taking the panel down",
     async (value) => {

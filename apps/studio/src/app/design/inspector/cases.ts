@@ -42,6 +42,11 @@ export interface InspectorCase {
   // Typed into the search field before the picture, for a case about results
   // rather than about the panel at rest.
   search?: string
+  // Keys the selection does not agree on, for a case about editing several
+  // components at once. The panel takes this set from the application, so a
+  // case giving one is using the product's own door rather than reaching past
+  // it the way a seeded search query would.
+  mixed?: readonly string[]
   /**
    * What the node holds of its own, for a case about an overridden property.
    *
@@ -104,6 +109,13 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     // letters, "Background" only has them in order.
     search: "ad",
     shows: "Results from every section at once, each run under the group it came from.",
+  },
+  {
+    id: "section-mixed",
+    type: "core.section",
+    section: "Spacing",
+    mixed: ["padding"],
+    shows: "Two components that disagree: four boxes saying Mixed, and a margin that does not.",
   },
   {
     id: "heading",

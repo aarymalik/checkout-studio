@@ -394,9 +394,10 @@ function Literal({
       return (
         <SidesControl
           definition={definition}
-          sides={parseSides(value) ?? EMPTY_SIDES}
+          sides={mixed ? EMPTY_SIDES : (parseSides(value) ?? EMPTY_SIDES)}
           corners={definition.control === "radius"}
           disabled={disabled}
+          mixed={mixed}
           {...(theme === undefined ? {} : { theme })}
           onChange={onChange}
         />
@@ -522,6 +523,22 @@ function Literal({
        * Found by a test fixture holding `red`, which is exactly how a document
        * imported from somewhere else would hold it.
        */
+      // A swatch cannot say "several colours", and showing the first node's
+      // would read as though they all had it — until the first keystroke made
+      // that true.
+      if (mixed) {
+        return (
+          <DraftInput
+            {...shared}
+            type="text"
+            value=""
+            placeholder="Mixed"
+            accepts={() => true}
+            onCommit={onChange}
+          />
+        )
+      }
+
       if (typeof value === "string" && value !== "" && !isHexColor(value)) {
         return (
           <DraftInput
@@ -675,6 +692,7 @@ function SidesControl({
   sides,
   corners,
   disabled,
+  mixed,
   theme,
   onChange,
 }: {
@@ -682,6 +700,7 @@ function SidesControl({
   sides: Sides
   corners: boolean
   disabled: boolean
+  mixed: boolean
   theme?: CheckoutTheme
   onChange: (value: string, key?: string) => void
 }): ReactElement {
@@ -715,6 +734,8 @@ function SidesControl({
    * and the longhand this writes is its first.
    */
   function placeholderFor(side: keyof Sides): string | undefined {
+    if (mixed) return undefined
+
     const path = pathOf(sides[side])
 
     if (path === null || theme === undefined) return undefined
@@ -732,7 +753,14 @@ function SidesControl({
 
   return (
     <FieldShell>
-      <FieldLabel>{definition.label}</FieldLabel>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel>{definition.label}</FieldLabel>
+
+        {/* Said once, on the label row, because a box 56 pixels wide renders
+            the word as "Mi›". The boxes carry a dash instead: together they
+            read as "no single value", and this says which value that is. */}
+        {mixed ? <span className="text-caption text-foreground-muted">Mixed</span> : null}
+      </div>
 
       {/*
        * Aligned to the top, not the bottom. Each side is a box with its letter
@@ -753,6 +781,8 @@ function SidesControl({
                 value={sides[box.key]}
                 unit={unit}
                 disabled={disabled}
+                // A dash, not the word: see the label row above.
+                {...(mixed ? { placeholder: "–" } : {})}
                 {...(placeholder === undefined ? {} : { placeholder })}
                 onChange={(next) => {
                   write(box.key, next)

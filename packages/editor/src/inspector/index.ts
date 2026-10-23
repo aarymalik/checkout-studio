@@ -6,6 +6,7 @@ export { columnTracks, formatLength, parseColumns, parseLength } from "./length"
 export type { Length } from "./length"
 export { isShown, sectionsFor } from "./sections"
 export { searchProperties } from "./search"
+export { commonProperties, mixedKeys } from "./selection"
 export type { PropertySearchResult } from "./search"
 export { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
 export {
