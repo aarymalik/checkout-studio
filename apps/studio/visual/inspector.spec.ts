@@ -53,6 +53,16 @@ for (const testCase of INSPECTOR_CASES) {
       }
 
       /*
+       * Typed rather than handed in as a prop. The query belongs to the panel,
+       * the way the open section does, and a gallery that reached past the
+       * field to set it would be photographing a state the product cannot
+       * reach.
+       */
+      if (testCase.search !== undefined) {
+        await page.getByRole("searchbox", { name: "Search properties" }).fill(testCase.search)
+      }
+
+      /*
        * Next's development indicator is not part of the design system, and it
        * moves between framework releases. Removed rather than masked: it
        * renders inside a shadow root, which Playwright's `mask` cannot reach.

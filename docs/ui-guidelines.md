@@ -482,6 +482,31 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Search
+
+A field at the top of the panel, always. `⌘F` focuses it and selects what is
+there, because pressing it again means another search and the first one should
+not have to be deleted first. Escape empties it rather than leaving a filter
+nobody is looking at applied to the panel behind it.
+
+`reserved.ts` already carves this panel out of the browser's find: both the
+inspector and the layers panel are long lists with a search field of their own,
+and in both a person pressing `⌘F` means "find in this list".
+
+Matching is the fuzzy matcher the command palette and the layers panel use, so
+one search is learned once. A **group** matches too: typing "typo" means
+Typography, and no label in it contains those letters.
+
+**Results are a flat list, not the accordion.** One section open at a time is
+right for browsing eleven of them and wrong for reading an answer — a search
+that put its own matches behind closed headers would be asking the question
+twice. Each run is labelled with the group it came from, because "Colour"
+means something different under Typography than under Background.
+
+Nothing is reordered. The palette sorts by score; this does not, because a
+panel that rearranged itself while somebody typed would make them hunt for a
+control they had already found.
+
 ## Apply to all breakpoints
 
 `⌘↵`, from inside the field. docs/keyboard-shortcuts.md states the need in one
