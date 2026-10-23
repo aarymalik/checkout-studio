@@ -1,11 +1,20 @@
 "use client"
 
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel } from "@checkout-studio/ui"
+import {
+  Accordion,
+  AccordionHeader,
+  AccordionItem,
+  AccordionPanel,
+  SearchInput,
+} from "@checkout-studio/ui"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
+import { useRef, useState } from "react"
+
 import { Control } from "./Control"
+import { searchProperties } from "./search"
 import { sectionsFor } from "./sections"
 
 /**
@@ -101,6 +110,9 @@ export function PropertyInspector({
   empty = false,
   disabled = false,
 }: PropertyInspectorProps): ReactElement {
+  const [query, setQuery] = useState("")
+  const field = useRef<HTMLInputElement>(null)
+
   if (empty) {
     return (
       <p className="p-4 text-small text-foreground-muted" data-inspector-state="no-selection">
@@ -109,10 +121,10 @@ export function PropertyInspector({
     )
   }
 
-  const sections = sectionsFor(definitions, values)
-  const first = sections[0]
+  const all = sectionsFor(definitions, values)
+  const { sections, matches } = searchProperties(all, query)
 
-  if (first === undefined) {
+  if (all[0] === undefined) {
     return (
       <p className="p-4 text-small text-foreground-muted" data-inspector-state="no-properties">
         This component has nothing to configure.
@@ -120,58 +132,125 @@ export function PropertyInspector({
     )
   }
 
-  return (
-    // One open at a time, per docs/ui-guidelines.md: eleven open at once is a
-    // wall rather than a panel.
-    <Accordion type="single" defaultValue={first.group} collapsible>
-      {sections.map((section) => (
-        <AccordionItem key={section.group} value={section.group}>
-          <AccordionHeader>{section.group}</AccordionHeader>
+  // One row, built once. The searched view and the accordion both draw the
+  // same controls, and a second copy of this call would be a second place for
+  // a prop to be forgotten.
+  function row(definition: PropertyDefinition, index: number): ReactElement {
+    return (
+      <Control
+        /*
+         * The index too: one key may be declared more than once when each is
+         * shown under a different answer to the same question — Embed's `id`
+         * is "Video ID" for one service and "Booking link" for another. Only
+         * one survives `isShown`, but keying on the pair alone would be a
+         * collision waiting for the day that stops being true.
+         */
+        key={`${definition.target}:${definition.key}:${String(index)}`}
+        definition={definition}
+        value={values[definition.key]}
+        {...(theme === undefined ? {} : { theme })}
+        mixed={mixedKeys?.has(definition.key) === true}
+        {...(onReset === undefined || overridden?.has(definition.key) !== true
+          ? {}
+          : {
+              onReset: () => {
+                onReset(definition)
+              },
+              ...(breakpoint === undefined || definition.responsive !== true ? {} : { breakpoint }),
+            })}
+        {...(onApplyToAll === undefined || definition.responsive !== true
+          ? {}
+          : {
+              onApplyToAll: () => {
+                onApplyToAll(definition)
+              },
+            })}
+        disabled={disabled}
+        onChange={(next, key) => {
+          onChange(definition, next, key)
+        }}
+      />
+    )
+  }
 
-          <AccordionPanel>
-            <div className="flex flex-col gap-4 p-3">
-              {section.properties.map((definition, index) => (
-                <Control
-                  /*
-                   * The index too: one key may be declared more than once when
-                   * each is shown under a different answer to the same
-                   * question — Embed's `id` is "Video ID" for one service and
-                   * "Booking link" for another. Only one survives `isShown`,
-                   * but keying on the pair alone would be a collision waiting
-                   * for the day that stops being true.
-                   */
-                  key={`${definition.target}:${definition.key}:${String(index)}`}
-                  definition={definition}
-                  value={values[definition.key]}
-                  {...(theme === undefined ? {} : { theme })}
-                  mixed={mixedKeys?.has(definition.key) === true}
-                  {...(onReset === undefined || overridden?.has(definition.key) !== true
-                    ? {}
-                    : {
-                        onReset: () => {
-                          onReset(definition)
-                        },
-                        ...(breakpoint === undefined || definition.responsive !== true
-                          ? {}
-                          : { breakpoint }),
-                      })}
-                  {...(onApplyToAll === undefined || definition.responsive !== true
-                    ? {}
-                    : {
-                        onApplyToAll: () => {
-                          onApplyToAll(definition)
-                        },
-                      })}
-                  disabled={disabled}
-                  onChange={(next, key) => {
-                    onChange(definition, next, key)
-                  }}
-                />
-              ))}
+  return (
+    <div
+      className="flex min-h-0 flex-col"
+      onKeyDown={(event) => {
+        /*
+         * ⌘F, which reserved.ts already lets this panel take from the browser:
+         * "both are long lists, both have a search field, and in both a person
+         * pressing ⌘F means find in this list".
+         *
+         * Handled where the field is rather than registered as a command,
+         * because the command would have to find this field to focus it — and
+         * the panel is the only thing that knows where it is.
+         */
+        if (event.key !== "f" || !(event.metaKey || event.ctrlKey)) return
+
+        event.preventDefault()
+        field.current?.focus()
+        // Selected, not just focused: pressing it again means another search,
+        // and the first one should not have to be deleted first.
+        field.current?.select()
+      }}
+    >
+      <div className="p-3 pb-2">
+        <SearchInput
+          ref={field}
+          label="Search properties"
+          placeholder="Search properties"
+          value={query}
+          onValueChange={setQuery}
+          onKeyDown={(event) => {
+            // Escape empties the field rather than leaving a filter somebody
+            // has stopped looking at applied to the panel behind it.
+            if (event.key !== "Escape") return
+
+            event.preventDefault()
+            setQuery("")
+          }}
+        />
+      </div>
+
+      {matches === 0 ? (
+        <p className="p-3 text-small text-foreground-muted" data-inspector-state="no-matches">
+          {`Nothing here is called "${query.trim()}".`}
+        </p>
+      ) : query.trim() === "" ? (
+        // One open at a time, per docs/ui-guidelines.md: eleven open at once is
+        // a wall rather than a panel.
+        <Accordion type="single" defaultValue={all[0].group} collapsible>
+          {sections.map((section) => (
+            <AccordionItem key={section.group} value={section.group}>
+              <AccordionHeader>{section.group}</AccordionHeader>
+
+              <AccordionPanel>
+                <div className="flex flex-col gap-4 p-3">{section.properties.map(row)}</div>
+              </AccordionPanel>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      ) : (
+        /*
+         * Results, not an accordion. One section open at a time is right for
+         * browsing eleven of them and wrong for reading an answer: a search
+         * that put its own matches behind closed headers would be asking the
+         * question twice.
+         *
+         * The group still labels each run, because "Colour" means something
+         * different under Typography than under Background.
+         */
+        <div className="flex flex-col gap-4 p-3" data-inspector-results={String(matches)}>
+          {sections.map((section) => (
+            <div key={section.group} className="flex flex-col gap-4">
+              <p className="text-caption text-foreground-muted">{section.group}</p>
+
+              {section.properties.map(row)}
             </div>
-          </AccordionPanel>
-        </AccordionItem>
-      ))}
-    </Accordion>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

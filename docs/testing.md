@@ -652,6 +652,11 @@ a time, so a case that did not say which one it wanted photographed whichever
 opened by itself, and the four-side spacing boxes stayed behind a closed header
 in every picture.
 
+A case may also carry a **search**, which the spec types into the field rather
+than handing in as a prop. The query belongs to the panel, the way the open
+section does, and a gallery that reached past the field to set it would be
+photographing a state the product cannot reach.
+
 A case may also name the **breakpoint** it is edited at, and give the node
 values at more than one of them — an override is only legible beside the value
 it overrides, so the tablet case holds both.

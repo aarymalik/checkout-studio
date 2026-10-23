@@ -39,6 +39,9 @@ export interface InspectorCase {
   section?: string
   // The breakpoint the panel is editing. Desktop, the base, when absent.
   at?: Breakpoint
+  // Typed into the search field before the picture, for a case about results
+  // rather than about the panel at rest.
+  search?: string
   /**
    * What the node holds of its own, for a case about an overridden property.
    *
@@ -93,6 +96,14 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     // design-system-ignore: the point of the case is values off the scale.
     own: { styles: { desktop: { paddingTop: "12px" }, tablet: { paddingTop: "4px" } } },
     shows: "A tablet override, marked as set for tablet, and the Remove that gives the base back.",
+  },
+  {
+    id: "section-search",
+    type: "core.section",
+    // Three groups and two kinds of match: "Padding" and "Shadow" contain the
+    // letters, "Background" only has them in order.
+    search: "ad",
+    shows: "Results from every section at once, each run under the group it came from.",
   },
   {
     id: "heading",
