@@ -2,6 +2,7 @@ import { defineProperties } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import type { Breakpoint, Node } from "@checkout-studio/schema"
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
 import { PropertyInspector, ownKeys, stylesAt, valuesFor } from "../../src/inspector"
@@ -207,5 +208,78 @@ describe("what the panel says about an override", () => {
     expect(
       screen.getByRole("button", { name: "Reset Overflow to the component's default" }),
     ).toBeVisible()
+  })
+})
+
+describe("applying a value to every breakpoint", () => {
+  function panel(onApplyToAll = vi.fn()) {
+    render(
+      <PropertyInspector
+        definitions={DEFINITIONS}
+        values={{ text: "Hi", fontSize: "24px", overflow: "hidden" }}
+        breakpoint="tablet"
+        onChange={vi.fn()}
+        onApplyToAll={onApplyToAll}
+      />,
+    )
+
+    return onApplyToAll
+  }
+
+  it("fires on the gesture, from inside the field", async () => {
+    // docs/keyboard-shortcuts.md keeps ⌘↵ on the short list of bindings that
+    // survive the text guard, precisely so it can be pressed while typing.
+    const onApplyToAll = panel()
+
+    screen.getByLabelText("Size").focus()
+
+    await userEvent.keyboard("{Meta>}{Enter}{/Meta}")
+
+    expect(onApplyToAll).toHaveBeenCalledWith(expect.objectContaining({ key: "fontSize" }))
+  })
+
+  it("takes Control where there is no Command", async () => {
+    const onApplyToAll = panel()
+
+    screen.getByLabelText("Size").focus()
+
+    await userEvent.keyboard("{Control>}{Enter}{/Control}")
+
+    expect(onApplyToAll).toHaveBeenCalledTimes(1)
+  })
+
+  it("leaves a plain Enter to the field", async () => {
+    /*
+     * Enter alone submits, or does nothing, or inserts a newline — whatever
+     * the field decides. Swallowing it would break every one of those to
+     * deliver a gesture nobody asked for.
+     */
+    const onApplyToAll = panel()
+
+    screen.getByLabelText("Size").focus()
+
+    await userEvent.keyboard("{Enter}")
+
+    expect(onApplyToAll).not.toHaveBeenCalled()
+  })
+
+  it("is not offered for a property that is one value already", async () => {
+    /*
+     * A prop cannot be per-breakpoint and neither can a style that did not ask
+     * to be. "Apply to all" on one of those would be a gesture that quietly
+     * did nothing, which is worse than one that is not there.
+     */
+    const onApplyToAll = panel()
+
+    screen.getByLabelText("Text").focus()
+
+    await userEvent.keyboard("{Meta>}{Enter}{/Meta}")
+
+    // Named, because the Size control contributes a unit picker of its own.
+    screen.getByRole("combobox", { name: "Overflow" }).focus()
+
+    await userEvent.keyboard("{Meta>}{Enter}{/Meta}")
+
+    expect(onApplyToAll).not.toHaveBeenCalled()
   })
 })

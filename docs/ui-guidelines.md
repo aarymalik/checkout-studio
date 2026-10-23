@@ -482,6 +482,27 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Apply to all breakpoints
+
+`⌘↵`, from inside the field. docs/keyboard-shortcuts.md states the need in one
+line: "I set this on desktop and now I have to do it twice more."
+
+It writes the base and removes every override. Writing the same value into all
+three instead would look identical today and rot tomorrow, because a later
+change to the desktop value would no longer reach the other two — each would
+be holding a copy. One value at the base is what "the same everywhere" is.
+
+All of it is one entry in history. It clears three breakpoints and writes one,
+and an undo that put back a third of that would be worse than no undo.
+
+What it applies is the value **in effect**, so for a side the sides nobody
+typed come across as the theme references they already were. The property goes
+on following the theme; what it stops following is the component's own
+default, which the node now holds a value instead of.
+
+It is offered only where there is something to apply. A prop is one value
+already, and so is a style that never asked to be responsive.
+
 ---
 
 # Inputs

@@ -68,6 +68,15 @@ export interface PropertyInspectorProps {
    */
   breakpoint?: Breakpoint
   /**
+   * Gives every breakpoint the value the one on screen has — ⌘↵, from inside
+   * the field.
+   *
+   * Offered only for a property that is per-breakpoint, because for anything
+   * else there is nothing to apply: a prop is one value already, and so is a
+   * style whose definition never asked to be responsive.
+   */
+  onApplyToAll?: (definition: PropertyDefinition) => void
+  /**
    * The theme whose tokens these properties may hold.
    *
    * Absent means no picker: the panel still works, it just offers literals —
@@ -87,6 +96,7 @@ export function PropertyInspector({
   overridden,
   onReset,
   breakpoint,
+  onApplyToAll,
   theme,
   empty = false,
   disabled = false,
@@ -144,6 +154,13 @@ export function PropertyInspector({
                         ...(breakpoint === undefined || definition.responsive !== true
                           ? {}
                           : { breakpoint }),
+                      })}
+                  {...(onApplyToAll === undefined || definition.responsive !== true
+                    ? {}
+                    : {
+                        onApplyToAll: () => {
+                          onApplyToAll(definition)
+                        },
                       })}
                   disabled={disabled}
                   onChange={(next, key) => {

@@ -14,6 +14,7 @@ import {
   valuesFor,
 } from "@checkout-studio/editor"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
+import { BREAKPOINTS } from "@checkout-studio/schema"
 import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
@@ -72,6 +73,15 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
    * plainly had padding on it.
    */
   const component = registry.get(selected.type)
+  const values = valuesFor(
+    selected,
+    definitions,
+    {
+      ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
+      ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
+    },
+    breakpoint,
+  )
 
   function change(
     definition: PropertyDefinition,
@@ -121,13 +131,17 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
    * A side clears every shape it could be hiding under, because one padding is
    * up to five keys and leaving four behind is a button that does nothing.
    */
+  // One padding is up to five keys; everything else is one.
+  function keysOf(definition: PropertyDefinition): readonly string[] {
+    return definition.control === "spacing" || definition.control === "radius"
+      ? shapesOf(definition.key)
+      : [definition.key]
+  }
+
   function reset(definition: PropertyDefinition): void {
     if (selected === null) return
 
-    const keys =
-      definition.control === "spacing" || definition.control === "radius"
-        ? shapesOf(definition.key)
-        : [definition.key]
+    const keys = keysOf(definition)
 
     if (definition.target === "prop") {
       store.getState().clearProps(selected.id, keys)
@@ -138,23 +152,64 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
     store.getState().clearStyles([selected.id], keys, { breakpoint: at(definition) })
   }
 
+  /**
+   * Give every breakpoint the value this one has — ⌘↵.
+   *
+   * docs/keyboard-shortcuts.md states the need plainly: "I set this on desktop
+   * and now I have to do it twice more."
+   *
+   * What it writes is the base, and what it removes is every override. Writing
+   * the same literal into all three would look identical today and rot
+   * tomorrow, because a later change to the desktop value would no longer
+   * reach the other two — they would each be holding a copy. One value at the
+   * base is what "the same everywhere" actually is.
+   *
+   * The clears come first and cover every shape. A shorthand written at the
+   * base while longhands are still sitting there is two declarations for the
+   * same property, and which of them wins is not something this panel should
+   * be deciding.
+   *
+   * All of it inside one transaction, so it is one entry in history. Phase
+   * 12's exit criteria ask for exactly that, and an undo that put back only
+   * the mobile third of it would be worse than no undo.
+   *
+   * What is written is the value *in effect*, which for a side means the
+   * sides nobody typed come across as the theme references they already were
+   * — `4px {spacing.5} {spacing.9}` rather than `4px 24px 64px`. So the
+   * padding goes on following the theme; what it stops following is the
+   * component's own default, which it now holds a value instead of. That is
+   * what the gesture says: this is the padding, everywhere.
+   */
+  function applyToAll(definition: PropertyDefinition): void {
+    if (selected === null) return
+
+    const value = values[definition.key]
+
+    if (typeof value !== "string" && typeof value !== "number") return
+
+    const keys = keysOf(definition)
+
+    store.getState().transact("Apply to all breakpoints", () => {
+      for (const across of BREAKPOINTS) {
+        store.getState().clearStyles([selected.id], keys, { breakpoint: across })
+      }
+
+      store
+        .getState()
+        .setStyles([selected.id], { [definition.key]: value }, { breakpoint: BASE_BREAKPOINT })
+    })
+  }
+
   return (
     <PropertyInspector
       definitions={definitions}
-      values={valuesFor(
-        selected,
-        definitions,
-        {
-          ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
-          ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
-        },
-        breakpoint,
-      )}
+      values={values}
       {...(theme === null ? {} : { theme })}
       overridden={ownKeys(selected, definitions, breakpoint)}
       breakpoint={breakpoint}
       onChange={change}
       onReset={reset}
+      onApplyToAll={applyToAll}
     />
   )
 }

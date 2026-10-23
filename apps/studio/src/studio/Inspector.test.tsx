@@ -299,6 +299,146 @@ describe("editing one breakpoint", () => {
   })
 })
 
+describe("applying a value to every breakpoint", () => {
+  function responsiveStyle() {
+    const style = propertiesFor("core.section").find(
+      (property) => property.key === "padding" && property.responsive === true,
+    )
+
+    if (style === undefined) throw new Error("A Section no longer has a responsive padding.")
+
+    return style
+  }
+
+  async function open(group: string) {
+    await userEvent.click(screen.getByRole("button", { name: group }))
+  }
+
+  function showing(store: EditorStoreApi, breakpoint: "desktop" | "tablet" | "mobile") {
+    act(() => {
+      store.getState().setBreakpoint(breakpoint)
+    })
+  }
+
+  // Clears first. A box at tablet already shows the desktop value it inherits,
+  // so typing into it alone appends — "4" into a box reading 8 is 84, and an
+  // assertion of `toContain("4px")` passes against it.
+  async function set(label: string, value: string) {
+    const box = screen.getByLabelText(label)
+
+    await userEvent.clear(box)
+    await userEvent.type(box, value)
+  }
+
+  async function applyToAll(label: string) {
+    screen.getByLabelText(label).focus()
+
+    await userEvent.keyboard("{Meta>}{Enter}{/Meta}")
+  }
+
+  it("writes the base and removes every override", async () => {
+    const { store } = mount()
+    const id = place(store, "core.section")
+    const style = responsiveStyle()
+
+    await open(style.group)
+    await set(`${style.label} top`, "8")
+
+    showing(store, "tablet")
+
+    await set(`${style.label} top`, "4")
+
+    // ⌘↵ from inside the field, which is where somebody is when they think
+    // "and the same everywhere".
+    await applyToAll(`${style.label} top`)
+
+    const styles = store.getState().document.nodes[id]?.styles
+
+    expect(styles?.tablet?.base?.["paddingTop"]).toBeUndefined()
+    // The sides that were never typed come across as the theme references they
+    // already were, so the padding still follows the theme. What it stops
+    // following is the component's own default, which is what the node now
+    // holds a value instead of.
+    expect(styles?.desktop?.base?.["padding"]).toBe("4px {spacing.5} {spacing.9}")
+  })
+
+  it("leaves one entry in history, not three", async () => {
+    /*
+     * It clears three breakpoints and writes one. docs/phases.md asks for the
+     * lot to be a single step, and an undo that put back only the mobile
+     * third of it would be worse than no undo at all.
+     */
+    const { store } = mount()
+
+    place(store, "core.section")
+
+    const style = responsiveStyle()
+
+    await open(style.group)
+    await set(`${style.label} top`, "8")
+
+    showing(store, "tablet")
+
+    await set(`${style.label} top`, "4")
+
+    const before = store.getState().history.past.length
+
+    await applyToAll(`${style.label} top`)
+
+    expect(store.getState().history.past.length - before).toBe(1)
+  })
+
+  it("is undone in one step, putting the override back", async () => {
+    const { store } = mount()
+    const id = place(store, "core.section")
+    const style = responsiveStyle()
+
+    await open(style.group)
+    await set(`${style.label} top`, "8")
+
+    showing(store, "tablet")
+
+    await set(`${style.label} top`, "4")
+
+    await applyToAll(`${style.label} top`)
+
+    act(() => {
+      store.getState().undo()
+    })
+
+    const styles = store.getState().document.nodes[id]?.styles
+
+    expect(styles?.tablet?.base?.["paddingTop"]).toBe("4px")
+    expect(styles?.desktop?.base?.["paddingTop"]).toBe("8px")
+  })
+
+  it("shows the same value at every breakpoint afterwards", async () => {
+    const { store } = mount()
+
+    place(store, "core.section")
+
+    const style = responsiveStyle()
+
+    await open(style.group)
+    await set(`${style.label} top`, "8")
+
+    showing(store, "tablet")
+
+    await set(`${style.label} top`, "4")
+
+    await applyToAll(`${style.label} top`)
+
+    // The point of the gesture, read back through the panel rather than the
+    // document: every breakpoint now says 4, and none of them is an override.
+    for (const at of ["desktop", "tablet", "mobile"] as const) {
+      showing(store, at)
+
+      expect(screen.getByLabelText(`${style.label} top`)).toHaveValue(4)
+      expect(screen.queryByText(/^Set for/)).toBeNull()
+    }
+  })
+})
+
 describe("putting a property back", () => {
   /** The property a Heading's text is, whatever the plugin calls it. */
   function textProperty() {
