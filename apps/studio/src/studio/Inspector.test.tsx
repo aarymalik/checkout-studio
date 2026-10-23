@@ -299,6 +299,114 @@ describe("editing one breakpoint", () => {
   })
 })
 
+describe("editing several components at once", () => {
+  function placeTwo(store: EditorStoreApi, type: string): readonly [string, string] {
+    const first = place(store, type)
+    const second = place(store, type)
+
+    act(() => {
+      store.getState().select([first, second])
+    })
+
+    return [first, second]
+  }
+
+  function textProperty(type: string) {
+    const text = propertiesFor(type).find(
+      (property) => property.control === "text" && property.target === "prop",
+    )
+
+    if (text === undefined) throw new Error(`${type} registered no text property.`)
+
+    return text
+  }
+
+  it("writes a change to every one of them", async () => {
+    const { store } = mount()
+    const [first, second] = placeTwo(store, "core.heading")
+    const text = textProperty("core.heading")
+
+    await userEvent.type(screen.getByLabelText(text.label), "!")
+
+    for (const id of [first, second]) {
+      expect(store.getState().document.nodes[id]?.props[text.key]).toContain("!")
+    }
+  })
+
+  it("leaves one entry in history, not one per node", async () => {
+    /*
+     * `setProps` takes a single node, so several of them is several calls.
+     * Without the transaction an undo after editing two headings would put
+     * back one of them, which is a document nobody asked for.
+     */
+    const { store } = mount()
+
+    placeTwo(store, "core.heading")
+
+    const text = textProperty("core.heading")
+    const before = store.getState().history.past.length
+
+    await userEvent.type(screen.getByLabelText(text.label), "!")
+
+    expect(store.getState().history.past.length - before).toBe(1)
+  })
+
+  it("says Mixed rather than showing the first one's value", async () => {
+    /*
+     * The tempting bug: the panel reads as though both headings said the same
+     * thing, and the first keystroke anywhere else makes that true.
+     */
+    const { store } = mount()
+    const [first, second] = placeTwo(store, "core.heading")
+    const text = textProperty("core.heading")
+
+    act(() => {
+      store.getState().select([first])
+    })
+
+    await userEvent.type(screen.getByLabelText(text.label), " one")
+
+    act(() => {
+      store.getState().select([first, second])
+    })
+
+    expect(screen.getByLabelText(text.label)).toHaveValue("")
+    expect(screen.getByLabelText(text.label)).toHaveAttribute("placeholder", "Mixed")
+  })
+
+  it("offers only what both of them have", () => {
+    /*
+     * A Heading has a level and a Section does not. Selecting both leaves the
+     * properties they share, and a control for one of them would be writing a
+     * prop the other component does not read.
+     */
+    const { store } = mount()
+    const heading = place(store, "core.heading")
+    const section = place(store, "core.section")
+
+    act(() => {
+      store.getState().select([heading, section])
+    })
+
+    const inspector = screen.getByRole("region", { name: "Inspector" })
+
+    expect(within(inspector).queryByRole("button", { name: "General" })).toBeNull()
+  })
+
+  it("resets all of them at once", async () => {
+    const { store } = mount()
+    const [first, second] = placeTwo(store, "core.heading")
+    const text = textProperty("core.heading")
+
+    await userEvent.type(screen.getByLabelText(text.label), "!")
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }))
+
+    for (const id of [first, second]) {
+      expect(text.key in (store.getState().document.nodes[id]?.props ?? {})).toBe(false)
+    }
+  })
+})
+
 describe("applying a value to every breakpoint", () => {
   function responsiveStyle() {
     const style = propertiesFor("core.section").find(

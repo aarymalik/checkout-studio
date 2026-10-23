@@ -482,6 +482,34 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Several components at once
+
+The panel offers **only what every selected component has**. A Heading and a
+Button both have a font size and the panel can set both at once; only the
+Heading has a level, and a control that wrote one to a Button would be writing
+a prop the component does not read.
+
+Properties are the same property when their key, target _and_ control agree.
+Two components may both call something `size` and mean a number in one and a
+length in the other — one editor over two shapes would write whichever it drew
+into both.
+
+**A value they do not share reads "Mixed", never the first one's.** Showing the
+first is the tempting bug: the panel reads as though they all agreed, and the
+first keystroke anywhere else makes that true. A key one of them does not hold
+at all counts as a disagreement.
+
+Where "Mixed" does not fit, it is said once beside the label and the fields
+carry a dash. Four side boxes are 56 pixels wide and render the word as "Mi›",
+which reads as a glitch rather than a value.
+
+An edit reaches every selected component, as **one** entry in history. Several
+nodes is several calls for a prop, and an undo that put back one of four would
+be a document nobody asked for.
+
+Apply-to-all is not offered for a mixed value: "the same everywhere" needs an
+"it", and the first node's value is not the selection's.
+
 ## Search
 
 A field at the top of the panel, always. `⌘F` focuses it and selects what is

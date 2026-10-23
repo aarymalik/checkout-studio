@@ -8,6 +8,8 @@ import {
   useEditorStoreApi,
   useShellActions,
   BASE_BREAKPOINT,
+  commonProperties,
+  mixedKeys,
   ownKeys,
   shapesOf,
   useShellLayout,
@@ -15,8 +17,10 @@ import {
 } from "@checkout-studio/editor"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import { BREAKPOINTS } from "@checkout-studio/schema"
-import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
+import type { Breakpoint, CheckoutTheme, Node } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
+
+import { useMemo } from "react"
 
 import { propertiesFor } from "./properties"
 import { registry } from "./registry"
@@ -48,11 +52,24 @@ import { registry } from "./registry"
 /** The selected component's properties, and what it currently holds. */
 function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
   const store = useEditorStoreApi()
-  const selected = useEditorStore((state) => {
-    const [first] = state.selection.ids
-
-    return first === undefined ? null : (state.document.nodes[first] ?? null)
-  })
+  /*
+   * Every selected node, in the order they were selected. The first is the
+   * primary, and the rest are what turns a value into "Mixed".
+   *
+   * The two stable things are selected and the list is derived from them. A
+   * selector that built the array itself would return a new one on every call,
+   * and the store compares what it gets by reference — so every render would
+   * look like a change and schedule another. React stops that with "maximum
+   * update depth exceeded" rather than hanging, which is the only reason it is
+   * a loud bug instead of a slow one.
+   */
+  const selection = useEditorStore((state) => state.selection.ids)
+  const byId = useEditorStore((state) => state.document.nodes)
+  const nodes = useMemo(
+    () => selection.map((id) => byId[id]).filter((node): node is Node => node !== undefined),
+    [selection, byId],
+  )
+  const selected = nodes[0] ?? null
   /*
    * The breakpoint the canvas is showing. Editing at tablet writes a tablet
    * override, which is the whole of Phase 12's step 6 — and it comes from the
@@ -65,23 +82,41 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
     return <PropertyInspector definitions={[]} values={{}} onChange={() => undefined} empty />
   }
 
-  const definitions = propertiesFor(selected.type)
+  /*
+   * Only what every selected component has. A Heading and a Button both have a
+   * font size and the panel can set both at once; only the Heading has a
+   * level, and a control that wrote one to a Button would be writing a prop
+   * the component does not read.
+   */
+  const definitions = commonProperties(nodes.map((node) => propertiesFor(node.type)))
+
   /*
    * The component's own defaults are stage two of the cascade, and most of
    * what a fresh node shows comes from there rather than from the node. The
    * panel read only the node and so showed empty boxes beside a canvas that
    * plainly had padding on it.
    */
-  const component = registry.get(selected.type)
-  const values = valuesFor(
-    selected,
-    definitions,
-    {
-      ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
-      ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
-    },
-    breakpoint,
-  )
+  function held(node: Node): Readonly<Record<string, unknown>> {
+    const component = registry.get(node.type)
+
+    return valuesFor(
+      node,
+      definitions,
+      {
+        ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
+        ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
+      },
+      breakpoint,
+    )
+  }
+
+  const perNode = nodes.map(held)
+  const values = perNode[0] ?? {}
+  const mixed = mixedKeys(perNode)
+
+  function ids(): readonly string[] {
+    return nodes.map((node) => node.id)
+  }
 
   function change(
     definition: PropertyDefinition,
@@ -99,12 +134,22 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
      * rather than forty.
      */
     if (definition.target === "prop") {
-      store.getState().setProps(selected.id, { [written]: value })
+      /*
+       * One entry in history for the lot. `setProps` takes a single node, so
+       * several of them is several calls — and without the transaction, an
+       * undo after editing four headings would put back one of them.
+       */
+      store.getState().transact("Edit", () => {
+        for (const node of nodes) {
+          store.getState().setProps(node.id, { [written]: value })
+        }
+      })
 
       return
     }
 
-    store.getState().setStyles([selected.id], { [written]: value }, { breakpoint: at(definition) })
+    // `setStyles` already takes them all, and groups them as one entry.
+    store.getState().setStyles(ids(), { [written]: value }, { breakpoint: at(definition) })
   }
 
   /**
@@ -144,12 +189,16 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
     const keys = keysOf(definition)
 
     if (definition.target === "prop") {
-      store.getState().clearProps(selected.id, keys)
+      store.getState().transact("Reset", () => {
+        for (const node of nodes) {
+          store.getState().clearProps(node.id, keys)
+        }
+      })
 
       return
     }
 
-    store.getState().clearStyles([selected.id], keys, { breakpoint: at(definition) })
+    store.getState().clearStyles(ids(), keys, { breakpoint: at(definition) })
   }
 
   /**
@@ -186,17 +235,20 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
     const value = values[definition.key]
 
     if (typeof value !== "string" && typeof value !== "number") return
+    // Nothing to apply when they disagree: "the same everywhere" needs an
+    // "it", and the first node's value is not the selection's.
+    if (mixed.has(definition.key)) return
 
     const keys = keysOf(definition)
 
     store.getState().transact("Apply to all breakpoints", () => {
       for (const across of BREAKPOINTS) {
-        store.getState().clearStyles([selected.id], keys, { breakpoint: across })
+        store.getState().clearStyles(ids(), keys, { breakpoint: across })
       }
 
       store
         .getState()
-        .setStyles([selected.id], { [definition.key]: value }, { breakpoint: BASE_BREAKPOINT })
+        .setStyles(ids(), { [definition.key]: value }, { breakpoint: BASE_BREAKPOINT })
     })
   }
 
@@ -205,7 +257,10 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
       definitions={definitions}
       values={values}
       {...(theme === null ? {} : { theme })}
-      overridden={ownKeys(selected, definitions, breakpoint)}
+      // Any of them holding it is enough to offer the reset, and the reset
+      // clears it on all of them.
+      overridden={new Set(nodes.flatMap((node) => [...ownKeys(node, definitions, breakpoint)]))}
+      mixedKeys={mixed}
       breakpoint={breakpoint}
       onChange={change}
       onReset={reset}
