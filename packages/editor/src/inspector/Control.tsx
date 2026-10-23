@@ -73,6 +73,13 @@ export interface ControlProps {
    */
   breakpoint?: Breakpoint | undefined
   /**
+   * Gives every breakpoint the value this one has.
+   *
+   * Absent when there is nothing to apply — a prop is one value already, and
+   * so is a style that never asked to be responsive.
+   */
+  onApplyToAll?: (() => void) | undefined
+  /**
    * The theme whose tokens this property may hold.
    *
    * Passed rather than read: a theme belongs to the document being edited, and
@@ -122,13 +129,39 @@ export function Control(props: ControlProps): ReactElement {
       <Literal {...props} />
     )
 
-  if (onReset === undefined) return control
+  // ⌘↵ fires from inside the field, which is the one place somebody is when
+  // they think "and the same everywhere". docs/keyboard-shortcuts.md puts it
+  // on the short list of bindings that survive the text guard for exactly
+  // that: "commit and exit — except in an inspector field, where it commits
+  // AND applies to all breakpoints".
+  //
+  // Handled here rather than registered as a command, for the same reason the
+  // ±1 arrow keys are: a command fired from the app has no idea which of
+  // eleven fields it came from, and would have to go looking through
+  // `document.activeElement` to find out.
+  const applyToAll =
+    props.onApplyToAll === undefined
+      ? undefined
+      : (event: KeyboardEvent<HTMLElement>) => {
+          if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey)) return
+
+          event.preventDefault()
+          props.onApplyToAll?.()
+        }
+
+  if (onReset === undefined && applyToAll === undefined) return control
 
   return (
-    <div className="flex flex-col gap-1" data-inspector-overridden={definition.key}>
+    <div
+      className="flex flex-col gap-1"
+      data-inspector-overridden={definition.key}
+      {...(applyToAll === undefined ? {} : { onKeyDown: applyToAll })}
+    >
       {control}
 
-      <Reset definition={definition} breakpoint={props.breakpoint} onReset={onReset} />
+      {onReset === undefined ? null : (
+        <Reset definition={definition} breakpoint={props.breakpoint} onReset={onReset} />
+      )}
     </div>
   )
 }
