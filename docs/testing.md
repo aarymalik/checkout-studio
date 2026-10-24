@@ -675,17 +675,33 @@ over a heading whose level was 2, and — behind that last one — a select that
 wrote the string `"3"` where the renderer expects the number, so picking a
 heading level did nothing at all.
 
-### This suite allows no diff at all
+### This suite allows two dozen pixels, and that number was measured
 
-The rest of the suite allows two changed pixels in a thousand, which is right
-for a page of product where a hairline of antialiasing on a shadow is not a
-regression. It is also enough to hide a whole word: the Level fix changed
-"Select…" to "Heading 2" and the suite went on passing against the old picture.
+The rest of the suite allows two changed pixels in a thousand — 1152 on a
+480×1200 panel — which is right for a page of product where a hairline of
+antialiasing on a shadow is not a regression. It is also enough to hide a whole
+word: the Level fix changed "Select…" to "Heading 2" and the suite went on
+passing against the old picture.
 
 A panel is text and boxes, and a word is the smallest thing worth catching in
-one, so `inspector.spec.ts` passes `maxDiffPixels: 0`. The per-pixel colour
-tolerance from the config still applies, so antialiasing that merely shifts a
-shade is not a changed pixel.
+one, so `inspector.spec.ts` sets its own `maxDiffPixels`.
+
+It was **zero** for three slices, which turned out to be too strict by exactly
+one hairline. Two CI runs of identical code differed by **four pixels**, every
+one of them at x=160 — the panel's one-pixel left border — with a largest
+channel delta of 39. That is sub-pixel antialiasing on a vertical line, and
+chasing it would mean re-adopting a baseline every few runs until nobody read
+them any more.
+
+**Twenty-four** is six times that noise and well under the smallest change
+worth catching. One character of body text is roughly a hundred pixels of
+glyph, of which forty or so differ when the character changes — so a word
+still fails and a hairline no longer does.
+
+If a baseline ever comes back "changed" with no change behind it, measure
+before adjusting: decode both PNGs, count the differing pixels, and see where
+they are. Four pixels in a vertical line at the panel's edge is noise; forty in
+a cluster is a glyph.
 
 ## Baselines are per platform
 
