@@ -482,6 +482,31 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Shadows
+
+A shadow is a handful of numbers that belong together — across, down, blur, a
+colour — so it is drawn the way four sides are, as a row of small boxes with
+the colour beneath.
+
+**The control shows the parts the value has.** A box shadow may carry a spread
+and the word `inset`; a text shadow may carry neither, and writing one into a
+text shadow produces a declaration the browser drops. Both register as
+`control: "shadow"` and nothing in a property definition says which is which,
+so rather than guess from the key — which the editor does not know and must
+not learn — what is there is what is shown. Nothing it writes is ever invalid
+for the property it came from.
+
+The cost is stated rather than hidden: a box shadow with no spread cannot be
+given one here. That needs the definition to say which kind of shadow it is.
+
+`none`, and a list of two shadows separated by a comma, are not things four
+boxes describe. They are shown as the text they are.
+
+A colour the picker cannot hold is edited as text, and almost every shadow
+colour is one of those: the theme's own are `rgba(10, 10, 10, 0.08)` and the
+rest, because a shadow is nearly always part transparent. A picker shown over
+one would draw a black swatch for a colour that is neither black nor opaque.
+
 ## Several components at once
 
 The panel offers **only what every selected component has**. A Heading and a

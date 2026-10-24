@@ -118,6 +118,16 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     shows: "Two components that disagree: four boxes saying Mixed, and a margin that does not.",
   },
   {
+    id: "section-shadow",
+    type: "core.section",
+    section: "Effects",
+    // The theme's own `shadows.md`, written as a literal so the control has a
+    // shadow to take apart — a token would be shown as a token instead.
+    // design-system-ignore: the case is about the parts of this exact value.
+    own: { styles: { desktop: { boxShadow: "0 4px 12px rgba(10, 10, 10, 0.08)" } } },
+    shows: "A shadow in parts: across, down, blur and colour — and no spread, because it has none.",
+  },
+  {
     id: "heading",
     type: "core.heading",
     shows: "A select whose options are numbers, and the text a heading starts with.",

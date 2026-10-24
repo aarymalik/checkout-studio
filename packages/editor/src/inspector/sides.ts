@@ -1,3 +1,5 @@
+import { splitTopLevel } from "./css"
+
 /**
  * The four sides of a padding, a margin or a radius.
  *
@@ -40,33 +42,11 @@ export const EMPTY_SIDES: Sides = { top: "", right: "", bottom: "", left: "" }
  * space would read it as three sides and silently turn a working padding into
  * nonsense.
  */
-function parts(value: string): readonly string[] {
-  const found: string[] = []
-  let depth = 0
-  let current = ""
-
-  for (const character of value.trim()) {
-    if (character === "(") depth += 1
-    if (character === ")") depth -= 1
-
-    if (/\s/.test(character) && depth === 0) {
-      if (current !== "") found.push(current)
-      current = ""
-      continue
-    }
-
-    current += character
-  }
-
-  if (current !== "") found.push(current)
-
-  return found
-}
 
 export function parseSides(value: unknown): Sides | null {
   if (typeof value !== "string") return null
 
-  const found = parts(value)
+  const found = splitTopLevel(value)
   const [first, second, third, fourth] = found
 
   if (first === undefined) return null
