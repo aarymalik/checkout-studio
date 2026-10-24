@@ -74,7 +74,8 @@ for (const testCase of INSPECTOR_CASES) {
       await expect(page).toHaveScreenshot(`inspector-${testCase.id}-${colorScheme}.png`, {
         fullPage: true,
         /*
-         * Every pixel, where the rest of the suite allows two in a thousand.
+         * Two dozen pixels, where the rest of the suite allows two in a
+         * thousand — 1152 on an image this size.
          *
          * That allowance is for a page of product, where a hairline of
          * antialiasing on a shadow is not a regression. Here it was enough to
@@ -82,13 +83,18 @@ for (const testCase of INSPECTOR_CASES) {
          * heading whose level was plainly 2 changed the panel to read
          * "Heading 2", and the suite went on passing against the old picture.
          *
-         * A panel is text and boxes, and a word is the smallest thing worth
-         * catching in one. The per-pixel colour tolerance from the config
-         * still applies, so antialiasing that merely shifts a shade is not a
-         * changed pixel.
+         * This was zero for three slices, which was too strict by exactly one
+         * hairline. Two CI runs of identical code differed by **four pixels**,
+         * all of them at x=160 — the panel's one-pixel left border — with a
+         * largest channel delta of 39. Sub-pixel antialiasing on a vertical
+         * line, and not something any threshold should be chasing.
+         *
+         * Twenty-four is six times that noise and well under the smallest
+         * change worth catching: one character of body text is roughly a
+         * hundred pixels of glyph, of which forty or so differ when the
+         * character changes. A word still fails. A hairline no longer does.
          */
-        maxDiffPixels: 0,
-        maxDiffPixelRatio: 0,
+        maxDiffPixels: 24,
       })
     })
   }
