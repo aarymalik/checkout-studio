@@ -24,6 +24,8 @@ import { DraftInput, useDraft } from "./DraftInput"
 import { CORNER_LABELS, EMPTY_SIDES, SIDE_LABELS, longhandFor, parseSides } from "./sides"
 import { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
 import type { Sides } from "./sides"
+import { DEFAULT_BORDER_WIDTH, formatBorder, parseBorder, stylesFor } from "./border"
+import type { Border } from "./border"
 import { NO_SHADOW, formatShadow, parseShadow } from "./shadow"
 import type { Shadow } from "./shadow"
 import {
@@ -479,6 +481,38 @@ function Literal({
           amount={mixed || length === null ? "" : String(length.amount)}
           unit={unit ?? "px"}
           units={units}
+          disabled={disabled}
+          mixed={mixed}
+          onChange={onChange}
+        />
+      )
+    }
+
+    case "border": {
+      const border = parseBorder(value)
+
+      /*
+       * Nothing a width, a style and a colour describe — `inherit`, or a
+       * variable standing in for the whole shorthand. Edited as the text it
+       * is, the way an unparseable length and an unparseable shadow are.
+       */
+      if (border === null) {
+        return (
+          <DraftInput
+            {...shared}
+            type="text"
+            value={mixed || typeof value !== "string" ? "" : value}
+            {...(mixed ? { placeholder: "Mixed" } : {})}
+            accepts={() => true}
+            onCommit={onChange}
+          />
+        )
+      }
+
+      return (
+        <BorderControl
+          definition={definition}
+          border={border}
           disabled={disabled}
           mixed={mixed}
           onChange={onChange}
@@ -976,6 +1010,131 @@ function SideBox({
  * stack — so the picker floated a line above the number it belonged to, which
  * is exactly how it looked in the product.
  */
+/**
+ * A border, as a width, a style and a colour.
+ *
+ * ## The style picker is the on switch
+ *
+ * `none` is a border style, not a missing value, so turning a border on means
+ * choosing `Solid` rather than knowing to delete a word. Choosing one when
+ * there is no width gives it `1px`, because CSS would otherwise fall back to
+ * `medium` — three pixels, which nobody asked for and which reads as the
+ * control having invented something.
+ *
+ * ## A width beside a style of `none` is a measurement for something invisible
+ *
+ * So choosing `None` writes `none` alone. The width and colour boxes stay on
+ * screen holding what they held, which is what makes turning the border back
+ * on cost one click rather than three.
+ */
+function BorderControl({
+  definition,
+  border,
+  disabled,
+  mixed,
+  onChange,
+}: {
+  definition: PropertyDefinition
+  border: Border
+  disabled: boolean
+  mixed: boolean
+  onChange: (value: string) => void
+}): ReactElement {
+  function write(part: keyof Border, next: string): void {
+    const changed: Border = { ...border, [part]: next }
+
+    /*
+     * Turning it on. A style with no width is `medium` in CSS, so a border
+     * somebody just asked for would arrive three pixels thick.
+     */
+    if (part === "style" && next !== "none" && changed.width === "") {
+      changed.width = DEFAULT_BORDER_WIDTH
+    }
+
+    onChange(formatBorder(changed))
+  }
+
+  return (
+    <FieldShell>
+      <div className="flex items-center justify-between gap-2">
+        {/* No `htmlFor`: the row is a width and a style, and a label pointing
+            at one of them would name half the control. Each carries its own
+            accessible name instead, the way the four sides of a padding do. */}
+        <FieldLabel>{definition.label}</FieldLabel>
+
+        {mixed ? <span className="text-caption text-foreground-muted">Mixed</span> : null}
+      </div>
+
+      <div className="flex items-start gap-2" data-inspector-border={definition.key}>
+        <div className="w-20 shrink-0">
+          <SideBox
+            name={`${definition.label} width`}
+            short="Width"
+            value={mixed ? "" : border.width}
+            unit="px"
+            disabled={disabled || border.style === "none"}
+            {...(mixed ? { placeholder: "–" } : {})}
+            onChange={(next) => {
+              write("width", next)
+            }}
+          />
+        </div>
+
+        {/* Wrapped, because the class lands on the select's own button and
+            the field shell around it is what sits in this row — so `flex-1`
+            there left the picker at its content width with the rest of the
+            row empty beside it. */}
+        <div className="min-w-0 flex-1">
+          <Select
+            label={`${definition.label} style`}
+            labelHidden
+            size="sm"
+            {...(mixed ? { placeholder: "Mixed" } : { value: border.style })}
+            disabled={disabled}
+            onValueChange={(next) => {
+              write("style", next)
+            }}
+          >
+            {stylesFor(border).map((style) => (
+              <SelectOption key={style} value={style}>
+                {style}
+              </SelectOption>
+            ))}
+          </Select>
+        </div>
+      </div>
+
+      {border.style === "none" || mixed ? null : isHexColor(border.colour) ? (
+        <ColorPicker
+          label={`${definition.label} colour`}
+          disabled={disabled}
+          value={border.colour}
+          onChange={(hex) => {
+            write("colour", hex)
+          }}
+        />
+      ) : (
+        // Not hex, so not something the picker can hold: `currentColor`, a
+        // named colour, or the `rgba(...)` a translucent border is written as.
+        <DraftInput
+          label={`${definition.label} colour`}
+          disabled={disabled}
+          type="text"
+          value={border.colour}
+          accepts={() => true}
+          onCommit={(next) => {
+            write("colour", next)
+          }}
+        />
+      )}
+
+      {definition.help === undefined ? null : (
+        <FieldDescription>{definition.help}</FieldDescription>
+      )}
+    </FieldShell>
+  )
+}
+
 /**
  * A shadow, as the handful of things somebody adjusts about one.
  *

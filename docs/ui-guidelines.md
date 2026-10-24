@@ -482,6 +482,36 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Borders
+
+A width, a style and a colour: the width beside the style picker, the colour
+under them.
+
+**`none` is a style, not a missing value.** This is where a border differs
+from a shadow — `box-shadow: none` is the absence of a shadow and there is
+nothing for a control to show, while `border: none` is a border whose style is
+none, the same word in the same place in the same shorthand. So it lives in
+the picker, and turning a border on means choosing `Solid` rather than knowing
+to delete a word.
+
+Choosing a style when there is no width gives it `1px`. CSS would otherwise
+fall back to `medium`, which is three pixels and which nobody asked for.
+
+Choosing `None` writes `none` on its own. A width and a colour beside a style
+of none describe a border that is not drawn, and keeping them means the
+document carries a measurement for something invisible — which reads, the next
+time anybody opens it, as a border that has lost its style. The boxes stay on
+screen holding what they held, so turning it back on costs one click.
+
+The order parts are written in does not matter. `1px solid red`, `solid 1px
+red` and `red 1px solid` are the same border to a browser, so each part is
+recognised by what it is rather than by where it sits.
+
+CSS has nine styles; five are offered. `groove`, `ridge`, `inset` and `outset`
+draw a bevel no interface designed in the last fifteen years asks for, and
+`hidden` differs from `none` only inside a collapsed table. A value already
+holding one keeps it and can return to it.
+
 ## Shadows
 
 A shadow is a handful of numbers that belong together — across, down, blur, a

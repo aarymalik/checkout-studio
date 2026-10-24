@@ -128,6 +128,16 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     shows: "A shadow in parts: across, down, blur and colour — and no spread, because it has none.",
   },
   {
+    id: "section-border",
+    type: "core.section",
+    section: "Border",
+    // A width, a style and a colour, which is what a border is. The theme's
+    // own border colour, written as a literal so the control has one to show.
+    // design-system-ignore: the case is about the parts of this exact value.
+    own: { styles: { desktop: { border: "1px solid #e5e5e5" } } },
+    shows: "A border as a width beside its style, with the colour under them.",
+  },
+  {
     id: "heading",
     type: "core.heading",
     shows: "A select whose options are numbers, and the text a heading starts with.",
