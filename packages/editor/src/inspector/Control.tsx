@@ -24,6 +24,8 @@ import { DraftInput, useDraft } from "./DraftInput"
 import { CORNER_LABELS, EMPTY_SIDES, SIDE_LABELS, longhandFor, parseSides } from "./sides"
 import { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
 import type { Sides } from "./sides"
+import { NO_SHADOW, formatShadow, parseShadow } from "./shadow"
+import type { Shadow } from "./shadow"
 import {
   columnTracks,
   formatLength,
@@ -477,6 +479,39 @@ function Literal({
           amount={mixed || length === null ? "" : String(length.amount)}
           unit={unit ?? "px"}
           units={units}
+          disabled={disabled}
+          mixed={mixed}
+          onChange={onChange}
+        />
+      )
+    }
+
+    case "shadow": {
+      const shadow = parseShadow(value)
+
+      /*
+       * `none`, a list of two shadows, or anything else four boxes cannot
+       * describe. Edited as the text it is, the way a `calc` length is — and
+       * `none` is the common one, because it is what the theme's own
+       * `shadows.none` resolves to.
+       */
+      if (shadow === null) {
+        return (
+          <DraftInput
+            {...shared}
+            type="text"
+            value={mixed || typeof value !== "string" ? "" : value}
+            {...(mixed ? { placeholder: "Mixed" } : { placeholder: NO_SHADOW })}
+            accepts={() => true}
+            onCommit={onChange}
+          />
+        )
+      }
+
+      return (
+        <ShadowControl
+          definition={definition}
+          shadow={shadow}
           disabled={disabled}
           mixed={mixed}
           onChange={onChange}
@@ -941,6 +976,123 @@ function SideBox({
  * stack — so the picker floated a line above the number it belonged to, which
  * is exactly how it looked in the product.
  */
+/**
+ * A shadow, as the handful of things somebody adjusts about one.
+ *
+ * ## Offsets, blur, spread, colour
+ *
+ * Laid out as a row of small boxes with the colour beneath, which is the same
+ * shape the four sides of a padding take — a shadow is read the same way, as a
+ * few numbers that belong together rather than as a sentence.
+ *
+ * The spread box appears only when the value already had a spread. A text
+ * shadow has no spread and nothing in a property definition says which kind of
+ * shadow this is; showing the parts the value has keeps the control from ever
+ * writing a declaration the browser would drop. `shadow.ts` says what that
+ * costs.
+ *
+ * ## Each part writes the whole
+ *
+ * CSS has no `box-shadow-blur`, so there is no longhand to write the way a
+ * side writes `paddingLeft`. Every box rebuilds the one declaration, which is
+ * why they are drafted and committed together rather than each holding its own
+ * state.
+ */
+function ShadowControl({
+  definition,
+  shadow,
+  disabled,
+  mixed,
+  onChange,
+}: {
+  definition: PropertyDefinition
+  shadow: Shadow
+  disabled: boolean
+  mixed: boolean
+  onChange: (value: string) => void
+}): ReactElement {
+  const boxes = [
+    { key: "offsetX" as const, label: "across", short: "X" },
+    { key: "offsetY" as const, label: "down", short: "Y" },
+    { key: "blur" as const, label: "blur", short: "Blur" },
+    ...(shadow.spread === undefined
+      ? []
+      : [{ key: "spread" as const, label: "spread", short: "Spread" }]),
+  ]
+
+  function write(part: keyof Shadow, next: string): void {
+    // A bare number takes pixels, the way a side does: `4` is not a length,
+    // and the declaration would be dropped in silence.
+    const length = Number.isFinite(Number(next)) && next !== "" ? `${next}px` : next
+
+    onChange(formatShadow({ ...shadow, [part]: length }))
+  }
+
+  return (
+    <FieldShell>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel>{definition.label}</FieldLabel>
+
+        {mixed ? <span className="text-caption text-foreground-muted">Mixed</span> : null}
+      </div>
+
+      <div className="grid grid-cols-4 gap-2" data-inspector-shadow={definition.key}>
+        {boxes.map((box) => (
+          <SideBox
+            key={box.key}
+            name={`${definition.label} ${box.label}`}
+            short={box.short}
+            value={mixed ? "" : (shadow[box.key] ?? "")}
+            unit="px"
+            disabled={disabled}
+            {...(mixed ? { placeholder: "–" } : {})}
+            onChange={(next) => {
+              write(box.key, next)
+            }}
+          />
+        ))}
+      </div>
+
+      {isHexColor(shadow.colour) ? (
+        <ColorPicker
+          label={`${definition.label} colour`}
+          disabled={disabled}
+          value={shadow.colour}
+          onChange={(hex) => {
+            write("colour", hex)
+          }}
+        />
+      ) : (
+        /*
+         * Not hex, so not something the picker can hold — and almost every
+         * shadow is one of these: the theme's own are `rgba(10, 10, 10, 0.08)`
+         * and the rest, because a shadow is nearly always part transparent.
+         *
+         * The first version of this control passed them to the picker with
+         * `#000000` as a fallback. It drew a black swatch over a colour that
+         * was neither black nor opaque, and the first click would have written
+         * that black into the document, alpha and all. The gallery photographed
+         * it before anybody had to notice.
+         */
+        <DraftInput
+          label={`${definition.label} colour`}
+          disabled={disabled}
+          type="text"
+          value={shadow.colour}
+          accepts={() => true}
+          onCommit={(next) => {
+            write("colour", next)
+          }}
+        />
+      )}
+
+      {definition.help === undefined ? null : (
+        <FieldDescription>{definition.help}</FieldDescription>
+      )}
+    </FieldShell>
+  )
+}
+
 function LengthControl({
   definition,
   amount,
