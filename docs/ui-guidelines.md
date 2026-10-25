@@ -482,6 +482,37 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Gradients
+
+A picture of the gradient, then the parts that produce it: a kind, a
+direction, and a row per colour with the position it sits at.
+
+**The preview is not decoration.** `linear-gradient(90deg, #ff0000, #0000ff
+60%)` is a sentence nobody reads as a colour. Every other control in this panel
+shows the value it holds — a swatch, a number, four sides — and a gradient
+shown only as its text would be the one property a merchant had to publish to
+see.
+
+It is painted through the schema's own CSS guard. The value lands in an inline
+style, so one carrying a semicolon could end that declaration and begin
+another; a preview that stays blank is a better outcome than a panel rendering
+something nobody wrote.
+
+**Two colours is the floor.** CSS wants two and so does the idea. Removing is
+refused at two rather than hidden, because a disabled control that says why is
+a smaller surprise than a row that loses its last button without explanation.
+
+Adding a colour repeats the last one, so the new stop lands somewhere visible
+rather than as a transparent gap somebody has to go looking for.
+
+An emptied colour is held, not written. An empty stop makes the whole value
+unparseable, and the control would collapse to a text box while somebody was
+halfway through retyping a colour.
+
+A conic gradient, two gradients layered together, a `var()` standing in for the
+lot — all real values, none of them a direction and a list. They are shown as
+the text they are.
+
 ## Markup
 
 A code box: monospaced, eight rows, with spellcheck, autocorrect and

@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  Button,
   ColorPicker,
   FieldDescription,
   FieldLabel,
@@ -13,7 +14,7 @@ import {
   inputVariants,
 } from "@checkout-studio/ui"
 import { isHexColor } from "@checkout-studio/design-system"
-import { isTokenReference } from "@checkout-studio/schema"
+import { isSafeCssValue, isTokenReference } from "@checkout-studio/schema"
 import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
@@ -26,6 +27,8 @@ import { CORNER_LABELS, EMPTY_SIDES, SIDE_LABELS, longhandFor, parseSides } from
 import { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
 import type { Sides } from "./sides"
 import { DEFAULT_BORDER_WIDTH, formatBorder, parseBorder, stylesFor } from "./border"
+import { MINIMUM_STOPS, formatGradient, parseGradient } from "./gradient"
+import type { Gradient } from "./gradient"
 import type { Border } from "./border"
 import { NO_SHADOW, formatShadow, parseShadow } from "./shadow"
 import type { Shadow } from "./shadow"
@@ -505,6 +508,38 @@ function Literal({
           amount={mixed || length === null ? "" : String(length.amount)}
           unit={unit ?? "px"}
           units={units}
+          disabled={disabled}
+          mixed={mixed}
+          onChange={onChange}
+        />
+      )
+    }
+
+    case "gradient": {
+      const gradient = parseGradient(value)
+
+      /*
+       * A conic gradient, two gradients layered together, a `var()` standing
+       * in for the lot — real values, none of them a direction and a list of
+       * stops. Edited as the text they are, the way a list of two shadows is.
+       */
+      if (gradient === null) {
+        return (
+          <DraftInput
+            {...shared}
+            type="text"
+            value={mixed || typeof value !== "string" ? "" : value}
+            {...(mixed ? { placeholder: "Mixed" } : {})}
+            accepts={() => true}
+            onCommit={onChange}
+          />
+        )
+      }
+
+      return (
+        <GradientControl
+          definition={definition}
+          gradient={gradient}
           disabled={disabled}
           mixed={mixed}
           onChange={onChange}
@@ -1055,6 +1090,181 @@ function SideBox({
  * stack — so the picker floated a line above the number it belonged to, which
  * is exactly how it looked in the product.
  */
+/**
+ * A gradient, with the thing that makes it editable at all: a picture of it.
+ *
+ * ## The preview is not decoration
+ *
+ * `linear-gradient(90deg, #ff0000, #0000ff 60%)` is a sentence nobody reads as
+ * a colour. Every other control in this panel shows the value it holds — a
+ * swatch, a number, four sides — and a gradient shown only as its text is the
+ * one property a merchant would have to publish to see.
+ *
+ * It is painted through the schema's own CSS guard. The value lands in an
+ * inline style, so one carrying a semicolon could end that declaration and
+ * begin another; a preview that stays blank is a far better outcome than a
+ * panel that renders something nobody wrote.
+ *
+ * ## Two stops is the floor
+ *
+ * CSS wants two and so does the idea. Removing is refused at two rather than
+ * hidden, because a disabled button that says why is a smaller surprise than
+ * a row that loses its last control without explanation.
+ */
+function GradientControl({
+  definition,
+  gradient,
+  disabled,
+  mixed,
+  onChange,
+}: {
+  definition: PropertyDefinition
+  gradient: Gradient
+  disabled: boolean
+  mixed: boolean
+  onChange: (value: string) => void
+}): ReactElement {
+  const painted = formatGradient(gradient)
+
+  function write(next: Gradient): void {
+    onChange(formatGradient(next))
+  }
+
+  function changeStop(at: number, part: "colour" | "position", next: string): void {
+    write({
+      ...gradient,
+      stops: gradient.stops.map((stop, index) => (index === at ? { ...stop, [part]: next } : stop)),
+    })
+  }
+
+  return (
+    <FieldShell>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel>{definition.label}</FieldLabel>
+
+        {mixed ? <span className="text-caption text-foreground-muted">Mixed</span> : null}
+      </div>
+
+      <div
+        data-inspector-gradient={definition.key}
+        className="h-8 rounded-control border border-border"
+        // The value being edited, not a decision about how this interface
+        // looks — the same exception the colour picker's swatch takes.
+        style={isSafeCssValue(painted) ? { backgroundImage: painted } : undefined}
+      />
+
+      <div className="flex items-start gap-2">
+        <Select
+          label={`${definition.label} kind`}
+          labelHidden
+          size="sm"
+          value={gradient.kind}
+          disabled={disabled}
+          onValueChange={(next) => {
+            write({ ...gradient, kind: next as Gradient["kind"] })
+          }}
+        >
+          <SelectOption value="linear">linear</SelectOption>
+          <SelectOption value="radial">radial</SelectOption>
+        </Select>
+
+        <DraftInput
+          label={`${definition.label} direction`}
+          labelHidden
+          type="text"
+          placeholder="90deg"
+          value={gradient.direction}
+          disabled={disabled}
+          accepts={() => true}
+          onCommit={(next) => {
+            write({ ...gradient, direction: next })
+          }}
+        />
+      </div>
+
+      {gradient.stops.map((stop, at) => (
+        // The index is the identity: a stop is a position in a list and has
+        // nothing else to be keyed by. Two stops of the same colour are two
+        // different stops, and reordering them is reordering the gradient.
+        <div key={at} className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <DraftInput
+              label={`${definition.label} colour ${String(at + 1)}`}
+              labelHidden
+              type="text"
+              value={stop.colour}
+              disabled={disabled}
+              // An empty colour is not a stop. Committing one makes the whole
+              // value unparseable, and the control collapses to a text box
+              // mid-edit — so clearing this holds the empty box and waits.
+              accepts={(draft) => draft.trim() !== ""}
+              onCommit={(next) => {
+                changeStop(at, "colour", next)
+              }}
+            />
+          </div>
+
+          <div className="w-20 shrink-0">
+            <DraftInput
+              label={`${definition.label} position ${String(at + 1)}`}
+              labelHidden
+              type="text"
+              placeholder="auto"
+              value={stop.position ?? ""}
+              disabled={disabled}
+              accepts={() => true}
+              onCommit={(next) => {
+                changeStop(at, "position", next)
+              }}
+            />
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Remove ${definition.label} colour ${String(at + 1)}`}
+            disabled={disabled || gradient.stops.length <= MINIMUM_STOPS}
+            onClick={() => {
+              write({ ...gradient, stops: gradient.stops.filter((_, index) => index !== at) })
+            }}
+          >
+            {/* A character rather than an icon: this package carries no icon
+                dependency, and taking one on for a single glyph is a poor
+                trade. The button's name is on the label above. */}
+            <span aria-hidden="true">×</span>
+          </Button>
+        </div>
+      ))}
+
+      <Button
+        variant="secondary"
+        size="sm"
+        className="self-start"
+        disabled={disabled}
+        onClick={() => {
+          // The last colour again, so the new stop is visible where it lands
+          // rather than being a transparent gap somebody has to go and find.
+          const last = gradient.stops.at(-1)
+
+          // Unreachable: the parser refuses a gradient with fewer than two
+          // stops, so there is always a last one. A guard rather than a
+          // fallback colour, which would be this interface inventing a value
+          // for a case that cannot happen.
+          if (last === undefined) return
+
+          write({ ...gradient, stops: [...gradient.stops, { colour: last.colour }] })
+        }}
+      >
+        Add a colour
+      </Button>
+
+      {definition.help === undefined ? null : (
+        <FieldDescription>{definition.help}</FieldDescription>
+      )}
+    </FieldShell>
+  )
+}
+
 /**
  * A code box, committed when it is left rather than as it is typed.
  *

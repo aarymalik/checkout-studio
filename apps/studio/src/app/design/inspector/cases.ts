@@ -142,6 +142,16 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     shows: "A border as a width beside its style, with the colour under them.",
   },
   {
+    id: "heading-gradient",
+    type: "core.heading",
+    section: "Effects",
+    // Two colours and an angle, so the preview has something to paint. A
+    // gradient is the one property a panel cannot describe in words.
+    // design-system-ignore: the case is about the parts of this exact value.
+    own: { props: { gradient: "linear-gradient(90deg, #2563eb, #db2777)" } },
+    shows: "A gradient painted, then taken apart: a direction and a colour per stop.",
+  },
+  {
     id: "html-block",
     type: "core.html-block",
     shows: "A code box, with the note the parser leaves when it takes something out.",

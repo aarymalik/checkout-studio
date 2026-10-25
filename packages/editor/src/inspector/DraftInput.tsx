@@ -29,6 +29,13 @@ import type { KeyboardEvent, ReactElement, ReactNode } from "react"
 
 export interface DraftInputProps {
   label: string
+  /**
+   * Hidden on screen, still announced.
+   *
+   * For a box whose row says what it is — a gradient's colour and the position
+   * beside it, where four visible labels would be more words than values.
+   */
+  labelHidden?: boolean
   description?: ReactNode
   disabled?: boolean
   /** What the document holds, as text. */
@@ -67,6 +74,7 @@ export function useDraft(value: string): [string, (next: string) => void] {
 
 export function DraftInput({
   label,
+  labelHidden,
   description,
   disabled = false,
   value,
@@ -85,6 +93,7 @@ export function DraftInput({
   return (
     <Input
       label={label}
+      {...(labelHidden === undefined ? {} : { labelHidden })}
       {...(description === undefined ? {} : { description })}
       disabled={disabled}
       type={type}
