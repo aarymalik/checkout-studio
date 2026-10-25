@@ -1,6 +1,7 @@
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import { coreContentProperties } from "@checkout-studio/plugin-core-content/editor"
-import { coreEmbedProperties } from "@checkout-studio/plugin-core-embed/editor"
+import { coreEmbedMarkup, coreEmbedProperties } from "@checkout-studio/plugin-core-embed/editor"
+import type { MarkupCodec } from "@checkout-studio/plugin-core-embed/editor"
 import { coreFormsProperties } from "@checkout-studio/plugin-core-forms/editor"
 import { coreLayoutProperties } from "@checkout-studio/plugin-core-layout/editor"
 import { checkoutProperties } from "@checkout-studio/plugin-checkout/editor"
@@ -60,4 +61,22 @@ export const PROPERTIES: ReadonlyMap<string, readonly PropertyDefinition[]> = me
  */
 export function propertiesFor(type: string): readonly PropertyDefinition[] {
   return PROPERTIES.get(type) ?? []
+}
+
+/**
+ * How a `markup` property turns into text and back.
+ *
+ * Assembled here for the same reason the definitions are: the grammar belongs
+ * to the plugin that owns the component, and the editor cannot reach it. A
+ * code box is all the editor draws — it cannot tell HTML from CSS, and the
+ * conversion happens on this side of that line.
+ *
+ * Only `core-embed` has any, which is why there is one map rather than six.
+ * A second plugin with markup adds its own and a line here.
+ */
+export const MARKUP: ReadonlyMap<string, MarkupCodec> = coreEmbedMarkup
+
+/** The codec for a property, or nothing if it is not one that needs it. */
+export function markupFor(type: string, key: string): MarkupCodec | undefined {
+  return MARKUP.get(`${type}:${key}`)
 }

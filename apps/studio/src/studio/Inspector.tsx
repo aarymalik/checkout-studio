@@ -20,9 +20,9 @@ import { BREAKPOINTS } from "@checkout-studio/schema"
 import type { Breakpoint, CheckoutTheme, Node } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
-import { propertiesFor } from "./properties"
+import { markupFor, propertiesFor } from "./properties"
 import { registry } from "./registry"
 
 /**
@@ -63,6 +63,9 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
    * update depth exceeded" rather than hanging, which is the only reason it is
    * a loud bug instead of a slow one.
    */
+  // What the last markup edit had taken out of it, by property key. Transient
+  // on purpose: it describes an edit, not the document.
+  const [notes, setNotes] = useState<Readonly<Record<string, readonly string[]>>>({})
   const selection = useEditorStore((state) => state.selection.ids)
   const byId = useEditorStore((state) => state.document.nodes)
   const nodes = useMemo(
@@ -111,8 +114,21 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
   }
 
   const perNode = nodes.map(held)
-  const values = perNode[0] ?? {}
   const mixed = mixedKeys(perNode)
+
+  /*
+   * A markup property holds a structure and is edited as text, so the panel is
+   * handed the text. Which grammar it is belongs to the plugin that owns the
+   * component; this looks the converter up and the editor never learns what
+   * HTML is.
+   */
+  const values = Object.fromEntries(
+    Object.entries(perNode[0] ?? {}).map(([key, value]) => {
+      const codec = selected === null ? undefined : markupFor(selected.type, key)
+
+      return [key, codec === undefined ? value : codec.toText(value)]
+    }),
+  )
 
   function ids(): readonly string[] {
     return nodes.map((node) => node.id)
@@ -126,6 +142,34 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
     if (selected === null) return
 
     const written = key ?? definition.key
+    const codec = markupFor(selected.type, written)
+
+    /*
+     * Text in, structure out — and a note about the difference. The parser
+     * strips what the allowlist will not keep, and saying so is the whole of
+     * the promise this property's help text makes: "the editor lists what it
+     * took out".
+     *
+     * The note is held until the next edit rather than until the next render,
+     * because what it describes is what just happened.
+     */
+    if (codec !== undefined && typeof value === "string") {
+      const parsed = codec.fromText(value)
+
+      setNotes((current) => ({
+        ...current,
+        [definition.key]:
+          parsed.removed.length === 0 ? [] : [`Removed: ${parsed.removed.join(", ")}.`],
+      }))
+
+      store.getState().transact("Edit", () => {
+        for (const node of nodes) {
+          store.getState().setProps(node.id, { [written]: parsed.value })
+        }
+      })
+
+      return
+    }
 
     /*
      * Which bag a value goes into is the definition's to say. The two writes
@@ -261,6 +305,7 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
       // clears it on all of them.
       overridden={new Set(nodes.flatMap((node) => [...ownKeys(node, definitions, breakpoint)]))}
       mixedKeys={mixed}
+      notes={notes}
       breakpoint={breakpoint}
       onChange={change}
       onReset={reset}

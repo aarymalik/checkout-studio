@@ -72,6 +72,7 @@ export function InspectorCase({ id }: { id: string }): ReactElement {
         theme={defaultTheme}
         overridden={ownKeys(node, definitions, at)}
         {...(current.mixed === undefined ? {} : { mixedKeys: new Set(current.mixed) })}
+        {...(current.notes === undefined ? {} : { notes: current.notes })}
         breakpoint={at}
         /* Nothing is edited here: a gallery that wrote would need a store. */
         onChange={() => undefined}
