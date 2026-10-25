@@ -51,6 +51,18 @@ export {
   roundHsl,
 } from "./color/contrast"
 export type { Hsl } from "./color/contrast"
+export { atLightness, hexToOklch, oklchToHex } from "./color/oklch"
+export type { Oklch } from "./color/oklch"
+export {
+  NEAR_BLACK,
+  SCALE,
+  STEPS,
+  WHITE,
+  deriveRoles,
+  deriveScale,
+  nearestStep,
+} from "./color/derive"
+export type { DerivedRoles, Scale } from "./color/derive"
 
 export { generateVariablesCss, PREFIX } from "./css/generate"
 
