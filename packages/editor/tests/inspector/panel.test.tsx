@@ -19,9 +19,11 @@ const PROPERTIES = defineProperties([
   },
   { key: "hidden", target: "prop", label: "Hidden", group: "General", control: "toggle" },
   { key: "shade", target: "style", label: "Shadow", group: "Effects", control: "shadow" },
-  // Still unbuilt, and the fixture for the fallback below. The shadow above it
-  // used to serve that purpose, until the shadow control was built.
-  { key: "fade", target: "style", label: "Gradient", group: "Background", control: "gradient" },
+  // Still unbuilt, and the fixture for the fallback below. The shadow served
+  // this purpose until the shadow control was built, and the gradient until
+  // the gradient control was. An asset is the last one left: Phase 14 builds
+  // the storage it would pick from, and depends on this phase for the picker.
+  { key: "picture", target: "prop", label: "Picture", group: "Background", control: "asset" },
 ])
 
 function panel(
@@ -173,7 +175,7 @@ describe("what a node currently holds", () => {
       level: undefined,
       hidden: undefined,
       shade: "0 1px 2px #0001",
-      fade: undefined,
+      picture: undefined,
     })
   })
 })
@@ -193,8 +195,8 @@ describe("a control nobody has built yet", () => {
 
     await userEvent.click(screen.getByText("Background"))
 
-    expect(container.querySelector('[data-inspector-unbuilt="gradient"]')).not.toBeNull()
-    expect(screen.getByText("No gradient control yet.")).toBeVisible()
+    expect(container.querySelector('[data-inspector-unbuilt="asset"]')).not.toBeNull()
+    expect(screen.getByText("No asset control yet.")).toBeVisible()
   })
 
   it("does not stop the controls around it rendering", () => {
