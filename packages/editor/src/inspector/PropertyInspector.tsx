@@ -86,6 +86,13 @@ export interface PropertyInspectorProps {
    */
   onApplyToAll?: (definition: PropertyDefinition) => void
   /**
+   * What to say beneath a control, keyed as the definitions are.
+   *
+   * The markup controls are why: the parser that strips a `<script>` knows
+   * what it took out, and it belongs to a plugin this package cannot see.
+   */
+  notes?: Readonly<Record<string, readonly string[]>>
+  /**
    * The theme whose tokens these properties may hold.
    *
    * Absent means no picker: the panel still works, it just offers literals —
@@ -106,6 +113,7 @@ export function PropertyInspector({
   onReset,
   breakpoint,
   onApplyToAll,
+  notes,
   theme,
   empty = false,
   disabled = false,
@@ -150,6 +158,7 @@ export function PropertyInspector({
         value={values[definition.key]}
         {...(theme === undefined ? {} : { theme })}
         mixed={mixedKeys?.has(definition.key) === true}
+        {...(notes?.[definition.key] === undefined ? {} : { notes: notes[definition.key] })}
         {...(onReset === undefined || overridden?.has(definition.key) !== true
           ? {}
           : {

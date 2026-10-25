@@ -299,6 +299,91 @@ describe("editing one breakpoint", () => {
   })
 })
 
+describe("editing markup", () => {
+  function markupProperty(type: string, label: string) {
+    const property = propertiesFor(type).find(
+      (one) => one.control === "markup" && one.label === label,
+    )
+
+    if (property === undefined) throw new Error(`${type} registered no ${label} markup property.`)
+
+    return property
+  }
+
+  it("stores the structure the text parses to, not the text", async () => {
+    /*
+     * The prop holds a tree and the control edits text. The conversion is the
+     * application's, because the grammar belongs to the plugin that owns the
+     * component and the editor package cannot reach it.
+     */
+    const { store } = mount()
+    const id = place(store, "core.html-block")
+    const html = markupProperty("core.html-block", "HTML")
+
+    await userEvent.type(screen.getByLabelText(html.label), "<p>Hello</p>")
+    // Committed when the field is left: parsing each keystroke would store a
+    // tree with nothing in it and delete the character just typed.
+    await userEvent.tab()
+
+    expect(Array.isArray(store.getState().document.nodes[id]?.props[html.key])).toBe(true)
+  })
+
+  it("says what it took out, which the help text promises", async () => {
+    /*
+     * "Scripts, styles, frames and form fields are removed. The editor lists
+     * what it took out." A filter that silently deletes half of what somebody
+     * pasted teaches them the feature is broken; one that names `script`
+     * teaches them what the rule is.
+     */
+    const { store } = mount()
+
+    place(store, "core.html-block")
+
+    const html = markupProperty("core.html-block", "HTML")
+
+    await userEvent.type(screen.getByLabelText(html.label), "<script>alert(1)</script>")
+    await userEvent.tab()
+
+    expect(await screen.findByText(/Removed:.*script/)).toBeVisible()
+  })
+
+  it("says nothing when nothing was taken", async () => {
+    const { store } = mount()
+
+    place(store, "core.html-block")
+
+    const html = markupProperty("core.html-block", "HTML")
+
+    await userEvent.type(screen.getByLabelText(html.label), "<p>Hello</p>")
+    await userEvent.tab()
+
+    expect(screen.queryByText(/Removed:/)).toBeNull()
+  })
+
+  it("reads CSS with the CSS grammar, not the HTML one", async () => {
+    /*
+     * Both properties are `control: "markup"` and nothing in either definition
+     * says which is which. Run through the HTML parser, a stylesheet would be
+     * stripped to nothing and the report would be nonsense — so the plugin
+     * says which converter belongs to which property.
+     */
+    const { store } = mount()
+    const id = place(store, "core.code-block")
+    const css = markupProperty("core.code-block", "CSS")
+
+    // Pasted rather than typed: `userEvent.type` reads `{...}` as a key
+    // descriptor, so a stylesheet's braces are parsed as keystrokes.
+    await userEvent.click(screen.getByLabelText(css.label))
+    await userEvent.paste(".a{color:red}")
+    await userEvent.tab()
+
+    const rules = store.getState().document.nodes[id]?.props[css.key]
+
+    expect(Array.isArray(rules)).toBe(true)
+    expect(JSON.stringify(rules)).toContain("color")
+  })
+})
+
 describe("editing several components at once", () => {
   function placeTwo(store: EditorStoreApi, type: string): readonly [string, string] {
     const first = place(store, type)

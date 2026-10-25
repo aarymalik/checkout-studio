@@ -42,6 +42,10 @@ export interface InspectorCase {
   // Typed into the search field before the picture, for a case about results
   // rather than about the panel at rest.
   search?: string
+  // What the application wants said beneath a control, keyed as the
+  // definitions are. The markup properties are the ones that have any: the
+  // parser names what it took out, and the panel shows it.
+  notes?: Record<string, readonly string[]>
   // Keys the selection does not agree on, for a case about editing several
   // components at once. The panel takes this set from the application, so a
   // case giving one is using the product's own door rather than reaching past
@@ -136,6 +140,12 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     // design-system-ignore: the case is about the parts of this exact value.
     own: { styles: { desktop: { border: "1px solid #e5e5e5" } } },
     shows: "A border as a width beside its style, with the colour under them.",
+  },
+  {
+    id: "html-block",
+    type: "core.html-block",
+    shows: "A code box, with the note the parser leaves when it takes something out.",
+    notes: { content: ["Removed: script, onclick."] },
   },
   {
     id: "heading",

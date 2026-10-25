@@ -8,6 +8,7 @@ import {
   Select,
   SelectOption,
   Switch,
+  Textarea,
   cn,
   inputVariants,
 } from "@checkout-studio/ui"
@@ -16,7 +17,7 @@ import { isTokenReference } from "@checkout-studio/schema"
 import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
-import type { KeyboardEvent, ReactElement } from "react"
+import type { KeyboardEvent, ReactElement, ReactNode } from "react"
 
 import { useRef, useState } from "react"
 
@@ -83,6 +84,15 @@ export interface ControlProps {
    * so is a style that never asked to be responsive.
    */
   onApplyToAll?: (() => void) | undefined
+  /**
+   * What the application wants said about this value, beneath the control.
+   *
+   * The markup controls are why this exists: a filter that silently deletes
+   * half of what somebody pasted teaches them the feature is broken, and one
+   * that says "script, onclick" teaches them what the rule is. The parser that
+   * knows those names belongs to a plugin, so the words arrive from outside.
+   */
+  notes?: readonly string[] | undefined
   /**
    * The theme whose tokens this property may hold.
    *
@@ -153,7 +163,9 @@ export function Control(props: ControlProps): ReactElement {
           props.onApplyToAll?.()
         }
 
-  if (onReset === undefined && applyToAll === undefined) return control
+  const notes = props.notes ?? []
+
+  if (onReset === undefined && applyToAll === undefined && notes.length === 0) return control
 
   return (
     <div
@@ -162,6 +174,18 @@ export function Control(props: ControlProps): ReactElement {
       {...(applyToAll === undefined ? {} : { onKeyDown: applyToAll })}
     >
       {control}
+
+      {notes.length === 0 ? null : (
+        <p
+          data-inspector-notes={definition.key}
+          className="text-caption text-foreground-muted"
+          // Announced when it appears: the words arrive in answer to something
+          // that was just typed, by which time the reader has moved on.
+          role="status"
+        >
+          {notes.join(" ")}
+        </p>
+      )}
 
       {onReset === undefined ? null : (
         <Reset definition={definition} breakpoint={props.breakpoint} onReset={onReset} />
@@ -484,6 +508,27 @@ function Literal({
           disabled={disabled}
           mixed={mixed}
           onChange={onChange}
+        />
+      )
+    }
+
+    case "markup": {
+      /*
+       * Code, so a monospaced box with the browser's spelling and
+       * autocorrect turned off — all three of which treat `<div>` as a typo.
+       *
+       * What this edits is text; what the document holds is the structure
+       * that text parses to, and the conversion belongs to the application
+       * that installed the plugin which owns the grammar. The editor cannot
+       * reach that parser and should not: it would be the engine learning
+       * what HTML is.
+       */
+      return (
+        <MarkupControl
+          {...shared}
+          value={mixed || typeof value !== "string" ? "" : value}
+          mixed={mixed}
+          onCommit={onChange}
         />
       )
     }
@@ -1010,6 +1055,65 @@ function SideBox({
  * stack — so the picker floated a line above the number it belonged to, which
  * is exactly how it looked in the product.
  */
+/**
+ * A code box, committed when it is left rather than as it is typed.
+ *
+ * ## Why it cannot report every keystroke
+ *
+ * What the document holds is the structure the text parses to, and what this
+ * shows is that structure serialised back. Reporting each keystroke means
+ * parsing each keystroke — so typing `<` stores a tree with nothing in it,
+ * which serialises to an empty string, which lands back in the box and deletes
+ * the character that was just typed. Nothing can ever be written.
+ *
+ * It is the same fault the number fields had, where refusing an invalid value
+ * snapped the box back and `16` cleared to type `24` became `1624`. The cure
+ * is the same: hold what is being typed, and report when it is finished.
+ *
+ * Leaving the field is what finishes it. The text is parsed then, the box
+ * shows what survived, and whatever was taken out is named underneath.
+ */
+function MarkupControl({
+  value,
+  mixed,
+  onCommit,
+  ...shared
+}: {
+  label: string
+  description?: ReactNode
+  disabled: boolean
+  value: string
+  mixed: boolean
+  onCommit: (value: string) => void
+}): ReactElement {
+  const [draft, setDraft] = useState<string | null>(null)
+
+  return (
+    <Textarea
+      {...shared}
+      rows={8}
+      // All three treat `<div>` as a typo.
+      spellCheck={false}
+      autoCorrect="off"
+      autoCapitalize="off"
+      className="font-code text-small"
+      value={draft ?? value}
+      {...(mixed ? { placeholder: "Mixed" } : {})}
+      onChange={(event) => {
+        setDraft(event.target.value)
+      }}
+      onBlur={() => {
+        if (draft === null) return
+
+        onCommit(draft)
+        // Cleared, so the box goes back to showing the document — which is the
+        // text as it survived the parser, not as it was typed.
+        setDraft(null)
+      }}
+    />
+  )
+}
+
 /**
  * A border, as a width, a style and a colour.
  *

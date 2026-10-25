@@ -482,6 +482,38 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Markup
+
+A code box: monospaced, eight rows, with spellcheck, autocorrect and
+autocapitalise all turned off — all three treat `<div>` as a typo.
+
+**It commits when it is left, not as it is typed.** What the document holds is
+the structure the text parses to, and the box shows that structure serialised
+back. Reporting every keystroke means parsing every keystroke, so typing `<`
+stores a tree with nothing in it, which serialises to an empty string, which
+lands back in the box and deletes the character just typed. Nothing could ever
+be written.
+
+**The editor cannot tell HTML from CSS, and should not.** Both register as
+`control: "markup"` and nothing in a property definition says which is which.
+The grammar belongs to the plugin that owns the component, so the application
+looks up the converter and hands the editor text. Running a stylesheet through
+an HTML parser would strip it to nothing and report nonsense.
+
+## Notes under a control
+
+What the application wants said about a value, beneath the control it belongs
+to, announced when it appears — the words answer something that was just
+typed, by which time the reader has moved on.
+
+The markup properties are why this exists. Their help text promises that
+"scripts, styles, frames and form fields are removed, and the editor lists what
+it took out", and a filter that silently deletes half of what somebody pasted
+teaches them the feature is broken. One that says `script, onclick` teaches
+them what the rule is.
+
+The note describes an edit, not the document, so it lasts until the next one.
+
 ## Borders
 
 A width, a style and a colour: the width beside the style picker, the colour
