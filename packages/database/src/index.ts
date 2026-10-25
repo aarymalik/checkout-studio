@@ -16,6 +16,8 @@ export type { CreatePageInput } from "./repositories/page"
 export { publishedRepository } from "./repositories/published"
 export type { PublishedPage } from "./repositories/published"
 
+export { themeRepository, ThemeConflictError } from "./repositories/theme"
+
 export { revisionRepository } from "./repositories/revision"
 export type { CreateRevisionInput, RevisionKind } from "./repositories/revision"
 

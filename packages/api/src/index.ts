@@ -104,7 +104,7 @@ export type { DuplicateOutcome, PageSummary, SlugOutcome } from "./services/page
 
 export { readDraft, saveDraft } from "./services/pages/draft"
 
-export { resolveTheme } from "./services/pages/theme"
+export { resolveTheme, saveTheme } from "./services/pages/theme"
 
 export { resolveConflict } from "./services/pages/resolve"
 export type { Resolution, ResolveResult } from "./services/pages/resolve"
