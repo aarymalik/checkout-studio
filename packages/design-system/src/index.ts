@@ -66,6 +66,9 @@ export type { DerivedRoles, Scale } from "./color/derive"
 
 export { SPACING_STEPS, deriveSpacing } from "./spacing/ladder"
 
+export { TYPE_RATIOS, TYPE_STEPS_ASCENDING, deriveTypeScale } from "./typography/scale"
+export type { TypeRatioStep } from "./typography/scale"
+
 export { generateVariablesCss, PREFIX } from "./css/generate"
 
 export { themeScript } from "./theme/script"

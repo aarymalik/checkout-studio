@@ -48,6 +48,9 @@ export type {
 
 export { DEFAULT_THEME_ID, defaultTheme } from "./defaults"
 
+export { MONO_STACK, SANS_STACK, SERIF_STACK, SYSTEM_FAMILIES } from "./fonts"
+export type { SystemFamily } from "./fonts"
+
 export {
   isColor,
   isDuration,

@@ -3,6 +3,7 @@
 import type { ThemeRadius } from "@checkout-studio/schema"
 import { FieldLabel, Slider } from "@checkout-studio/ui"
 
+import { pixels } from "./pixels"
 import type { SectionProps } from "./section"
 
 /**
@@ -34,15 +35,10 @@ const EDITABLE = ["sm", "md", "lg"] as const
 const LABEL = { sm: "Small", md: "Medium", lg: "Large" } as const
 
 /** A radius this section can put on a slider, or null. */
-function pixels(value: string): number | null {
-  const match = /^(\d+(?:\.\d+)?)px$/.exec(value.trim())
-  const amount = match?.[1]
+function onScale(value: string): number | null {
+  const amount = pixels(value)
 
-  if (amount === undefined) return value.trim() === "0" ? 0 : null
-
-  const parsed = Number(amount)
-
-  return parsed > RANGE.max ? null : parsed
+  return amount === null || amount > RANGE.max ? null : amount
 }
 
 export function Radius({ theme, update }: SectionProps) {
@@ -53,7 +49,7 @@ export function Radius({ theme, update }: SectionProps) {
   return (
     <div className="flex flex-col gap-4 pb-3" data-theme-section="radius">
       {EDITABLE.map((step) => {
-        const amount = pixels(theme.radius[step])
+        const amount = onScale(theme.radius[step])
 
         return amount === null ? (
           <div key={step} className="flex flex-col gap-1">
