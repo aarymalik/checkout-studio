@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { defineSlotFields } from "@checkout-studio/plugin-sdk"
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
 import { ContainerRenderer } from "./Renderer"
@@ -51,6 +52,18 @@ export const container: ComponentDefinition = {
     label: "Container",
     schema: z.object({ maxWidth: z.string().min(1) }),
     defaults: { maxWidth: "1120px" },
+    // One value for every container on the page, which is what a theme slot
+    // is for: the measure a checkout reads at is a decision about the theme,
+    // not about one section somebody dropped in.
+    fields: defineSlotFields([
+      {
+        key: "maxWidth",
+        label: "Maximum width",
+        control: "dimension",
+        help: "How wide a container may grow before it stops.",
+        units: ["px", "rem", "%"],
+      },
+    ]),
     toStyles: (slot) => ({ maxWidth: String(slot["maxWidth"]) }),
   },
 }

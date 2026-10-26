@@ -1,5 +1,7 @@
 import type { ComponentValidator, Node, PropValue, StyleProperties } from "@checkout-studio/schema"
 import type { ZodType } from "zod"
+
+import type { SlotField } from "./properties"
 import type { ComponentType, ReactNode } from "react"
 
 /**
@@ -66,6 +68,17 @@ export interface ComponentThemeSlotRegistration {
   schema: ZodType
   /** Used when the theme sets nothing. */
   defaults: Readonly<Record<string, unknown>>
+  /**
+   * The values the Theme panel offers, and the control each one is edited
+   * with.
+   *
+   * Declared rather than inferred from `schema`, which says what a value is
+   * and not what a person adjusting it should see. A slot that declares none
+   * still renders and resolves — the panel says it has nothing to offer rather
+   * than guessing — so this is additive for a plugin that had a slot before
+   * the panel did.
+   */
+  fields?: readonly SlotField[]
   /**
    * Maps the slot's values onto CSS declarations for a node of this type.
    *

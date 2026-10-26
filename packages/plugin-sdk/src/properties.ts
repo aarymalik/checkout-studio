@@ -201,6 +201,58 @@ const base = z.object({
   showWhen: propertyCondition.optional(),
 })
 
+/**
+ * One editable value in a component's theme slot.
+ *
+ * ## Why a declaration and not the slot's own Zod schema
+ *
+ * A slot registers a `ZodType`, which says what a value *is*. It does not say
+ * what a person adjusting it should see: `z.string()` could be a colour, a
+ * length, a font family or a CSS keyword, and a panel guessing from the type
+ * would offer a text box for all four. The inspector settled this question
+ * already — a component declares its controls rather than having them inferred
+ * — and a slot declares its fields the same way, so the Theme panel renders a
+ * slot with the controls the inspector uses and learns nothing about what the
+ * component is.
+ *
+ * ## What it leaves out
+ *
+ * `target`, `responsive` and `states`. A slot value is one value for every
+ * instance of a type: it is not a style on a node, so there is no breakpoint
+ * or state to override it at, and nothing to point a `target` at. `group` is
+ * out too — a slot's fields are already grouped, by the component they belong
+ * to.
+ */
+const slotFieldBase = base.pick({
+  key: true,
+  label: true,
+  control: true,
+  help: true,
+  options: true,
+  min: true,
+  max: true,
+  units: true,
+})
+
+export const slotField = slotFieldBase
+  .strict()
+  .refine((field) => field.control !== "select" || field.options !== undefined, {
+    message: "A select field needs options.",
+    path: ["options"],
+  })
+  .refine((field) => field.control === "select" || field.options === undefined, {
+    message: "Only a select field takes options.",
+    path: ["options"],
+  })
+  .refine((field) => field.units === undefined || LENGTH_CONTROLS.has(field.control), {
+    message: `Only a length field takes units: ${[...LENGTH_CONTROLS].join(", ")}.`,
+    path: ["units"],
+  })
+  .refine((field) => field.min === undefined || field.max === undefined || field.min <= field.max, {
+    message: "A field's minimum cannot exceed its maximum.",
+    path: ["min"],
+  })
+
 export const propertyDefinition = base
   .strict()
   .refine((property) => property.control !== "select" || property.options !== undefined, {
@@ -301,6 +353,9 @@ export type PropertyTarget = z.infer<typeof propertyTarget>
 export type PropertyOption = z.infer<typeof propertyOption>
 export type PropertyCondition = z.infer<typeof propertyCondition>
 export type PropertyDefinition = z.infer<typeof propertyDefinition>
+export type SlotField = z.infer<typeof slotField>
+/** What a plugin author writes for a slot field. */
+export type SlotFieldInput = z.input<typeof slotField>
 /** What an author writes, before the booleans take their defaults. */
 export type PropertyDefinitionInput = z.input<typeof propertyDefinition>
 
@@ -317,4 +372,26 @@ export function defineProperties(
   definitions: readonly PropertyDefinitionInput[],
 ): readonly PropertyDefinition[] {
   return propertyDefinitions.parse(definitions)
+}
+
+/**
+ * Checks a theme slot's fields, throwing on the first problem.
+ *
+ * The sibling of `defineProperties`, for the same reason. One key, once: two
+ * fields writing the same slot key means whichever renders last wins, and the
+ * first one silently does nothing.
+ */
+export function defineSlotFields(fields: readonly SlotFieldInput[]): readonly SlotField[] {
+  const parsed = z.array(slotField).parse(fields)
+  const keys = new Set<string>()
+
+  for (const field of parsed) {
+    if (keys.has(field.key)) {
+      throw new Error(`"${field.key}" is defined twice. The second one would win silently.`)
+    }
+
+    keys.add(field.key)
+  }
+
+  return parsed
 }

@@ -402,9 +402,10 @@ instead.
 # Theme panel
 
 In the left sidebar, per [theme-system.md](./theme-system.md) § Editor
-Integration. Brand, Typography, Spacing, Radius and Shadows are built; the
-other sections arrive with their features rather than as empty headings, the
-same way the sidebar's own tabs say what is coming instead of showing nothing.
+Integration. Brand, Typography, Spacing, Radius, Shadows and Components are
+built; the other sections arrive with their features rather than as empty
+headings, the same way the sidebar's own tabs say what is coming instead of
+showing nothing.
 
 An accordion, not a list. A theme holds more decisions than fit on a screen and
 they are not decisions made together — choosing a brand colour and tuning the
@@ -495,6 +496,29 @@ offset and `inset` are parsed and preserved, rather than dropped by a control
 with nowhere to put them. The colour is shown and not edited: a shadow is
 mostly its alpha, `ColorPicker` takes a hex, and no theme token carries an
 alpha, so an alpha control here would be one this panel invented.
+
+**Components lists itself from the registry.** Nothing in the panel names a
+component. A plugin that registers a theme slot appears because it registered
+one, and a second product shipping a different set needs no change to the
+panel — which is the whole of what plugin-first means. The specification lists
+Buttons, Inputs, Cards and Payment Element under this heading; none of them
+registers a slot yet, so none is shown, and they arrive when they do.
+
+A slot's fields are **declared, not inferred**. A slot registers a Zod schema,
+which says what a value is and not what a person adjusting it should see:
+`z.string()` could be a colour, a length or a CSS keyword, and a panel guessing
+from the type offers a text box for all three. So a slot declares its fields
+and the panel renders them with the inspector's own controls — the editor
+already knows how to draw a dimension with a unit picker, and drawing one a
+second way here would be two panels disagreeing about what a length is. A slot
+value can therefore hold a token reference too, since it is the inspector's
+control.
+
+A field the theme has not set shows the **plugin's own default**, because that
+is what the renderer resolves: it spreads the theme's values over the plugin's
+defaults. Putting a value back **removes it** rather than writing the default
+in — writing it in would freeze today's default into the theme and leave a
+later one unreachable.
 
 **A value a control cannot hold is shown as the text it is.** A radius in per
 cent, a shadow written as a comma-separated list, a body size in `rem`, a size

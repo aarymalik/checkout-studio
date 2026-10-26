@@ -12,6 +12,7 @@ import type { ReactElement } from "react"
 
 import { useProjectTheme } from "./ProjectTheme"
 import { Brand } from "./sections/Brand"
+import { Components } from "./sections/Components"
 import { Radius } from "./sections/Radius"
 import { Shadows } from "./sections/Shadows"
 import { Spacing } from "./sections/Spacing"
@@ -54,6 +55,7 @@ const SECTIONS: readonly Section[] = [
   { id: "spacing", title: "Spacing", Body: Spacing },
   { id: "radius", title: "Radius", Body: Radius },
   { id: "shadows", title: "Shadows", Body: Shadows },
+  { id: "components", title: "Components", Body: Components },
 ]
 
 /**
