@@ -27,12 +27,14 @@ export {
   PROPERTY_GROUPS,
   controlKind,
   defineProperties,
+  defineSlotFields,
   propertyCondition,
   propertyDefinition,
   propertyDefinitions,
   propertyGroup,
   propertyOption,
   propertyTarget,
+  slotField,
 } from "./properties"
 export type {
   ControlKind,
@@ -42,6 +44,8 @@ export type {
   PropertyGroup,
   PropertyOption,
   PropertyTarget,
+  SlotField,
+  SlotFieldInput,
 } from "./properties"
 
 export {
