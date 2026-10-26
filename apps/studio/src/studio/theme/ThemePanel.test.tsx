@@ -64,7 +64,7 @@ describe("the panel", () => {
   it("offers a section per group the theme holds values for", () => {
     panel()
 
-    for (const title of ["Brand", "Spacing", "Radius", "Shadows"]) {
+    for (const title of ["Brand", "Typography", "Spacing", "Radius", "Shadows"]) {
       expect(screen.getByRole("heading", { name: title, level: 3 })).toBeVisible()
     }
   })

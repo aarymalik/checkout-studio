@@ -1,3 +1,4 @@
+import { MONO_STACK, SANS_STACK } from "./fonts"
 import type { CheckoutTheme, FontDefinition } from "./types"
 
 /**
@@ -13,31 +14,11 @@ import type { CheckoutTheme, FontDefinition } from "./types"
  * vocabulary is defined; docs/coding-standards.md forbids them everywhere else.
  */
 
-const SYSTEM_STACK = [
-  "ui-sans-serif",
-  "system-ui",
-  "-apple-system",
-  "Segoe UI",
-  "Roboto",
-  "Helvetica Neue",
-  "Arial",
-  "sans-serif",
-]
-
-const MONO_STACK = [
-  "ui-monospace",
-  "SFMono-Regular",
-  "Menlo",
-  "Consolas",
-  "Liberation Mono",
-  "monospace",
-]
-
 const sans: FontDefinition = {
   family: "Inter",
   source: "system",
   weights: [400, 500, 600, 700],
-  fallback: SYSTEM_STACK,
+  fallback: SANS_STACK,
 }
 
 const mono: FontDefinition = {

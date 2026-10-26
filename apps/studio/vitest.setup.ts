@@ -40,6 +40,24 @@ globalThis.ResizeObserver ??= class {
 }
 
 /**
+ * jsdom implements no pointer capture.
+ *
+ * A Radix select grabs the pointer when its trigger goes down, and calls these
+ * on the element to do it. Missing, the component throws before it can open,
+ * which looks like a broken control rather than a missing browser API. The ui
+ * and editor packages stub the same three for the same reason.
+ *
+ * Stubs, not a polyfill: nothing about pointer capture is what a test here is
+ * asking about, and a test that depended on it would be testing jsdom.
+ */
+Element.prototype.scrollIntoView ??= function scrollIntoView(): void {}
+Element.prototype.hasPointerCapture ??= function hasPointerCapture(): boolean {
+  return false
+}
+Element.prototype.setPointerCapture ??= function setPointerCapture(): void {}
+Element.prototype.releasePointerCapture ??= function releasePointerCapture(): void {}
+
+/**
  * Every test gets a clean document. Without this, a component left mounted by
  * one test is found by the next one's queries.
  */

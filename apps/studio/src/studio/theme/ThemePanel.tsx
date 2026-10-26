@@ -15,6 +15,7 @@ import { Brand } from "./sections/Brand"
 import { Radius } from "./sections/Radius"
 import { Shadows } from "./sections/Shadows"
 import { Spacing } from "./sections/Spacing"
+import { Typography } from "./sections/Typography"
 import type { SectionProps } from "./sections/section"
 
 /**
@@ -49,6 +50,7 @@ interface Section {
 
 const SECTIONS: readonly Section[] = [
   { id: "brand", title: "Brand", Body: Brand },
+  { id: "typography", title: "Typography", Body: Typography },
   { id: "spacing", title: "Spacing", Body: Spacing },
   { id: "radius", title: "Radius", Body: Radius },
   { id: "shadows", title: "Shadows", Body: Shadows },

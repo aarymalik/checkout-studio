@@ -402,9 +402,9 @@ instead.
 # Theme panel
 
 In the left sidebar, per [theme-system.md](./theme-system.md) § Editor
-Integration. Brand, Spacing, Radius and Shadows are built; the other sections
-arrive with their features rather than as empty headings, the same way the
-sidebar's own tabs say what is coming instead of showing nothing.
+Integration. Brand, Typography, Spacing, Radius and Shadows are built; the
+other sections arrive with their features rather than as empty headings, the
+same way the sidebar's own tabs say what is coming instead of showing nothing.
 
 An accordion, not a list. A theme holds more decisions than fit on a screen and
 they are not decisions made together — choosing a brand colour and tuning the
@@ -456,6 +456,35 @@ design decision rather than a piece of the panel. Density is a separate
 control: it multiplies the finished scale per breakpoint at render time, which
 is a different route to the canvas.
 
+**The body size is the typographic decision, and it rewrites every step.**
+The same shape as the spacing base: a fixed ladder of multipliers, measured
+from the default theme, scaled by one number. A ladder rather than a modular
+ratio because the default theme's own ratios run from 1.08 to 1.33 — a hand-
+tuned scale beats a geometric one, since small sizes need to stay apart to be
+distinguishable and large ones can jump — so no single ratio could reproduce
+the scale the panel was handed, and the first drag of a ratio control would
+rewrite all nine sizes into a shape nobody chose.
+
+Only `fontSize` is derived. Line height, letter spacing, weight and transform
+are per-step decisions a ladder has nothing to say about: the default theme's
+display line is deliberately tighter than its caption, and a resize that
+flattened them would throw that away. The scale is previewed at its own sizes,
+because a column of numbers tells you the scale is there and not whether it
+works. Fluid scale is typography's density — it multiplies every size per
+breakpoint at render time.
+
+**Only fonts that need no file are offered.** `FontDefinition.source` has three
+values and one of them works today. A Google family is meant to be fetched into
+our own asset storage and served from our origin; until the asset pipeline has
+ingested it there is no file, and the renderer says so — `planFonts` raises
+`not-self-hosted` and falls back to the stack. A custom family needs an
+`assetId`, which is the same pipeline. Offering either would write a theme whose
+font silently never loads, on the very screen where it was chosen. A family the
+panel does not offer, including one a theme already holds, is shown as written
+and named for what it is waiting on. Choosing a family writes its fallback
+stack with it: a serif left on a sans stack renders as a sans on exactly the
+machines the stack exists for.
+
 **Radius offers the three a person chooses.** `none` is `0` and `full` is
 `9999px` — not values somebody picked but what "square" and "round" mean, so
 they are named and not offered. Both are shown, so the vocabulary reads whole.
@@ -468,11 +497,17 @@ mostly its alpha, `ColorPicker` takes a hex, and no theme token carries an
 alpha, so an alpha control here would be one this panel invented.
 
 **A value a control cannot hold is shown as the text it is.** A radius in per
-cent, a shadow written as a comma-separated list, a brand colour written as
-`oklch(...)` — each is valid, none fits the control beside it, and clamping or
-re-deriving one would silently change a decision the merchant made on a screen
-they opened to look at. This is the same answer throughout the panel and the
-inspector.
+cent, a shadow written as a comma-separated list, a body size in `rem`, a size
+past the ends of its slider, a brand colour written as `oklch(...)` — each is
+valid, none fits the control beside it, and clamping or re-deriving one would
+silently change a decision the merchant made on a screen they opened to look
+at. Out of range is not the same as unparseable, and both get this answer. It
+is the same answer throughout the panel and the inspector.
+
+Reading one takes care: `Number.parseFloat("1rem")` is `1`, not `NaN`, so the
+obvious check passes and a body size in `rem` becomes a one-pixel base that
+derives the whole type scale from nothing. The unit is matched rather than
+discarded, in one parser the sections share.
 
 ---
 

@@ -5,6 +5,7 @@ import type { Shadow } from "@checkout-studio/editor"
 import type { ThemeShadows } from "@checkout-studio/schema"
 import { FieldLabel, Slider } from "@checkout-studio/ui"
 
+import { pixels } from "./pixels"
 import type { SectionProps } from "./section"
 
 /**
@@ -46,18 +47,6 @@ const BLUR = { min: 0, max: 96 } as const
 const EDITABLE = ["sm", "md", "lg", "xl"] as const
 
 const LABEL = { sm: "Small", md: "Medium", lg: "Large", xl: "Extra large" } as const
-
-/** A length this section can put on a slider, or null. */
-function pixels(value: string): number | null {
-  const trimmed = value.trim()
-
-  if (trimmed === "0") return 0
-
-  const match = /^(\d+(?:\.\d+)?)px$/.exec(trimmed)
-  const amount = match?.[1]
-
-  return amount === undefined ? null : Number(amount)
-}
 
 export function Shadows({ theme, update }: SectionProps) {
   function set(change: Partial<ThemeShadows>): void {
