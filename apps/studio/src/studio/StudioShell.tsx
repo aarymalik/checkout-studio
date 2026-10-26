@@ -8,6 +8,7 @@ import {
   type UserKeymap,
 } from "@checkout-studio/editor"
 import type { ReactNode } from "react"
+import { defaultTheme } from "@checkout-studio/schema"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 
 import { Autosave } from "./autosave/Autosave"
@@ -22,6 +23,8 @@ import { EditSessionProvider } from "./session/EditSessionProvider"
 import { EditorStatus } from "./session/EditorStatus"
 import { TakeoverPrompt } from "./session/TakeoverPrompt"
 import { Sidebar, type SidebarPanels } from "./Sidebar"
+import { ProjectThemeProvider, useProjectTheme } from "./theme/ProjectTheme"
+import { ThemePanel } from "./theme/ThemePanel"
 import { ShortcutReference } from "./ShortcutReference"
 import { StatusBar } from "./StatusBar"
 import { StudioProviders } from "./StudioProviders"
@@ -50,6 +53,7 @@ export interface OpenPage {
   baseVersion: number
 }
 export function StudioShell({
+  projectId,
   projectName,
   initialLayout,
   userKeymap,
@@ -57,6 +61,7 @@ export function StudioShell({
   panels = {},
   page = null,
 }: {
+  projectId: string
   projectName: string
   initialLayout: ShellLayout
   userKeymap: UserKeymap
@@ -75,14 +80,22 @@ export function StudioShell({
    * `Escape` and the omission cost nothing.
    */
   function frame(panelsForTabs: SidebarPanels, saveStatus?: ReactNode, overlays?: ReactNode) {
+    /*
+     * The theme is state from here down, seeded by what the server resolved.
+     * The panel edits it and the canvas reads it, so it has to live above
+     * both — and a round trip between them would miss the sixteen
+     * milliseconds docs/theme-system.md asks a theme change to land in.
+     */
     return (
       <StudioProviders initialLayout={initialLayout} userKeymap={userKeymap} platform={platform}>
-        <Frame
-          projectName={projectName}
-          panels={panelsForTabs}
-          theme={page?.theme ?? null}
-          saveStatus={saveStatus}
-        />
+        <ProjectThemeProvider projectId={projectId} initial={page?.theme ?? defaultTheme}>
+          <Frame
+            projectName={projectName}
+            panels={{ theme: <ThemePanel />, ...panelsForTabs }}
+            hasPage={page !== null}
+            saveStatus={saveStatus}
+          />
+        </ProjectThemeProvider>
         {overlays}
       </StudioProviders>
     )
@@ -134,15 +147,19 @@ export function StudioShell({
 function Frame({
   projectName,
   panels,
-  theme,
+  hasPage,
   saveStatus,
 }: {
   projectName: string
   panels: SidebarPanels
-  theme: CheckoutTheme | null
+  /** Whether there is a document to draw. A theme exists either way. */
+  hasPage: boolean
   /** Passed rather than read: the store only exists when a page is open. */
   saveStatus?: ReactNode
 }) {
+  // Read rather than passed, so an edit in the panel reaches the canvas
+  // without the frame re-rendering from the top.
+  const theme = useProjectTheme()?.theme ?? null
   // Everything inside the editor is in the studio scope, which is what keeps the
   // panel shortcuts off the dashboard.
   useScope("studio")
@@ -153,7 +170,7 @@ function Frame({
 
       <div className="flex min-h-0 flex-1">
         <Sidebar panels={panels} />
-        <CanvasArea theme={theme} />
+        <CanvasArea theme={hasPage ? theme : null} />
         <Inspector theme={theme} />
       </div>
 

@@ -65,6 +65,7 @@ function renderShell(layout: ShellLayout = DEFAULT_LAYOUT) {
       baseVersion={1}
     >
       <StudioShell
+        projectId="prj_test"
         projectName="Spring Sale"
         initialLayout={layout}
         userKeymap={DEFAULT_KEYMAP}
@@ -179,6 +180,7 @@ describe("StudioShell", () => {
           baseVersion={1}
         >
           <StudioShell
+            projectId="prj_test"
             projectName="Spring Sale"
             initialLayout={DEFAULT_LAYOUT}
             userKeymap={DEFAULT_KEYMAP}

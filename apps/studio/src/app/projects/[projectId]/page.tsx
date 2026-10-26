@@ -74,6 +74,7 @@ export default async function ProjectPage({
       projectName={project.name}
       initialLayout={normalizeLayout(preferences["shell.layout"])}
       userKeymap={normalizeKeymap(preferences["keyboard.keymap"])}
+      projectId={projectId}
       platform={platform}
       page={page}
       panels={{
