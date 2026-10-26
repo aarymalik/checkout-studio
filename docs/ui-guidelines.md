@@ -399,6 +399,45 @@ instead.
 
 ---
 
+# Theme panel
+
+In the left sidebar, per [theme-system.md](./theme-system.md) § Editor
+Integration. Brand is built; the other sections arrive with their features
+rather than as empty headings, the same way the sidebar's own tabs say what is
+coming instead of showing nothing.
+
+**One colour, and what it implies.** The picker is the brand colour. The scale
+and the derived roles are shown beneath it, because a person choosing a brand
+colour is really choosing eleven of them and a button state they will not
+otherwise see until they publish.
+
+**A colour that is not a hex is typed, not picked.** `themeColors` holds a
+string, and `oklch(...)`, a named colour and a reference to another token are
+all valid ones. None fits in a colour picker, and opening the picker at black
+would tell the merchant their brand colour is black — so those are edited in a
+text field, committed when it is left rather than on each keystroke. Nothing is
+derived from them: the scale says it needs a hex, and the stored roles keep the
+values they already had. The inspector answers the same question the same way.
+
+**Live before saved.** An edit reaches the canvas at once and is written a few
+seconds later, on the same debounce as a document edit. The status says which
+of the two it is, and says it exactly — "unsaved" contains "saved", which is
+enough to make a careless check agree with itself.
+
+**What is shown is not all that is kept.** The derivation produces five roles
+and `themeColors` holds two: a button's hover belongs to a component slot that
+a plugin defines, and nothing models a selection colour. The three that cannot
+be stored are shown and marked, which is more honest than deriving them
+silently or pretending they were never worked out.
+
+**Changing the brand colour recomputes the stored roles**, including any that
+were set by hand. The specification asks for overrides that are never
+recomputed; that needs the stored theme to remember which values a person
+chose, which is a change to the schema rather than to this panel. Until then
+the panel says what it will do before it does it.
+
+---
+
 # Inspector
 
 Properties grouped.
