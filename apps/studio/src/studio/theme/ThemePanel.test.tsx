@@ -60,6 +60,32 @@ async function written(save: ReturnType<typeof saving>): Promise<CheckoutTheme> 
   return theme
 }
 
+describe("the panel", () => {
+  it("offers a section per group the theme holds values for", () => {
+    panel()
+
+    for (const title of ["Brand", "Spacing", "Radius", "Shadows"]) {
+      expect(screen.getByRole("heading", { name: title, level: 3 })).toBeVisible()
+    }
+  })
+
+  it("opens on Brand, the one decision that shows up everywhere at once", () => {
+    panel()
+
+    expect(screen.getByRole("button", { name: "Brand" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "Radius" })).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("opens another without closing the first, because a radius is compared against a shadow", async () => {
+    panel()
+
+    await userEvent.click(screen.getByRole("button", { name: "Radius" }))
+
+    expect(screen.getByRole("button", { name: "Brand" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "Radius" })).toHaveAttribute("aria-expanded", "true")
+  })
+})
+
 describe("the brand colour", () => {
   it("shows the one the theme holds", () => {
     panel()

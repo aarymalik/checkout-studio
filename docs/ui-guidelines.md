@@ -402,9 +402,17 @@ instead.
 # Theme panel
 
 In the left sidebar, per [theme-system.md](./theme-system.md) § Editor
-Integration. Brand is built; the other sections arrive with their features
-rather than as empty headings, the same way the sidebar's own tabs say what is
-coming instead of showing nothing.
+Integration. Brand, Spacing, Radius and Shadows are built; the other sections
+arrive with their features rather than as empty headings, the same way the
+sidebar's own tabs say what is coming instead of showing nothing.
+
+An accordion, not a list. A theme holds more decisions than fit on a screen and
+they are not decisions made together — choosing a brand colour and tuning the
+elevation ramp are separate sittings. Several sections may be open at once,
+because comparing a radius against a shadow is a real thing to want. Each
+section is handed the theme rather than reading it from context, so the check
+for whether a theme exists happens once and a section can be rendered in a test
+without a provider around it.
 
 **One colour, and what it implies.** The picker is the brand colour. The scale
 and the derived roles are shown beneath it, because a person choosing a brand
@@ -435,6 +443,36 @@ were set by hand. The specification asks for overrides that are never
 recomputed; that needs the stored theme to remember which values a person
 chose, which is a change to the schema rather than to this panel. Until then
 the panel says what it will do before it does it.
+
+**The base unit is the spacing decision, and it rewrites the scale.** The
+renderer emits `--ck-space-N` from `spacing.scale` and never reads
+`spacing.base`, so a base written on its own would save a number and move
+nothing on the canvas. It is not a vestigial field, though: the default theme's
+scale is its base times a fixed ladder, exactly, so the base is the unit the
+scale was designed around. Changing it derives the scale again — one decision,
+twelve values, the same shape as one brand colour standing for eleven. The
+ladder lives in the design system beside the colour derivation, because it is a
+design decision rather than a piece of the panel. Density is a separate
+control: it multiplies the finished scale per breakpoint at render time, which
+is a different route to the canvas.
+
+**Radius offers the three a person chooses.** `none` is `0` and `full` is
+`9999px` — not values somebody picked but what "square" and "round" mean, so
+they are named and not offered. Both are shown, so the vocabulary reads whole.
+
+**Shadows put the two parts that carry elevation on sliders** — the drop and
+the blur — and write back everything they do not show. A spread, a horizontal
+offset and `inset` are parsed and preserved, rather than dropped by a control
+with nowhere to put them. The colour is shown and not edited: a shadow is
+mostly its alpha, `ColorPicker` takes a hex, and no theme token carries an
+alpha, so an alpha control here would be one this panel invented.
+
+**A value a control cannot hold is shown as the text it is.** A radius in per
+cent, a shadow written as a comma-separated list, a brand colour written as
+`oklch(...)` — each is valid, none fits the control beside it, and clamping or
+re-deriving one would silently change a decision the merchant made on a screen
+they opened to look at. This is the same answer throughout the panel and the
+inspector.
 
 ---
 
