@@ -1,14 +1,15 @@
 "use client"
 
-import { isHexColor } from "@checkout-studio/design-system"
 import { useOptionalEditorStoreApi } from "@checkout-studio/editor"
 import { COLOR_MODES } from "@checkout-studio/schema"
-import type { ColorMode, ThemeColors, ThemeDarkOverrides } from "@checkout-studio/schema"
-import { Button, ColorPicker, FieldLabel, Input, Select, SelectOption } from "@checkout-studio/ui"
-import { useState } from "react"
+import type { ColorMode, ThemeDarkOverrides } from "@checkout-studio/schema"
+import { Button, FieldLabel, Select, SelectOption } from "@checkout-studio/ui"
 import type { ReactElement } from "react"
 
+import { ColorField } from "./ColorField"
 import type { SectionProps } from "./section"
+import { SEMANTIC, LABEL } from "./semantic"
+import type { SemanticColor } from "./semantic"
 
 /**
  * The Dark Mode section.
@@ -55,39 +56,6 @@ import type { SectionProps } from "./section"
  */
 type DarkColors = NonNullable<ThemeDarkOverrides["colors"]>
 
-/** Every semantic colour except `custom`, which is an open record. */
-const SEMANTIC = [
-  "background",
-  "surface",
-  "surfaceRaised",
-  "foreground",
-  "foregroundMuted",
-  "border",
-  "borderStrong",
-  "primary",
-  "primaryForeground",
-  "success",
-  "warning",
-  "danger",
-  "focusRing",
-] as const satisfies readonly (keyof Omit<ThemeColors, "custom">)[]
-
-const LABEL: Record<(typeof SEMANTIC)[number], string> = {
-  background: "Background",
-  surface: "Surface",
-  surfaceRaised: "Raised surface",
-  foreground: "Text",
-  foregroundMuted: "Muted text",
-  border: "Border",
-  borderStrong: "Strong border",
-  primary: "Brand",
-  primaryForeground: "Label on brand",
-  success: "Success",
-  warning: "Warning",
-  danger: "Danger",
-  focusRing: "Focus ring",
-}
-
 const MODE_LABEL: Record<ColorMode, string> = {
   auto: "Follow the visitor",
   light: "Always light",
@@ -121,11 +89,11 @@ export function DarkMode({ theme, update }: SectionProps) {
     update(Object.keys(dark).length === 0 ? omitDark(theme) : { ...theme, dark })
   }
 
-  function override(key: (typeof SEMANTIC)[number], value: string): void {
+  function override(key: SemanticColor, value: string): void {
     writeColors({ ...overrides, [key]: value })
   }
 
-  function inherit(key: (typeof SEMANTIC)[number]): void {
+  function inherit(key: SemanticColor): void {
     const { [key]: _removed, ...rest } = overrides
 
     writeColors(rest)
@@ -173,7 +141,7 @@ export function DarkMode({ theme, update }: SectionProps) {
                 </div>
               ) : (
                 <div className="flex flex-col gap-1">
-                  <DarkColour
+                  <ColorField
                     label={LABEL[key]}
                     value={dark}
                     onChange={(next) => {
@@ -209,53 +177,6 @@ export function DarkMode({ theme, update }: SectionProps) {
         </p>
       )}
     </div>
-  )
-}
-
-/**
- * One dark colour.
- *
- * A picker when it is a hex and a text field when it is not, for the reason
- * the Brand section gives: a theme may hold `oklch(...)`, a named colour or a
- * reference, and a picker needs a hex to start from.
- */
-function DarkColour({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (next: string) => void
-}): ReactElement {
-  const [draft, setDraft] = useState<string | null>(null)
-
-  if (isHexColor(value)) return <ColorPicker label={label} value={value} onChange={onChange} />
-
-  function commit(): void {
-    const next = draft?.trim()
-
-    setDraft(null)
-
-    if (next === undefined || next === "" || next === value) return
-
-    onChange(next)
-  }
-
-  return (
-    <Input
-      label={label}
-      className="font-code"
-      value={draft ?? value}
-      onChange={(event) => {
-        setDraft(event.target.value)
-      }}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") commit()
-        if (event.key === "Escape") setDraft(null)
-      }}
-    />
   )
 }
 

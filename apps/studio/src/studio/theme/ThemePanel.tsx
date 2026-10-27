@@ -12,6 +12,7 @@ import type { ReactElement } from "react"
 
 import { useProjectTheme } from "./ProjectTheme"
 import { Brand } from "./sections/Brand"
+import { Colors } from "./sections/Colors"
 import { Components } from "./sections/Components"
 import { DarkMode } from "./sections/DarkMode"
 import { Radius } from "./sections/Radius"
@@ -52,6 +53,7 @@ interface Section {
 
 const SECTIONS: readonly Section[] = [
   { id: "brand", title: "Brand", Body: Brand },
+  { id: "colors", title: "Colors", Body: Colors },
   { id: "typography", title: "Typography", Body: Typography },
   { id: "spacing", title: "Spacing", Body: Spacing },
   { id: "radius", title: "Radius", Body: Radius },
