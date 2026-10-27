@@ -453,11 +453,23 @@ a plugin defines, and nothing models a selection colour. The three that cannot
 be stored are shown and marked, which is more honest than deriving them
 silently or pretending they were never worked out.
 
-**Changing the brand colour recomputes the stored roles**, including any that
-were set by hand. The specification asks for overrides that are never
-recomputed; that needs the stored theme to remember which values a person
-chose, which is a change to the schema rather than to this panel. Until then
-the panel says what it will do before it does it.
+**Changing the brand colour recomputes the stored roles, except the chosen
+ones.** A role set by hand in Colors is marked in `theme.manual` and is never
+recomputed, which is what makes picking a brand colour a safe thing to do
+twice. The derived list still shows what a new colour implies for a chosen
+role, marked as chosen: the implication is real, the theme has simply been told
+not to follow it, and hiding the row would make the brand colour look as though
+it had no opinion.
+
+**Editing a colour marks it as chosen, and un-marking is a real action.** Every
+edit in Colors records its token path, so the record is true of all twelve even
+though only the two derived roles are read today. The two derived roles say
+which they are — "worked out from the brand colour" or "set by hand" — and a
+chosen one offers "Use derived", which clears the mark and writes what the
+brand colour implies. Clearing the mark alone would leave the hand-set colour
+in place until somebody happened to pick a brand colour again, so the result is
+shown rather than promised. It is not offered when the brand colour is not a
+hex, because then there is nothing to work the value out from.
 
 **The base unit is the spacing decision, and it rewrites the scale.** The
 renderer emits `--ck-space-N` from `spacing.scale` and never reads

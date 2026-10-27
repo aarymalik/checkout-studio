@@ -275,6 +275,14 @@ export const checkoutTheme = z
 
     dark: themeDarkOverrides.optional(),
 
+    /**
+     * Token paths a person chose rather than derived.
+     *
+     * Never recomputed. See manual.ts, and docs/theme-system.md § Color
+     * Derivation: "overrides are marked as manual and are never recomputed".
+     */
+    manual: z.array(z.string().min(1).max(128)).default([]),
+
     metadata: themeMetadata,
   })
   .strict()
@@ -294,6 +302,14 @@ export const storedTheme = z
     version: themeVersion,
     extends: z.string().min(1).max(64).optional(),
     dark: themeDarkOverrides.optional(),
+    /**
+     * Optional here and defaulted in `checkoutTheme`: a theme that `extends`
+     * another holds deltas, and a delta that marks nothing says nothing about
+     * what its parent marked. Must be here all the same — `storedTheme` is
+     * strict, so a key it does not name is a theme that fails to parse on the
+     * way back out of the database.
+     */
+    manual: z.array(z.string().min(1).max(128)).optional(),
     metadata: themeMetadata,
   })
   .extend(themeGroups.shape)

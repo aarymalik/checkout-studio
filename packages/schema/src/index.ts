@@ -95,6 +95,7 @@ export {
   MAX_INHERITANCE_DEPTH,
   TYPE_SCALE_STEPS,
   checkoutTheme,
+  clearManual,
   componentThemeSlot,
   defaultTheme,
   MONO_STACK,
@@ -109,8 +110,10 @@ export {
   isFontFamily,
   isLength,
   isSafeCssValue,
+  isManual,
   isShadow,
   isTokenReference,
+  markManual,
   mergeDeep,
   storedTheme,
   themeColors,
@@ -126,6 +129,7 @@ export {
   tokenPath,
   typeScale,
   typeStyle,
+  unknownManualPaths,
   validateTheme,
 } from "./theme"
 export type {

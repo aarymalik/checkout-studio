@@ -4,6 +4,7 @@ import {
   canMigrate,
   migrate,
   parseDocument,
+  unknownManualPaths,
   validate,
   validateTheme,
 } from "@checkout-studio/schema"
@@ -179,6 +180,23 @@ function themeWarnings(
         message: `The theme's ${path} ("${problem.value}") is not valid: ${problem.reason} Using ${type}'s registered default instead.`,
       })
     }
+  }
+
+  /*
+   * Marks that protect nothing.
+   *
+   * `theme.manual` says which values a person chose so that nothing recomputes
+   * them. A mark on a path that names nothing in this theme — a token renamed,
+   * a list written by hand — silently protects nothing, and the value somebody
+   * thought they had pinned moves the next time a brand colour does.
+   */
+  for (const path of unknownManualPaths(theme)) {
+    problems.push({
+      code: "component",
+      nodeIds: [],
+      path: "manual",
+      message: `The theme marks ${path} as set by hand, and that names nothing in this theme. Whatever derives that value will recompute it.`,
+    })
   }
 
   for (const problem of validateTheme(theme)) {

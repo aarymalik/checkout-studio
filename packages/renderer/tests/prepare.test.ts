@@ -277,3 +277,34 @@ describe("component theme slots, reported as warnings", () => {
     expect(result.ok).toBe(true)
   })
 })
+
+describe("marks that protect nothing", () => {
+  const page = () => documentOf("page", [{ id: "page", type: "core.page" }])
+
+  it("warns about a mark that names nothing in the theme", () => {
+    const result = prepare(page(), {
+      registry: standardRegistry(),
+      theme: { ...theme, manual: ["colors.nope"] },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    const [warning, ...rest] = result.warnings
+
+    expect(rest).toEqual([])
+    expect(warning?.path).toBe("manual")
+    expect(warning?.message).toContain("colors.nope")
+  })
+
+  it("says nothing about a mark that names a real value", () => {
+    const result = prepare(page(), {
+      registry: standardRegistry(),
+      theme: { ...theme, manual: ["colors.focusRing"] },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.warnings).toEqual([])
+  })
+})

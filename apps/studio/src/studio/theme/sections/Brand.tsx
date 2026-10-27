@@ -1,6 +1,8 @@
 "use client"
 
 import { STEPS, deriveRoles, deriveScale, isHexColor } from "@checkout-studio/design-system"
+import { isManual } from "@checkout-studio/schema"
+import type { ThemeColors } from "@checkout-studio/schema"
 import { ColorPicker, FieldLabel, Input } from "@checkout-studio/ui"
 import { useState } from "react"
 import type { ReactElement } from "react"
@@ -18,13 +20,17 @@ import type { SectionProps } from "./section"
  * a brand colour is really choosing eleven of them and a button state they
  * never see until they publish.
  *
- * ## Changing it rewrites the derived values
+ * ## Changing it rewrites the derived values, except the chosen ones
  *
- * Every one of them, including any that were hand-picked. The specification
- * asks for overrides that are "never recomputed", which needs the stored theme
- * to remember which values a person chose — and that is a change to the schema
- * rather than to this panel. Until then the panel says what it will do before
- * it does it, which is the honest version of not supporting it yet.
+ * docs/theme-system.md § Color Derivation: "overrides are marked as manual and
+ * are never recomputed." A role a person set in the Colors section is marked in
+ * `theme.manual`, and this section leaves it alone — so picking a brand colour
+ * again moves everything that was still derived and nothing that was decided.
+ *
+ * The derived list still shows what the new colour implies for a chosen role,
+ * marked as chosen. The implication is real; the theme has simply been told not
+ * to follow it, and hiding the row would make the brand colour look like it had
+ * no opinion.
  */
 export function Brand({ theme, update }: SectionProps) {
   const seed = theme.colors.primary
@@ -61,16 +67,19 @@ export function Brand({ theme, update }: SectionProps) {
      * all. Writing them into `custom` would invent a convention this panel had
      * made up, so the two that exist are written and the rest are shown as
      * what the colour implies.
+     *
+     * And only the two that were not chosen. A role somebody set by hand is
+     * marked in `theme.manual` and is never recomputed, which is what makes
+     * picking a brand colour a safe thing to do twice.
      */
-    update({
-      ...theme,
-      colors: {
-        ...theme.colors,
-        primary: next,
-        primaryForeground: derived.foreground,
-        focusRing: derived.focusRing,
-      },
-    })
+    const colors: ThemeColors = { ...theme.colors, primary: next }
+
+    if (!isManual(theme, "colors.primaryForeground")) {
+      colors.primaryForeground = derived.foreground
+    }
+    if (!isManual(theme, "colors.focusRing")) colors.focusRing = derived.focusRing
+
+    update({ ...theme, colors })
   }
 
   return (
@@ -129,13 +138,13 @@ export function Brand({ theme, update }: SectionProps) {
           <dl className="flex flex-col gap-1">
             {(
               [
-                ["Label on it", roles.foreground, true],
-                ["Focus ring", roles.focusRing, true],
-                ["Hover", roles.hover, false],
-                ["Active", roles.active, false],
-                ["Selection", roles.selection, false],
+                ["Label on it", roles.foreground, "colors.primaryForeground"],
+                ["Focus ring", roles.focusRing, "colors.focusRing"],
+                ["Hover", roles.hover, null],
+                ["Active", roles.active, null],
+                ["Selection", roles.selection, null],
               ] as const
-            ).map(([label, value, stored]) => (
+            ).map(([label, value, path]) => (
               <div key={label} className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
@@ -149,9 +158,14 @@ export function Brand({ theme, update }: SectionProps) {
                     nothing models a selection colour. Shown because the
                     colour implies them, marked because it does not keep
                     them. */}
-                  {stored ? null : (
+                  {path === null ? (
                     <span className="ml-1 text-foreground-subtle">· not stored</span>
-                  )}
+                  ) : null}
+                  {/* Chosen in Colors, so this is what the brand colour
+                    implies and not what the theme will use. */}
+                  {path !== null && isManual(theme, path) ? (
+                    <span className="ml-1 text-foreground-subtle">· set by hand</span>
+                  ) : null}
                 </dt>
                 <dd className="font-code text-caption text-foreground">{value}</dd>
               </div>
@@ -161,8 +175,8 @@ export function Brand({ theme, update }: SectionProps) {
       )}
 
       <p className="text-caption text-foreground-muted">
-        Changing the brand colour works the stored ones out again, including any you have set by
-        hand in Colors.
+        Changing the brand colour works the stored ones out again, except any you have set by hand
+        in Colors.
       </p>
     </div>
   )

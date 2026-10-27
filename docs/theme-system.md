@@ -804,6 +804,16 @@ selection         seed at 15% alpha
 
 Users may override any derived value. Overrides are marked as manual and are never recomputed.
 
+The marks are a list of token paths on the theme, `theme.manual`, using the same dotted vocabulary a reference uses: `colors.focusRing` is what `{colors.focusRing}` names. A list rather than a flag beside each value, because the theme's groups are closed typed objects — a flag per value would widen every one of them from `string` to something carrying provenance, and every reader would then unwrap a value to use it. A parallel index costs one field and leaves the values alone.
+
+The list is sorted and deduplicated wherever it is written. It is part of the theme's identity: themes are compared structurally, and two themes marking the same paths in a different order are the same theme.
+
+Un-marking is an action in its own right. A mark nobody can remove is a one-way door — set the focus ring once and no brand colour could ever move it again — so a derived value that has been overridden offers the way back, which clears the mark and writes what the seed implies rather than promising it for next time.
+
+A mark on a path that names nothing in the theme protects nothing, and the value somebody believed they had pinned moves the next time a derivation runs. The renderer reports those as warnings when it prepares a page, beside the other theme problems.
+
+Only the colours write marks today, because only the colours have something that would otherwise overwrite them. The preset rule below asks for the same record across every group, which is mechanical once presets exist to read it.
+
 ---
 
 # Dark Mode
