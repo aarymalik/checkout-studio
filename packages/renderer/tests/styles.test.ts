@@ -313,6 +313,20 @@ describe("the six-stage cascade", () => {
     })
   })
 
+  it("keeps the plugin's default for a slot value the plugin's schema refuses", () => {
+    const styled = {
+      ...theme,
+      components: { "core.button": { background: 42, radius: "{radius.lg}" } },
+    }
+
+    // Without the check, `42` would reach `toStyles`, become
+    // `backgroundColor: "42"`, and be dropped by the browser with nothing said.
+    expect(themeStyles(styled, button, node())).toEqual({
+      backgroundColor: "{colors.surface}",
+      borderRadius: "{radius.lg}",
+    })
+  })
+
   it("contributes nothing for a component with no slot", () => {
     expect(themeStyles(theme, definition("core.section"), node())).toEqual({})
   })

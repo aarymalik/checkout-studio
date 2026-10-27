@@ -8,6 +8,7 @@ import type {
 } from "@checkout-studio/schema"
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
+import { resolveSlot } from "./slot"
 import type { ResolvedDeclarations, StyleFallback } from "./tokens"
 import { resolveDeclarations } from "./tokens"
 
@@ -46,6 +47,10 @@ import { resolveDeclarations } from "./tokens"
  * is the plugin's `toStyles`. The plugin's registered `defaults` sit beneath
  * whatever the theme set, which is how a component keeps a coherent look in a
  * theme that has never heard of it.
+ *
+ * What the theme set is checked against the plugin's schema on the way through,
+ * so `toStyles` is never handed a value its own plugin would refuse. See
+ * `resolveSlot`.
  */
 export function themeStyles(
   theme: CheckoutTheme,
@@ -54,12 +59,9 @@ export function themeStyles(
 ): StyleProperties {
   const slot = definition?.themeSlot
 
-  if (slot === undefined || slot.toStyles === undefined) return {}
+  if (definition === null || slot === undefined || slot.toStyles === undefined) return {}
 
-  return slot.toStyles(
-    { ...slot.defaults, ...theme.components[(definition as ComponentDefinition).type] },
-    node,
-  )
+  return slot.toStyles(resolveSlot(slot, theme.components[definition.type]).values, node)
 }
 
 /**

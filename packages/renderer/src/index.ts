@@ -105,6 +105,9 @@ export {
 } from "./styles/resolve"
 export type { ResolveOptions, ResolvedNodeStyles } from "./styles/resolve"
 
+export { resolveSlot } from "./styles/slot"
+export type { SlotProblem, SlotResolution } from "./styles/slot"
+
 export {
   MAX_REFERENCE_DEPTH,
   referenceProblems,

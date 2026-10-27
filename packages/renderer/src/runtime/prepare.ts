@@ -10,6 +10,7 @@ import {
 import type { CheckoutSchema, CheckoutTheme, SchemaProblem } from "@checkout-studio/schema"
 import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
 
+import { resolveSlot } from "../styles/slot"
 import { referenceProblems } from "../styles/tokens"
 
 /**
@@ -102,7 +103,7 @@ export function prepare(value: unknown, options: PrepareOptions): PrepareResult 
     return failure("inconsistent", "This document does not hold together.", result.errors)
   }
 
-  const warnings = [...result.warnings, ...themeWarnings(options.theme)]
+  const warnings = [...result.warnings, ...themeWarnings(options.theme, options.registry)]
 
   return { ok: true, document: outcome.document, warnings }
 }
@@ -140,12 +141,45 @@ function migrateTo(
  *
  * Never fatal. A theme with one unresolvable reference still renders a
  * checkout, with that value falling back to the component default — and a
- * checkout with one wrong colour is worth far more than no checkout.
+ * checkout with one wrong colour is worth far more than no checkout. The same
+ * holds for a component slot value its plugin refuses.
  */
-function themeWarnings(theme: CheckoutTheme | undefined): readonly SchemaProblem[] {
+function themeWarnings(
+  theme: CheckoutTheme | undefined,
+  registry: RendererRegistry,
+): readonly SchemaProblem[] {
   if (theme === undefined) return []
 
   const problems: SchemaProblem[] = []
+
+  /*
+   * Component slots, which `validateTheme` cannot reach.
+   *
+   * It lives in the schema package, which has no registry and must not grow
+   * one — a list of components inside the schema is the thing the plugin
+   * architecture exists to avoid. The registry is here, so the slots are
+   * checked here, against the schema each plugin registered for its own.
+   *
+   * Driven by the registry rather than by the theme's keys: a slot the theme
+   * never set still has the plugin's defaults beneath it, and those are what
+   * stage 1 will use.
+   */
+  for (const type of registry.types()) {
+    const slot = registry.themeSlot(type)
+
+    if (slot === undefined) continue
+
+    for (const problem of resolveSlot(slot, theme.components[type]).problems) {
+      const path = problem.key === "" ? `components.${type}` : `components.${type}.${problem.key}`
+
+      problems.push({
+        code: "component",
+        nodeIds: [],
+        path,
+        message: `The theme's ${path} ("${problem.value}") is not valid: ${problem.reason} Using ${type}'s registered default instead.`,
+      })
+    }
+  }
 
   for (const problem of validateTheme(theme)) {
     problems.push({
