@@ -2,9 +2,18 @@ import { CURRENT_VERSION, MigrationRegistry, createDocument } from "@checkout-st
 import type { CheckoutSchema } from "@checkout-studio/schema"
 import { emptyRegistry } from "@checkout-studio/plugin-sdk"
 import { describe, expect, it } from "vitest"
+import { z } from "zod"
 
 import { prepare } from "../src/runtime/prepare"
-import { documentOf, sampleDocument, standardRegistry, theme } from "./support"
+import {
+  boxSlot,
+  definition,
+  documentOf,
+  registryWith,
+  sampleDocument,
+  standardRegistry,
+  theme,
+} from "./support"
 
 const options = () => ({ registry: standardRegistry() })
 
@@ -205,5 +214,66 @@ describe("checking the theme at the same time", () => {
     })
 
     expect(prepare(document, { registry: emptyRegistry() }).ok).toBe(true)
+  })
+})
+
+describe("component theme slots, reported as warnings", () => {
+  const registry = () => registryWith(definition("core.page", { themeSlot: boxSlot }))
+
+  it("warns about a slot value the component's own plugin refuses", () => {
+    const result = prepare(documentOf("page", [{ id: "page", type: "core.page" }]), {
+      registry: registry(),
+      theme: { ...theme, components: { "core.page": { background: 42 } } },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    const [warning, ...rest] = result.warnings
+
+    expect(rest).toEqual([])
+    expect(warning?.path).toBe("components.core.page.background")
+    expect(warning?.message).toContain("42")
+    expect(warning?.message).toContain("core.page's registered default")
+  })
+
+  it("says nothing about a slot the theme never set", () => {
+    const result = prepare(documentOf("page", [{ id: "page", type: "core.page" }]), {
+      registry: registry(),
+      theme,
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.warnings).toEqual([])
+  })
+
+  it("names the slot itself when the schema refuses it as a whole", () => {
+    const paired = {
+      label: "Box",
+      schema: z
+        .object({ background: z.string(), width: z.number() })
+        .refine((value) => value.width > 0, { message: "A box needs a width." }),
+      defaults: { background: "#ffffff", width: 320 },
+    }
+
+    const result = prepare(documentOf("page", [{ id: "page", type: "core.page" }]), {
+      registry: registryWith(definition("core.page", { themeSlot: paired })),
+      theme: { ...theme, components: { "core.page": { width: -1 } } },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.warnings[0]?.path).toBe("components.core.page")
+  })
+
+  it("never fails a document over a slot value, only warns", () => {
+    const result = prepare(documentOf("page", [{ id: "page", type: "core.page" }]), {
+      registry: registry(),
+      theme: { ...theme, components: { "core.page": { background: 42, radius: 7 } } },
+    })
+
+    // A checkout with one wrong slot value is worth far more than no checkout.
+    expect(result.ok).toBe(true)
   })
 })

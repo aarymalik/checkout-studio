@@ -613,6 +613,14 @@ export interface ButtonSizeTheme {
 
 Changing `theme.components["core.button"].variants.primary.background` restyles every primary button on every page in the project.
 
+A slot is the one part of a theme whose shape the engine does not know, so it is the one part the engine cannot type-check on its own. The `schema` a plugin registers alongside the slot is what closes that gap, and the engine spends it at stage 1 of the cascade, immediately before handing the values to `toStyles`.
+
+A value the schema refuses falls back to the plugin's registered default, and the refusal is reported as a warning — never an error. A theme with one bad slot value still renders a checkout, which is the same bargain the rest of theme validation makes.
+
+The fallback is per top-level key, and it is whole: a theme that sets `variants.primary.background` to a number loses `variants`, not just that leaf. The schema's unit of meaning is whatever the plugin declared, and splicing a default into the middle of a structure the plugin designed would hand `toStyles` a shape the plugin never validated.
+
+The schema is a gate, not a transform. The values that reach `toStyles` are the ones the theme holds, minus whatever the schema refused — not Zod's parsed output, which would strip the keys a non-strict slot schema does not declare and rewrite anything carrying a `.default()` or a coercion. A theme value is a decision somebody made, and validation does not get to quietly change it.
+
 ---
 
 # Style Resolution
