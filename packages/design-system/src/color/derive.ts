@@ -121,13 +121,39 @@ export function nearestStep(lightness: number): number {
  *
  * The shifts are docs/theme-system.md's: hover six per cent darker, active
  * twelve, a foreground of whichever of white or near-black clears AA against
- * the seed, a focus ring at forty per cent alpha and a selection at fifteen.
+ * the seed, and a selection at fifteen per cent alpha.
+ *
+ * The focus ring is the one place this departs from the specification, which
+ * asks for the seed at forty per cent alpha. See `focusRing`.
  */
 export interface DerivedRoles {
   hover: string
   active: string
   /** White or near-black, whichever is readable on the seed. */
   foreground: string
+  /**
+   * The seed, opaque — not the seed at forty per cent alpha.
+   *
+   * docs/theme-system.md asks for the alpha version, and it cannot be derived
+   * safely. A focus ring is a non-text indicator, so WCAG 1.4.11 holds it to
+   * `AA.nonText`, and the contrast of a translucent ring depends on the colour
+   * behind it — which is the page background, a value this function is never
+   * given. An opaque ring's contrast depends only on the seed, so it is the
+   * only ring whose accessibility can be reasoned about here at all.
+   *
+   * It is not a close call. Measured across the brand colours a checkout is
+   * likely to use, the forty per cent ring lands between 1.4:1 and 2.7:1 on a
+   * white background against the 3:1 it needs, and the default theme's own
+   * seed drops from 6.3:1 to 1.9:1. Every one of them fails.
+   *
+   * A soft ring is a real design idea and it needs a second token to carry it:
+   * a solid inner ring with a translucent halo outside, which is how the
+   * interfaces that use one actually draw it. One token cannot be both, and of
+   * the two the solid one is the one a person has to be able to see.
+   *
+   * `selection` keeps its alpha. A selection sits behind text that has to
+   * stay readable through it, and it indicates nothing on its own.
+   */
   focusRing: string
   selection: string
   /**
@@ -159,7 +185,7 @@ export function deriveRoles(seed: string): DerivedRoles {
     hover: shifted(colour, -0.06),
     active: shifted(colour, -0.12),
     foreground: onWhite >= onBlack ? WHITE : NEAR_BLACK,
-    focusRing: withAlpha(seed, 0.4),
+    focusRing: normalise(seed),
     selection: withAlpha(seed, 0.15),
     // `AA.text`, because a button's label is body text. The threshold lives
     // in contrast.ts with the rest of WCAG 1.4.3 rather than being written

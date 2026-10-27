@@ -796,11 +796,21 @@ Derived automatically
 primaryHover      seed shifted -6% lightness
 primaryActive     seed shifted -12% lightness
 primaryForeground contrast-optimal white or near-black
-focusRing         seed at 40% alpha
+focusRing         the seed, opaque
 selection         seed at 15% alpha
 ```
 
 `primaryForeground` is chosen by measuring contrast against the seed and selecting whichever of white or near-black exceeds 4.5:1. If neither does, the seed is adjusted and the user is warned.
+
+**The focus ring is opaque, not the seed at 40% alpha.** A focus ring is a non-text indicator, so WCAG 1.4.11 holds it to 3:1, and a translucent ring's contrast depends on the colour behind it — the page background, which derivation is never given. An opaque ring's contrast depends only on the seed, so it is the only ring whose accessibility can be reasoned about where it is derived.
+
+It is not a close call. Measured across the brand colours a checkout is likely to use, a 40% ring lands between 1.4:1 and 2.7:1 on a white page against the 3:1 it needs, and the default theme's own seed drops from 6.3:1 to 1.9:1. Every one of them fails.
+
+A soft ring is a real design idea, and it needs a second token to carry it: a solid inner ring with a translucent halo outside it, which is how the interfaces that use one actually draw it. One token cannot be both, and of the two the solid one is the one a person has to be able to see.
+
+`selection` keeps its alpha. A selection sits behind text that has to stay readable through it, and it indicates nothing on its own.
+
+Whether even an opaque ring clears 3:1 depends on the page background, which derivation does not know and the Theme panel does. The panel measures the pair it holds and says when a brand colour is too pale to outline a focused field — reported rather than adjusted, like an unreadable label.
 
 Users may override any derived value. Overrides are marked as manual and are never recomputed.
 

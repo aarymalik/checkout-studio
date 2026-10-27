@@ -51,8 +51,8 @@ function written(update: ReturnType<typeof section>): CheckoutTheme {
   return theme
 }
 
-/** `deriveRoles("#2563eb")`: the seed at 40% alpha, and white over it. */
-const DERIVED_RING = "#2563eb66"
+/** `deriveRoles("#2563eb")`: the seed opaque, and white over it. */
+const DERIVED_RING = "#2563eb"
 const DERIVED_LABEL = "#ffffff"
 
 describe("choosing a brand colour", () => {
@@ -139,5 +139,62 @@ describe("what the derived list admits", () => {
     section({ ...defaultTheme, manual: ["colors.focusRing"] })
 
     expect(screen.getByText("Focus ring")).toBeVisible()
+  })
+})
+
+describe("a brand colour too pale to outline a focused field", () => {
+  /** Amber: 2.15:1 on white, which no ring derived from it can improve on. */
+  const PALE: CheckoutTheme = {
+    ...defaultTheme,
+    colors: { ...defaultTheme.colors, primary: "#f59e0b" },
+  }
+
+  it("says so", () => {
+    section(PALE)
+
+    expect(screen.getByRole("status")).toHaveTextContent(/too pale to outline a focused field/)
+  })
+
+  it("names the threshold it misses", () => {
+    section(PALE)
+
+    // WCAG 1.4.11. The number comes from the design system rather than being
+    // written into the sentence twice.
+    expect(screen.getByRole("status")).toHaveTextContent("3:1")
+  })
+
+  it("is a different problem from an unreadable label", () => {
+    // Near-black reads on amber at better than 4.5:1, so the label is fine
+    // and only the ring is not. Two checks, two sentences.
+    section(PALE)
+
+    expect(screen.queryByText(/Neither white nor near-black/)).toBeNull()
+  })
+
+  it("says nothing for a colour that clears the threshold", () => {
+    section(defaultTheme)
+
+    expect(screen.queryByRole("status")).toBeNull()
+  })
+
+  it("says nothing when the background cannot be measured", () => {
+    /*
+     * A background written as `oklch(...)` or as a reference to another token
+     * is valid and unmeasurable. An unmeasurable pair is not a failing one, so
+     * nothing is claimed rather than a warning shown on a guess.
+     */
+    section({
+      ...PALE,
+      colors: { ...PALE.colors, background: "oklch(0.2 0 0)" },
+    })
+
+    expect(screen.queryByRole("status")).toBeNull()
+  })
+
+  it("says nothing when the brand colour itself cannot be measured", () => {
+    // Nothing is derived from it, so there is no derived ring to judge.
+    section({ ...defaultTheme, colors: { ...defaultTheme.colors, primary: "rebeccapurple" } })
+
+    expect(screen.queryByRole("status")).toBeNull()
   })
 })
