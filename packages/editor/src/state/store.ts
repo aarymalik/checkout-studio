@@ -16,6 +16,7 @@ import {
   type Fragment,
   type Node,
   type StyleProperties,
+  type PageSettings,
   type StyleState,
   type TreeOptions,
   type TreeResult,
@@ -83,6 +84,14 @@ export interface EditorActions {
   setHidden: (ids: readonly string[], hidden: boolean) => TreeResult
   rename: (id: string, name: string) => TreeResult
   setTheme: (themeId: string) => void
+  /**
+   * Changes the page's settings, merging rather than replacing.
+   *
+   * Merging because a setting is edited one at a time and the panels that do
+   * so do not know about each other: a colour mode control that replaced the
+   * whole record would drop the page's currency, its SEO and its tracking.
+   */
+  setSettings: (settings: Partial<PageSettings>) => void
 
   // ── Selection ─────────────────────────────────────────────────────────────
   select: (ids: readonly string[]) => void
@@ -548,6 +557,20 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
             state.history.transactionDepth > 0
               ? { ...state.history, pending: state.history.pending ?? before, future: [] }
               : push(state.history, before, { label: "Theme", now: now() }),
+          persistence: { ...state.persistence, status: "modified" },
+        }))
+      },
+
+      setSettings: (settings) => {
+        const before = snapshot()
+
+        set((state) => ({
+          ...state,
+          document: { ...state.document, settings: { ...state.document.settings, ...settings } },
+          history:
+            state.history.transactionDepth > 0
+              ? { ...state.history, pending: state.history.pending ?? before, future: [] }
+              : push(state.history, before, { label: "Settings", now: now() }),
           persistence: { ...state.persistence, status: "modified" },
         }))
       },

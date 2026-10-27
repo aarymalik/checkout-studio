@@ -42,7 +42,13 @@ export interface CheckoutRendererProps {
   mode: RenderMode
   /** The breakpoint to resolve. Read in editor preview only. */
   breakpoint?: Breakpoint | undefined
-  /** Forces a colour mode. Absent follows the visitor's preference. */
+  /**
+   * Forces a colour mode, over whatever the document's settings ask for.
+   *
+   * For editor preview, which has to be able to show either mode without
+   * editing the page. A published page passes nothing and the document
+   * decides.
+   */
   colorMode?: "light" | "dark" | undefined
   resolveAsset?: ((assetId: string) => AssetUrls | null) | undefined
   /** Values for `$var` bindings, supplied by the plugins that own the sources. */
@@ -99,10 +105,22 @@ export function CheckoutRenderer(props: CheckoutRendererProps): ReactElement {
 
   const tree = <RenderNode nodeId={schema.root} context={context} />
 
+  /*
+   * The prop first, then the page's own setting.
+   *
+   * `auto`, and a document written before the setting existed, follow the
+   * visitor — which happens by leaving `data-mode` off, so the `prefers-color-scheme`
+   * half of the stylesheet applies. Forcing a mode is a legitimate thing for a
+   * merchant to want: a checkout embedded in a light host page should not
+   * invert because the visitor's operating system is dark.
+   */
+  const asked = schema.settings.colorMode
+  const forcedMode = colorMode ?? (asked === "auto" ? undefined : asked)
+
   onWarnings?.(context.warnings())
 
   return (
-    <div className={ROOT_CLASS} data-mode={colorMode}>
+    <div className={ROOT_CLASS} data-mode={forcedMode}>
       {/*
         The only `dangerouslySetInnerHTML` in the package, and it carries CSS,
         never markup. Every value in it has been through the guard in the

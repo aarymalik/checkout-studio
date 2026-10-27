@@ -10,9 +10,11 @@
 
 export {
   BREAKPOINTS,
+  COLOR_MODES,
   STATES,
   UNSUPPORTED_TYPE,
   checkoutSchema,
+  colorMode,
   node as nodeSchema,
   typeId,
 } from "./document/schema"
@@ -22,6 +24,7 @@ export type {
   Breakpoint,
   CheckoutSchema,
   CheckoutSchemaInput,
+  ColorMode,
   Node,
   NodeMetadata,
   PageSettings,

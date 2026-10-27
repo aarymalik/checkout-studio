@@ -408,6 +408,50 @@ describe("rename", () => {
   })
 })
 
+describe("settings", () => {
+  it("changes one setting", () => {
+    const { store, state } = makeStore()
+
+    store.getState().setSettings({ colorMode: "dark" })
+
+    expect(state().document.settings.colorMode).toBe("dark")
+  })
+
+  it("merges rather than replacing, because a panel edits one setting", () => {
+    /*
+     * Each panel that writes a setting knows about its own and nothing else. A
+     * colour mode control that replaced the whole record would take the page's
+     * currency, its SEO and its tracking with it.
+     */
+    const { store, state } = makeStore()
+
+    store.getState().setSettings({ currency: "GBP" })
+    store.getState().setSettings({ colorMode: "light" })
+
+    expect(state().document.settings.currency).toBe("GBP")
+    expect(state().document.settings.colorMode).toBe("light")
+  })
+
+  it("marks the document modified, so the autosave picks it up", () => {
+    const { store, state } = makeStore()
+
+    store.getState().setSettings({ colorMode: "dark" })
+
+    expect(state().persistence.status).toBe("modified")
+  })
+
+  it("groups into an open transaction like any other change", () => {
+    const { store, state } = makeStore()
+
+    store.getState().transact("Restyle", () => {
+      store.getState().setSettings({ colorMode: "dark" })
+      store.getState().setStyles(["heading"], { color: "red" })
+    })
+
+    expect(state().history.past).toHaveLength(1)
+  })
+})
+
 describe("theme", () => {
   it("points the page at another theme", () => {
     const { store, state } = makeStore()
