@@ -162,7 +162,7 @@ export function Brand({ theme, update }: SectionProps) {
 
       <p className="text-caption text-foreground-muted">
         Changing the brand colour works the stored ones out again, including any you have set by
-        hand.
+        hand in Colors.
       </p>
     </div>
   )

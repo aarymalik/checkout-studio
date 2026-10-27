@@ -402,10 +402,8 @@ instead.
 # Theme panel
 
 In the left sidebar, per [theme-system.md](./theme-system.md) § Editor
-Integration. Every section the specification lists is built: Brand,
-Typography, Spacing, Radius, Shadows, Components and Dark mode. Colors is
-folded into Brand and Dark mode, which is where a semantic colour is actually
-decided.
+Integration. Every section the specification lists is built: Brand, Colors,
+Typography, Spacing, Radius, Shadows, Components and Dark mode.
 
 An accordion, not a list. A theme holds more decisions than fit on a screen and
 they are not decisions made together — choosing a brand colour and tuning the
@@ -414,6 +412,22 @@ because comparing a radius against a shadow is a real thing to want. Each
 section is handed the theme rather than reading it from context, so the check
 for whether a theme exists happens once and a section can be rendered in a test
 without a provider around it.
+
+**Brand holds one colour; Colors holds the rest.** The theme has thirteen
+semantic colours and Brand owns `primary`, because the whole section is built
+around deriving from it. The other twelve are the Colors section. They were
+unreachable before it existed — overridable for dark mode and not settable for
+light, which is the wrong way round, since dark mode is a sparse layer above a
+light theme nobody could edit.
+
+**Colors and Dark mode are the same list.** Same keys, same order, same labels,
+from one list both import. A person who has just set a surface colour and then
+opens Dark mode to invert it finds that surface in the same position. That is
+worth more than grouping the twelve into surfaces, text, borders and status — a
+grouping that would then disagree with the section directly below it. Two of
+the twelve, the label on the brand colour and the focus ring, are also derived
+from the brand colour, and the section says that picking a brand colour again
+replaces whatever was set there rather than hiding the two controls.
 
 **One colour, and what it implies.** The picker is the brand colour. The scale
 and the derived roles are shown beneath it, because a person choosing a brand
