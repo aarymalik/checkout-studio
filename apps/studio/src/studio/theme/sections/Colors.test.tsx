@@ -230,7 +230,7 @@ describe("the way back to derived", () => {
     // Both halves. Clearing the mark alone would leave the hand-set colour in
     // place until the next time somebody happened to pick a brand colour.
     expect(next.manual).toEqual([])
-    expect(next.colors.focusRing).toBe("#2563eb66")
+    expect(next.colors.focusRing).toBe("#2563eb")
   })
 
   it("clears only the mark it was asked about", async () => {

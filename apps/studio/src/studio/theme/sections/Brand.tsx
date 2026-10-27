@@ -1,6 +1,13 @@
 "use client"
 
-import { STEPS, deriveRoles, deriveScale, isHexColor } from "@checkout-studio/design-system"
+import {
+  AA,
+  STEPS,
+  contrastRatio,
+  deriveRoles,
+  deriveScale,
+  isHexColor,
+} from "@checkout-studio/design-system"
 import { isManual } from "@checkout-studio/schema"
 import type { ThemeColors } from "@checkout-studio/schema"
 import { ColorPicker, FieldLabel, Input } from "@checkout-studio/ui"
@@ -37,6 +44,7 @@ export function Brand({ theme, update }: SectionProps) {
   const hex = isHexColor(seed)
   const scale = hex ? deriveScale(seed) : null
   const roles = hex ? deriveRoles(seed) : null
+  const faintRing = roles === null ? false : isFaint(roles.focusRing, theme.colors.background)
 
   function choose(next: string): void {
     /*
@@ -103,6 +111,14 @@ export function Brand({ theme, update }: SectionProps) {
         <p role="status" className="text-caption text-danger">
           Neither white nor near-black can be read on this colour. A button using it will not meet
           AA.
+        </p>
+      ) : null}
+
+      {faintRing ? (
+        <p role="status" className="text-caption text-danger">
+          This colour is too pale to outline a focused field on this background. A focus ring is a
+          non-text indicator and needs {AA.nonText}:1, which no ring worked out from this colour
+          reaches.
         </p>
       ) : null}
 
@@ -180,6 +196,24 @@ export function Brand({ theme, update }: SectionProps) {
       </p>
     </div>
   )
+}
+
+/**
+ * Whether the derived ring would be invisible against the page.
+ *
+ * WCAG 1.4.11 holds a focus ring to `AA.nonText`, and the ring is the one
+ * derived value whose contrast depends on a colour the derivation is never
+ * given: the page background. The panel has both, so it is measured here.
+ *
+ * The ring is opaque, so this is the best any ring worked out from this seed
+ * can do — there is no alpha to take back. A background written as `oklch(...)`
+ * or as a reference cannot be measured, and an unmeasurable pair is not a
+ * failing one: nothing is claimed rather than a warning shown on a guess.
+ */
+function isFaint(ring: string, background: string): boolean {
+  if (!isHexColor(background)) return false
+
+  return contrastRatio(ring, background) < AA.nonText
 }
 
 /**

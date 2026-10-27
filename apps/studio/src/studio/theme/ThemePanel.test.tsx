@@ -90,7 +90,11 @@ describe("the brand colour", () => {
   it("shows the one the theme holds", () => {
     panel()
 
-    expect(screen.getByText(defaultTheme.colors.primary)).toBeVisible()
+    // In the picker's own trigger, not anywhere the hex happens to appear: the
+    // derived focus ring is the seed itself, so the string occurs twice.
+    expect(screen.getByRole("button", { name: /Primary colour/ })).toHaveTextContent(
+      defaultTheme.colors.primary,
+    )
   })
 
   it("shows the scale it implies", () => {
@@ -133,7 +137,7 @@ describe("choosing another one", () => {
     await userEvent.type(screen.getByLabelText("Hex"), "#2563eb")
 
     // Shown at once; the write is debounced far past the end of this test.
-    expect(screen.getByText("#2563eb")).toBeVisible()
+    expect(screen.getByRole("button", { name: /Primary colour/ })).toHaveTextContent("#2563eb")
     expect(save).not.toHaveBeenCalled()
   })
 

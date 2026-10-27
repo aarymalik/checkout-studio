@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { contrastRatio, hexToHsl, parseHex } from "./contrast"
+import { AA, contrastRatio, hexToHsl, parseHex } from "./contrast"
 import { NEAR_BLACK, SCALE, STEPS, WHITE, deriveRoles, deriveScale, nearestStep } from "./derive"
 import { hexToOklch } from "./oklch"
 
@@ -188,10 +188,78 @@ describe("the roles a seed implies", () => {
     expect(deriveRoles(SEED).unreadable).toBe(false)
   })
 
-  it("carries alpha as an eight digit hex, which the theme already accepts", () => {
-    const roles = deriveRoles(SEED)
+  it("carries a selection's alpha as an eight digit hex, which the theme accepts", () => {
+    // A selection sits behind text that must stay readable through it, so the
+    // alpha is the point. One format for every colour the theme holds.
+    expect(deriveRoles(SEED).selection).toBe("#2563eb26")
+  })
+})
 
-    expect(roles.focusRing).toBe("#2563eb66")
-    expect(roles.selection).toBe("#2563eb26")
+describe("the focus ring", () => {
+  /** WCAG 1.4.11: a focus ring is a non-text indicator, so it needs 3:1. */
+  const SURFACES = ["#ffffff", "#fafafa", "#0a0a0a"]
+
+  /** An eight digit hex composited over an opaque backdrop, as a browser would. */
+  function over(colour: string, backdrop: string): string {
+    if (colour.length !== 9) return colour
+
+    const alpha = Number.parseInt(colour.slice(7, 9), 16) / 255
+    const channel = (at: number): string =>
+      Math.round(
+        alpha * Number.parseInt(colour.slice(at, at + 2), 16) +
+          (1 - alpha) * Number.parseInt(backdrop.slice(at, at + 2), 16),
+      )
+        .toString(16)
+        .padStart(2, "0")
+
+    return `#${channel(1)}${channel(3)}${channel(5)}`
+  }
+
+  it("is the seed, opaque", () => {
+    expect(deriveRoles(SEED).focusRing).toBe(SEED)
+  })
+
+  it("is the seed however the seed was written", () => {
+    // `#ABC` and `#aabbcc` are one colour, and the ring should say so once.
+    expect(deriveRoles("#ABC").focusRing).toBe("#aabbcc")
+  })
+
+  it("clears AA.nonText wherever the seed itself does", () => {
+    for (const seed of ["#4f46e5", "#2563eb", "#dc2626", "#0a0a0a"]) {
+      expect(contrastRatio(deriveRoles(seed).focusRing, "#ffffff")).toBeGreaterThanOrEqual(
+        AA.nonText,
+      )
+    }
+  })
+
+  it("beats the forty per cent ring the specification asked for, on every surface", () => {
+    /*
+     * The reason this function departs from docs/theme-system.md. A
+     * translucent ring's contrast depends on the colour behind it, which
+     * `deriveRoles` is never given — and every brand colour a checkout is
+     * likely to use fails 3:1 at forty per cent on white.
+     */
+    for (const seed of ["#4f46e5", "#2563eb", "#dc2626", "#16a34a", "#f59e0b"]) {
+      const opaque = deriveRoles(seed).focusRing
+      const soft = `${opaque}66`
+
+      for (const surface of SURFACES) {
+        expect(contrastRatio(opaque, surface)).toBeGreaterThan(
+          contrastRatio(over(soft, surface), surface),
+        )
+      }
+
+      expect(contrastRatio(over(soft, "#ffffff"), "#ffffff")).toBeLessThan(AA.nonText)
+    }
+  })
+
+  it("cannot rescue a seed that is too pale to be an indicator", () => {
+    /*
+     * Reported rather than adjusted, like `unreadable`: amber on white is
+     * 2.15:1 opaque and no alpha improves on that, so the honest answer is
+     * that this seed gives no usable ring on a white page — not a ring this
+     * function quietly changed the colour of.
+     */
+    expect(contrastRatio(deriveRoles("#f59e0b").focusRing, "#ffffff")).toBeLessThan(AA.nonText)
   })
 })

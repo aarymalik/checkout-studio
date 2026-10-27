@@ -429,6 +429,16 @@ the twelve, the label on the brand colour and the focus ring, are also derived
 from the brand colour, and the section says that picking a brand colour again
 replaces whatever was set there rather than hiding the two controls.
 
+**A brand colour too pale to focus with is said so.** A focus ring is a
+non-text indicator and needs 3:1, and the derived ring is opaque, so the panel
+is looking at the best ring that colour can give. Whether it clears the
+threshold depends on the page background, which the derivation is not given and
+the panel is — so the panel measures the pair it holds. A background written as
+`oklch(...)` or as a reference cannot be measured, and an unmeasurable pair is
+not a failing one: nothing is claimed rather than a warning shown on a guess.
+This is a separate sentence from the unreadable-label warning, because they are
+separate problems and a colour can have one without the other.
+
 **One colour, and what it implies.** The picker is the brand colour. The scale
 and the derived roles are shown beneath it, because a person choosing a brand
 colour is really choosing eleven of them and a button state they will not
