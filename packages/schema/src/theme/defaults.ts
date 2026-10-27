@@ -117,6 +117,10 @@ export const defaultTheme: CheckoutTheme = {
 
   components: {},
 
+  // Nothing here was chosen over a derived value: every colour is the one the
+  // derivation produces for this seed.
+  manual: [],
+
   // Surfaces and text invert; the brand colour does not. Everything absent here
   // is inherited from above, which is what keeps the layer sparse.
   dark: {
