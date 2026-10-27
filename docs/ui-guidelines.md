@@ -402,10 +402,10 @@ instead.
 # Theme panel
 
 In the left sidebar, per [theme-system.md](./theme-system.md) § Editor
-Integration. Brand, Typography, Spacing, Radius, Shadows and Components are
-built; the other sections arrive with their features rather than as empty
-headings, the same way the sidebar's own tabs say what is coming instead of
-showing nothing.
+Integration. Every section the specification lists is built: Brand,
+Typography, Spacing, Radius, Shadows, Components and Dark mode. Colors is
+folded into Brand and Dark mode, which is where a semantic colour is actually
+decided.
 
 An accordion, not a list. A theme holds more decisions than fit on a screen and
 they are not decisions made together — choosing a brand colour and tuning the
@@ -519,6 +519,37 @@ is what the renderer resolves: it spreads the theme's values over the plugin's
 defaults. Putting a value back **removes it** rather than writing the default
 in — writing it in would freeze today's default into the theme and leave a
 later one unreachable.
+
+**Dark mode is an override layer, not a second theme.** Everything the layer
+does not mention is inherited from the light theme, and the sparseness is the
+point — a dark layer that grows to the size of a full theme means the semantic
+layer is wrong. So each colour reads as inherited until somebody overrides it,
+an override is seeded from the light value it was showing, and inheriting again
+**removes** the override rather than writing the light value back. Writing it
+back would leave the layer one key larger, claiming a decision nobody made, and
+the next change to the light colour would no longer reach dark mode. When the
+last colour goes the group goes with it, and when the last group goes so does
+the layer: an empty `{ colors: {} }` and no layer at all mean the same thing to
+the renderer, and only one of them reads as "this theme has a dark layer".
+
+Colours are editable here; the other groups a layer may hold are named at the
+foot of the section rather than hidden, so a merchant whose dark shadows differ
+can tell. The default theme's do, because a shadow is nearly invisible on a
+dark surface.
+
+**When dark mode applies is a page setting, not a theme value.** The same theme
+published twice may follow the visitor on one page and be forced light on
+another, so it lives in `settings` — the specification says so in as many
+words. It is surfaced in the Dark mode section, beside the values it governs,
+only because there is no settings panel yet; when one exists the control moves
+there rather than being copied. With no page open it says where the choice
+lives rather than appearing dead.
+
+The renderer reads the setting itself, so a published page honours it without
+anything being passed. The `colorMode` prop still wins, because editor preview
+has to be able to show either mode without editing the page — a preview locked
+to a merchant's forced light theme would make dark mode impossible to look at
+before publishing.
 
 **A value a control cannot hold is shown as the text it is.** A radius in per
 cent, a shadow written as a comma-separated list, a body size in `rem`, a size

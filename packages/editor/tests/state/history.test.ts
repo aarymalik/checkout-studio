@@ -59,6 +59,11 @@ describe("undo", () => {
       (store: ReturnType<typeof makeStore>["store"]) => store.getState().setTheme("theme_other"),
     ],
     [
+      "settings",
+      (store: ReturnType<typeof makeStore>["store"]) =>
+        store.getState().setSettings({ colorMode: "dark" }),
+    ],
+    [
       "responsive",
       (store: ReturnType<typeof makeStore>["store"]) =>
         store.getState().setStyles(["heading"], { fontSize: 24 }, { breakpoint: "mobile" }),

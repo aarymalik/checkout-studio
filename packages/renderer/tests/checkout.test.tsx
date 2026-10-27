@@ -80,6 +80,43 @@ describe("the checkout renderer", () => {
     expect(container.querySelector(".checkout-root")?.hasAttribute("data-mode")).toBe(false)
   })
 
+  it("carries the mode the page's own settings ask for", () => {
+    /*
+     * Where a published page's mode comes from: nobody passes the prop, so a
+     * setting that did not reach here would be a setting a merchant could
+     * choose and never see take effect.
+     */
+    const document = sampleDocument()
+    const { container } = render(
+      checkout({ schema: { ...document, settings: { ...document.settings, colorMode: "dark" } } }),
+    )
+
+    expect(container.querySelector(".checkout-root")?.getAttribute("data-mode")).toBe("dark")
+  })
+
+  it("follows the visitor when the page asks for auto", () => {
+    const document = sampleDocument()
+    const { container } = render(
+      checkout({ schema: { ...document, settings: { ...document.settings, colorMode: "auto" } } }),
+    )
+
+    expect(container.querySelector(".checkout-root")?.hasAttribute("data-mode")).toBe(false)
+  })
+
+  it("lets the prop win, so editor preview can show either mode", () => {
+    // A preview showing the merchant's forced light theme would make dark mode
+    // impossible to look at without publishing.
+    const document = sampleDocument()
+    const { container } = render(
+      checkout({
+        schema: { ...document, settings: { ...document.settings, colorMode: "light" } },
+        colorMode: "dark",
+      }),
+    )
+
+    expect(container.querySelector(".checkout-root")?.getAttribute("data-mode")).toBe("dark")
+  })
+
   it("reports everything that went wrong, once", () => {
     const onWarnings = vi.fn()
 

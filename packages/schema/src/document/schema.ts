@@ -200,6 +200,22 @@ export const trackingIntegration = z
   })
   .strict()
 
+/**
+ * How a published checkout chooses between the theme's light and dark values.
+ *
+ * In the settings and not in the theme, because it is not a design decision:
+ * the same theme published twice may follow the visitor on one page and be
+ * forced light on another — docs/theme-system.md § Dark Mode says so in as
+ * many words.
+ *
+ * `auto` follows `prefers-color-scheme`. The other two ignore it, which is a
+ * legitimate thing to want: a checkout embedded in a light host page should
+ * not invert because the visitor's operating system is dark.
+ */
+export const COLOR_MODES = ["auto", "light", "dark"] as const
+
+export const colorMode = z.enum(COLOR_MODES)
+
 export const pageSettings = z
   .object({
     currency: z.string().length(3).optional(),
@@ -216,6 +232,13 @@ export const pageSettings = z
     favicon: assetReference.optional(),
     tracking: z.array(trackingIntegration).max(20).optional(),
     customCss: z.string().max(100_000).optional(),
+    /**
+     * Absent means `auto`. A default here rather than in the enum, so a
+     * document written before this field existed reads as following the
+     * visitor, which is what a checkout with a dark layer and nothing said
+     * about it should do.
+     */
+    colorMode: colorMode.optional(),
   })
   .strict()
 
@@ -244,6 +267,7 @@ export const checkoutSchema = z
   })
   .strict()
 
+export type ColorMode = z.infer<typeof colorMode>
 export type Node = z.infer<typeof node>
 export type NodeMetadata = z.infer<typeof nodeMetadata>
 export type Visibility = z.infer<typeof visibility>
