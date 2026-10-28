@@ -106,6 +106,16 @@ export { readDraft, saveDraft } from "./services/pages/draft"
 
 export { resolveTheme, saveTheme } from "./services/pages/theme"
 
+export { acceptUpload } from "./services/assets/accept"
+export type {
+  AcceptInput,
+  AcceptResult,
+  AcceptedUpload,
+  RefusedUpload,
+} from "./services/assets/accept"
+export { sanitizeSvg } from "./services/assets/svg"
+export type { SvgRefusal, SvgResult } from "./services/assets/svg"
+
 export { resolveConflict } from "./services/pages/resolve"
 export type { Resolution, ResolveResult } from "./services/pages/resolve"
 export type { DraftWriteResult } from "./services/pages/draft"

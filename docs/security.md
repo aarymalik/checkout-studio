@@ -527,7 +527,54 @@ matters less than it looks — the stored object's key comes from the content ha
 — but the name is shown to people and read later by code nobody has written yet.
 
 **Identical bytes are stored once.** The sha256 of the content is the
-deduplication key, and `Asset` is unique on `(projectId, sha256)`.
+deduplication key, and `Asset` is unique on `(projectId, sha256)`. For a type
+that gets rewritten the hash is of the stored file, not of the upload — so two
+uploads of the same drawing deduplicate even when one of them carried a script.
+
+## SVG
+
+An uploaded SVG is not filtered and stored. It is read into a tree of
+allowlisted elements and escaped text, and a new document is written from that
+tree. What is stored is markup we produced, so a construct outside the allowlist
+has nowhere to be rather than being removed.
+
+The emitter is the security boundary, not the parser. A parsing mistake can
+misread a shape or reject a file that was fine; it cannot produce an element or
+attribute the emitter does not know how to write, and it cannot put unescaped
+text into the output.
+
+The parser refuses rather than guesses, because leniency is what bypasses are
+made of. No DOCTYPE (entity expansion and XXE), no CDATA, no processing
+instruction but the XML declaration, no unquoted attribute value, no entity
+outside the five XML predefines and numeric ones, and no tags that do not nest.
+
+Allowed: paths, the basic shapes, groups, gradients, clipping and masking — what
+a logo or an icon is made of. Refused, each for its own reason:
+
+- `script`, and every `on*` attribute.
+- `style`, and the `style` attribute. CSS in SVG carries `url()` and `@import`,
+  so allowing it means a CSS parser inside the trust boundary.
+- `foreignObject`, whose content is HTML.
+- `filter` and its primitives — a large surface a logo does not need, and
+  `feImage` fetches.
+- `animate`, `set`, `animateTransform`, `animateMotion`. An animation can target
+  `href`, which would make checking that attribute at rest meaningless.
+- `image` and `text`. Both reference another origin, which a published
+  checkout's CSP refuses.
+
+`href` and `xlink:href` must be a fragment, and a paint's `url()` must point
+into the same document, so nothing reaches another origin.
+
+The element drop list is matched without regard to case while the allowlist is
+matched exactly. The asymmetry is deliberate: SVG's own names are camel case, so
+`lineargradient` is not `linearGradient` — but an exact match on the drop list
+would let `<SCRIPT>` through as an unknown element whose children are kept,
+which is inert in an XML parse and a script in an HTML one. Our own bytes should
+not depend on which parser later reads them.
+
+What was removed is reported rather than dropped silently. A logo that lost a
+`<filter>` will not look the way it was exported, and only the person who
+exported it can fix that.
 
 ---
 
