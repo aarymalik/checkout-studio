@@ -1,0 +1,12 @@
+-- AlterTable
+--
+-- Which renditions an asset has, as a list of {size, format, width, height,
+-- sizeBytes}. It is recorded rather than inferred because the set depends on
+-- the master: a logo narrower than a thumbnail has none, and an animated one
+-- has no AVIF. Where each file lives is not recorded — a rendition's key is a
+-- function of this asset's sha256 and the size and format names, so there is
+-- no copy of a path here to drift from where the bytes were written.
+--
+-- Defaulted rather than backfilled: an asset stored before this column existed
+-- has no renditions, which is exactly what an empty list says.
+ALTER TABLE "Asset" ADD COLUMN "renditions" JSONB NOT NULL DEFAULT '[]';

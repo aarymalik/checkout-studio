@@ -1,5 +1,7 @@
 import "server-only"
 
+import { RENDITION_MIME_TYPES, RENDITION_SIZES, RENDITION_WIDTHS } from "@checkout-studio/schema"
+import type { RenditionFormat, RenditionSize } from "@checkout-studio/schema"
 import type { Sharp } from "sharp"
 
 import { MAX_PIXELS, openRaster } from "./raster"
@@ -11,9 +13,13 @@ import type { RasterRefused } from "./raster"
  * ## Derived from the master, never from the upload
  *
  * docs/performance.md § Asset Optimization asks for a thumbnail, a medium, a
- * large and the original, and § Images asks for WebP and AVIF. The original is
- * the master `reencodeRaster` wrote; these are the rest, and they are derived
- * from that master rather than from the file that arrived. It is the shorter
+ * large and the original, and § Images asks for WebP and AVIF. The sizes, the
+ * formats and the widths are in `@checkout-studio/schema`, because the
+ * renderer writes a `srcset` from them and the builder records which of them
+ * an asset has; this module is only the half that produces the files.
+ *
+ * The original is the master `reencodeRaster` wrote; these are the rest, and
+ * they are derived from that master rather than from the file that arrived. It is the shorter
  * way to say the same thing the upload boundary says: nothing downstream ever
  * reads a stranger's bytes, not even to make a thumbnail of them.
  *
@@ -32,33 +38,6 @@ import type { RasterRefused } from "./raster"
  *
  * See docs/performance.md § Asset Optimization and docs/phases.md Phase 14.
  */
-
-/** Narrowest first, which is also the order a `srcset` wants them in. */
-export const RENDITION_SIZES = ["thumbnail", "medium", "large"] as const
-
-export type RenditionSize = (typeof RENDITION_SIZES)[number]
-
-/**
- * The widths, in CSS pixels times two.
- *
- * A thumbnail fills a library grid cell or an inline icon on a retina screen.
- * Medium covers a content column, and a hero on a phone. Large covers a
- * full-width hero on a desktop. Three is what the performance spec asks for,
- * and three is also about as many as a `srcset` is read carefully enough to
- * justify.
- */
-export const RENDITION_WIDTHS: Readonly<Record<RenditionSize, number>> = {
-  thumbnail: 320,
-  medium: 960,
-  large: 1920,
-}
-
-export type RenditionFormat = "webp" | "avif"
-
-const MIME_TYPES: Readonly<Record<RenditionFormat, string>> = {
-  webp: "image/webp",
-  avif: "image/avif",
-}
 
 /**
  * How each delivery format is written.
@@ -131,7 +110,7 @@ export async function deriveRenditions(
         renditions.push({
           size,
           format,
-          mimeType: MIME_TYPES[format],
+          mimeType: RENDITION_MIME_TYPES[format],
           width: info.width,
           // For an animation the strip's height is every frame stacked.
           height: info.pageHeight ?? info.height,

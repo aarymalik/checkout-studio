@@ -9,6 +9,16 @@
  */
 
 export {
+  RENDITION_FORMATS,
+  RENDITION_MIME_TYPES,
+  RENDITION_SIZES,
+  RENDITION_WIDTHS,
+  assetRendition,
+  assetRenditions,
+} from "./asset/renditions"
+export type { AssetRendition, RenditionFormat, RenditionSize } from "./asset/renditions"
+
+export {
   BREAKPOINTS,
   COLOR_MODES,
   STATES,

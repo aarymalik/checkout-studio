@@ -1,19 +1,13 @@
 import { randomBytes } from "node:crypto"
 
+import { RENDITION_SIZES, RENDITION_WIDTHS } from "@checkout-studio/schema"
+import type { RenditionFormat, RenditionSize } from "@checkout-studio/schema"
 import sharp from "sharp"
 import type { Sharp } from "sharp"
 import { describe, expect, it } from "vitest"
 
 import { reencodeRaster, rasterEncoder } from "./raster"
-import {
-  RENDITION_SIZES,
-  RENDITION_WIDTHS,
-  deriveRenditions,
-  type Rendition,
-  type RenditionFormat,
-  type RenditionSize,
-  type RenditionsResult,
-} from "./renditions"
+import { deriveRenditions, type Rendition, type RenditionsResult } from "./renditions"
 
 /**
  * The sizes and formats a stored image is served as.

@@ -323,14 +323,47 @@ Fields:
 
 - id
 - projectId
-- fileName
-- mimeType
+- fileName (a label, shown in the library — never used to decide where bytes go)
+- mimeType (the type the signature matched, never the one a request claimed)
 - size
 - width
 - height
 - storageKey
 - url
+- sha256 (of the stored file)
+- renditions (which exist; see below)
 - createdAt
+- deletedAt
+
+**An asset is identified by its content.** Unique on `(projectId, sha256)`, and
+the hash is of the file that was stored rather than the one that arrived — a
+sanitized drawing, a re-encoded photograph. So two uploads of the same picture
+are one row even when one carried a script and the other carried GPS
+coordinates. The storage key is derived from the same hash, so identical bytes
+also land on one file.
+
+Recording an asset therefore never fails on a duplicate. It reports that the
+row already existed and returns it, because a merchant uploading a logo they
+already uploaded has not made a mistake. The first name wins: renaming the row
+would rename it everywhere it is already used.
+
+A soft-deleted row matching the same bytes is **restored** rather than left dead
+beside a new one. The alternatives are a constraint error on an upload that is
+entirely reasonable, or two rows for one file where the visible one is whichever
+the query happened to find.
+
+`renditions` is a JSON list of `{size, format, width, height, sizeBytes}`,
+validated on read-back against `assetRenditions` in
+[@checkout-studio/schema](./schema.md) — nothing in the database checks a JSON
+column's shape, so a row written by an older release is something to notice
+rather than trust. A row whose list does not parse raises rather than reporting
+no renditions, which would show up as a slow page instead of a bug.
+
+The set is recorded and not inferred, because it depends on the master: a logo
+narrower than a thumbnail has none, and an animated one has no AVIF. What is
+_not_ recorded is where each file lives — a rendition's key is a function of the
+asset's hash and the size and format names, so there is no copy of a path to
+drift from where the bytes were written.
 
 ---
 

@@ -14,8 +14,9 @@ import { cn } from "../lib/cn"
  * for it rather than a div pretending to be one.
  *
  * Validation happens here so the reader hears about a file that is too large
- * before it is uploaded, not after. The upload itself belongs to the
- * application — see apps/studio/src/lib/uploads.ts.
+ * before it is uploaded, not after. It is a courtesy and not the boundary: the
+ * decision is made from the bytes on the server, by `inspectUpload` in
+ * @checkout-studio/utils, which takes no declared content type at all.
  */
 export interface FileUploadProps {
   label: string

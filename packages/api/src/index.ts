@@ -123,13 +123,9 @@ export type {
   RasterSource,
   RasterSourceResult,
 } from "./services/assets/raster"
-export { RENDITION_SIZES, RENDITION_WIDTHS, deriveRenditions } from "./services/assets/renditions"
-export type {
-  Rendition,
-  RenditionFormat,
-  RenditionSize,
-  RenditionsResult,
-} from "./services/assets/renditions"
+export { masterKey, renditionKey } from "./services/assets/keys"
+export { deriveRenditions } from "./services/assets/renditions"
+export type { Rendition, RenditionsResult } from "./services/assets/renditions"
 export { sanitizeSvg } from "./services/assets/svg"
 export type { SvgRefusal, SvgResult } from "./services/assets/svg"
 

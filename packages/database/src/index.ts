@@ -36,5 +36,8 @@ export type {
   VerificationPurpose,
 } from "./repositories/identity"
 
+export { assetRepository, AssetRenditionsError } from "./repositories/asset"
+export type { AssetCreation, NewAsset, StoredAsset } from "./repositories/asset"
+
 export { submissionRepository } from "./repositories/submission"
 export type { SavedSubmission, SubmissionInput } from "./repositories/submission"
