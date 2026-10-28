@@ -113,6 +113,14 @@ export type {
   AcceptedUpload,
   RefusedUpload,
 } from "./services/assets/accept"
+export { MAX_PIXELS, rasterEncoder, reencodeRaster } from "./services/assets/raster"
+export type {
+  RasterEncoder,
+  RasterRefusal,
+  RasterRefused,
+  RasterReencoded,
+  RasterResult,
+} from "./services/assets/raster"
 export { sanitizeSvg } from "./services/assets/svg"
 export type { SvgRefusal, SvgResult } from "./services/assets/svg"
 

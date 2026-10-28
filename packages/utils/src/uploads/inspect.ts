@@ -81,6 +81,17 @@ export const DEFAULT_LIMITS: Readonly<Record<UploadKind, number>> = {
 }
 
 /**
+ * The ceiling for a kind, with any override applied.
+ *
+ * One expression, in one place, because `acceptUpload` checks the ceiling a
+ * second time against the bytes it re-encoded and the two checks have to agree
+ * about what an override means.
+ */
+export function limitFor(kind: UploadKind, limits?: Partial<Record<UploadKind, number>>): number {
+  return limits?.[kind] ?? DEFAULT_LIMITS[kind]
+}
+
+/**
  * Whether a name is a name.
  *
  * A browser's `File.name` is always a bare filename — no browser sends a path
@@ -138,7 +149,7 @@ export function inspectUpload(input: InspectInput): UploadInspection {
 
   if (type === null) return { ok: false, reason: "unrecognised" }
 
-  const limit = input.limits?.[type.kind] ?? DEFAULT_LIMITS[type.kind]
+  const limit = limitFor(type.kind, input.limits)
 
   // Checked before the SVG refusal, so an oversized SVG is reported as what it
   // is rather than as a sanitizing problem it would never have reached.

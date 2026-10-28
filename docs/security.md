@@ -529,7 +529,9 @@ matters less than it looks — the stored object's key comes from the content ha
 **Identical bytes are stored once.** The sha256 of the content is the
 deduplication key, and `Asset` is unique on `(projectId, sha256)`. For a type
 that gets rewritten the hash is of the stored file, not of the upload — so two
-uploads of the same drawing deduplicate even when one of them carried a script.
+uploads of the same drawing deduplicate even when one of them carried a script,
+and two exports of the same photograph deduplicate even though their EXIF
+differs.
 
 ## SVG
 
@@ -585,6 +587,69 @@ Strip metadata.
 Optimize automatically.
 
 Reject malformed images.
+
+An uploaded raster is decoded and encoded again, and what gets stored is the
+encoder's output. Metadata could have been removed by rewriting the container —
+drop the EXIF segment from a JPEG, keep only a PNG's critical chunks — and
+everything else in the file would still be bytes a stranger wrote. Re-encoding
+is the same bargain the SVG sanitizer makes: the emitter is the boundary. It is
+also why rejecting a malformed image is not a separate check, because a file
+that cannot be decoded cannot be encoded again.
+
+The five raster signatures in `@checkout-studio/utils` are the only inputs that
+reach a decoder, and `rasterEncoder` is the list of them. In particular an SVG
+never does: libvips renders one through the librsvg named in the `sharp` row of
+the override table below, and a vector is identified, refused and answered by
+our own sanitizer long before this. The advisory is in the binary and
+unreachable from it.
+
+## What a stored image does not carry
+
+EXIF, and with it the camera, its serial number and the coordinates of wherever
+the photograph was taken. XMP, IPTC, and the orientation tag. libvips writes
+none of them unless asked, and nothing asks.
+
+Two exceptions, both because the alternative is a picture that does not look
+like the one the merchant uploaded. The EXIF orientation is applied to the
+pixels before the tag is dropped — stripping metadata without it would turn
+every phone photograph that displayed upright into one lying on its side, the
+metadata gone and the image wrong, which is worse than either. And the ICC
+colour profile is carried over: libvips does not convert colourspaces on its
+own, so dropping a Display P3 profile leaves wide-gamut values to be read as
+sRGB and every such upload arrives oversaturated. A profile describes how to
+read colours and names no person, place or device owner, so keeping it gives up
+none of the privacy the rest of this is for. It is the only part of an upload
+that reaches the stored file unexamined.
+
+## A ceiling on pixels, not only on bytes
+
+The size ceiling bounds the compressed file, which says nothing about the cost
+of decoding it: a few kilobytes of PNG can describe twenty thousand pixels
+squared, and a decoder asks for four bytes a pixel to find out. Fifty
+megapixels is the ceiling — about 200 MB of decoded image, five times below
+libvips' own default and comfortably above anything a camera produces.
+
+An animation is measured across every frame, because it is read as one tall
+strip. So the ceiling bounds the work rather than the frame.
+
+## Refuse, don't guess
+
+A truncated file is refused rather than stored as whichever half of the picture
+decoded. A file a decoder merely complains about is accepted — real export
+tools produce JPEGs libjpeg objects to and every browser renders, and the
+objection does not survive the re-encoding anyway.
+
+An upload keeps the format its signature named. Deriving WebP and AVIF
+renditions is done from the stored master and not to it, so a lossless format
+stays lossless, a lossy one is re-encoded at a quality chosen to be invisible
+rather than to save bytes, and the generational loss happens exactly once.
+
+Because the hash is of the stored file, two exports of the same photograph
+carrying different EXIF deduplicate to one row.
+
+A video, a font and a PDF are stored as they arrived. We decode none of them,
+so there is no encoder whose output could stand in for the upload, and
+rewriting a file we cannot read would be guessing.
 
 ---
 
@@ -721,12 +786,12 @@ Remove an entry only when nothing in the tree resolves below the floor any more
 — at which point the override is inert and `pnpm audit` will stay quiet without
 it.
 
-| Override        | Floor      | Why                                                                                                                                                                                                                                                                                                                               |
-| --------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mysql2`        | `>=3.23.1` | Reaches us only through the Prisma CLI — a driver this project never loads.                                                                                                                                                                                                                                                       |
-| `deepmerge-ts`  | `>=8.0.0`  | Likewise through the Prisma CLI, in its config loader.                                                                                                                                                                                                                                                                            |
-| `source-map-js` | `>=1.2.2`  | GHSA-68fv-2mgg-jv7q — event-loop denial of service in versions below 1.2.2.                                                                                                                                                                                                                                                       |
-| `sharp`         | `>=0.35.5` | GHSA-wq5f-xc86-pv6w / CVE-2026-96889 — a flaw in the bundled librsvg. Reached through Next's optional image-optimisation dependency, whose own range (`^0.35.4`) already allowed the fix; the override moves the lockfile to it, and with it `@img/sharp-libvips-*` from 1.3.3 to 1.3.4, which is where the patch actually lives. |
+| Override        | Floor      | Why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mysql2`        | `>=3.23.1` | Reaches us only through the Prisma CLI — a driver this project never loads.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `deepmerge-ts`  | `>=8.0.0`  | Likewise through the Prisma CLI, in its config loader.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `source-map-js` | `>=1.2.2`  | GHSA-68fv-2mgg-jv7q — event-loop denial of service in versions below 1.2.2.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `sharp`         | `>=0.35.5` | GHSA-wq5f-xc86-pv6w / CVE-2026-96889 — a flaw in the bundled librsvg. `@checkout-studio/api` now depends on sharp directly, to re-encode uploaded rasters, and it reaches us through Next's optional image-optimisation dependency as well; both ranges already allowed the fix. The override moves the lockfile to it, and with it `@img/sharp-libvips-*` from 1.3.3 to 1.3.4, which is where the patch actually lives. Nothing in the asset pipeline hands a vector to libvips, so librsvg is present and unreached — see § Image Security. |
 
 ---
 
