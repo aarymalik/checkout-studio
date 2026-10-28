@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { createVitestConfig } from "@checkout-studio/config/vitest/base"
+import { coverageThresholds, createVitestConfig } from "@checkout-studio/config/vitest/base"
 
 const envFile = fileURLToPath(new URL("../../.env.local", import.meta.url))
 if (existsSync(envFile)) {
@@ -14,6 +14,23 @@ const databaseUrl = (process.env["DATABASE_URL"] ?? "").replace(
 
 export default createVitestConfig({
   environment: "node",
+  /*
+   * The asset sanitizer is held to 100%, per docs/phases.md Phase 14.
+   *
+   * It decides what an uploaded file becomes before it is stored and served
+   * from our own origin. An untested branch is a construct nobody meant to
+   * allow, and the first anyone would know is script running on a page that
+   * takes card details.
+   */
+  thresholds: {
+    ...coverageThresholds,
+    "src/services/assets/*.ts": {
+      statements: 100,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+    },
+  },
   alias: {
     "server-only": fileURLToPath(new URL("./tests/stubs/server-only.ts", import.meta.url)),
   },
