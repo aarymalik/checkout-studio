@@ -344,6 +344,11 @@ model Asset {
   /// Content hash. Identical bytes are stored once.
   sha256 String
 
+  /// Which renditions exist, as assetRenditions in @checkout-studio/schema.
+  /// Recorded and not inferred: a logo narrower than a thumbnail has none, and
+  /// an animated one has no AVIF. Keys are derived from sha256, not stored.
+  renditions Json @default("[]")
+
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
