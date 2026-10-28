@@ -1,6 +1,6 @@
 export { createEnv, EnvironmentError } from "./env"
 
-export { DEFAULT_LIMITS, contentHash, inspectUpload } from "./uploads/inspect"
+export { DEFAULT_LIMITS, contentHash, inspectUpload, limitFor } from "./uploads/inspect"
 export type {
   InspectInput,
   UploadAccepted,
