@@ -501,11 +501,33 @@ PDF
 
 Maximum size
 
-Configurable
+Configurable — a ceiling per kind, defaulting to 10 MB for an image, 1 MB for an
+SVG, 100 MB for a video, 2 MB for a font and 20 MB for a PDF. These are not a
+quota: a plan's `storageBytes` is a separate refusal, made by `assertCan`
+against what the project already holds.
 
 Scan uploads before serving.
 
 Reject executable files.
+
+**Decided from the bytes, never from the request.** `inspectUpload` identifies a
+type by the signature at the front of the file, and takes no declared content
+type at all — a client-supplied media type is precisely the value that must not
+be trusted, and a parameter holding one would be a parameter somebody later
+believes. The type recorded against an asset is always the one that matched.
+
+An allowlist, so rejecting executables follows from it rather than needing a
+list of executable formats: ELF, PE, Mach-O, a shebang script, a zip and a
+Windows shortcut are all refused as unrecognised, without being named.
+
+**A filename is a label, not a path.** A name carrying a separator, a traversal,
+a control character or a newline is refused rather than rewritten, so a merchant
+sees the name they chose or an error and never a third thing we invented. It
+matters less than it looks — the stored object's key comes from the content hash
+— but the name is shown to people and read later by code nobody has written yet.
+
+**Identical bytes are stored once.** The sha256 of the content is the
+deduplication key, and `Asset` is unique on `(projectId, sha256)`.
 
 ---
 
