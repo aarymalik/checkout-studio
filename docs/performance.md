@@ -405,7 +405,10 @@ Automatically
 - Generate WebP
 - Generate AVIF
 
-Never serve original uploads directly.
+Never serve original uploads directly. An uploaded raster is decoded and
+encoded again before it is stored, which is what strips its metadata and what
+makes rejecting a malformed image follow from the same step. See
+[security.md](./security.md) § Image Security.
 
 ---
 
@@ -660,6 +663,36 @@ Large
 Original
 
 Serve only required sizes.
+
+| Size      | Width  | Covers                                           |
+| --------- | ------ | ------------------------------------------------ |
+| Thumbnail | 320px  | A library grid cell or an inline icon, on retina |
+| Medium    | 960px  | A content column, and a hero on a phone          |
+| Large     | 1920px | A full-width hero on a desktop                   |
+| Original  | —      | The master, in the format its signature named    |
+
+Each of the three is written as WebP and AVIF. The original is the master
+`reencodeRaster` wrote, and every rendition is derived from it rather than from
+the upload — the shorter way to say what the upload boundary says, which is
+that nothing downstream reads a stranger's bytes, not even to make a thumbnail
+of them. It also keeps a rendition one generation from a picture encoded to be
+invisible, instead of two from whatever arrived.
+
+**A missing rendition is an answer.** A size no narrower than the master is not
+produced, because upscaling invents detail and asking libvips not to enlarge
+would store three identical copies of a small logo under three names. A
+400-pixel logo has a thumbnail and nothing else; one narrower than a thumbnail
+has none, and what gets served is the master, which is already its smallest
+honest version.
+
+**An animated master is offered as WebP only.** libvips reads an animation and
+writes one as WebP, and writing one as AVIF silently returns the first frame. A
+logo that stopped moving in the format most browsers prefer, with nothing to
+say why, is worse than one format fewer.
+
+Deriving these is measured in seconds — a 1920-wide AVIF alone takes libvips a
+second or two — so it is a separate call from accepting an upload, and the
+merchant is not kept waiting on it.
 
 ---
 

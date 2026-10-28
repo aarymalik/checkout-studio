@@ -113,14 +113,23 @@ export type {
   AcceptedUpload,
   RefusedUpload,
 } from "./services/assets/accept"
-export { MAX_PIXELS, rasterEncoder, reencodeRaster } from "./services/assets/raster"
+export { MAX_PIXELS, openRaster, rasterEncoder, reencodeRaster } from "./services/assets/raster"
 export type {
   RasterEncoder,
   RasterRefusal,
   RasterRefused,
   RasterReencoded,
   RasterResult,
+  RasterSource,
+  RasterSourceResult,
 } from "./services/assets/raster"
+export { RENDITION_SIZES, RENDITION_WIDTHS, deriveRenditions } from "./services/assets/renditions"
+export type {
+  Rendition,
+  RenditionFormat,
+  RenditionSize,
+  RenditionsResult,
+} from "./services/assets/renditions"
 export { sanitizeSvg } from "./services/assets/svg"
 export type { SvgRefusal, SvgResult } from "./services/assets/svg"
 

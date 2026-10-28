@@ -111,44 +111,48 @@ export function rasterEncoder(mimeType: string): RasterEncoder | null {
   return ENCODERS[mimeType] ?? null
 }
 
+/** A source opened and measured, ready to be read from. */
+export interface RasterSource {
+  /** Opened with the pixel ceiling enforced, so reading from it is bounded. */
+  image: Sharp
+  /** One frame's width, for an animation. The height depends on what is asked for. */
+  width: number
+  /** 1 for a still image. */
+  pages: number
+}
+
+export type RasterSourceResult = { ok: true; source: RasterSource } | RasterRefused
+
 /**
- * Decode, drop everything that is not pixels, and write it again.
+ * Open a stranger's image, under every restriction we put on reading one.
  *
- * What the output does not carry: EXIF — and with it the camera, the serial
- * number and the GPS coordinates of wherever the photograph was taken — XMP,
- * IPTC, and the orientation tag. libvips writes none of them unless asked, and
- * nothing here asks.
+ * One function so the restrictions cannot drift apart. Both the re-encoding of
+ * a master and the deriving of its renditions read through here, and a change
+ * to any of this applies to both by construction rather than by someone
+ * remembering.
  *
- * Two deliberate exceptions, both because the alternative is a picture that
- * does not look like the one the merchant uploaded:
+ * `animated` reads every frame. Without it libvips hands back the first one
+ * and nothing says so, and a merchant's animated logo would quietly become a
+ * still.
  *
- * `autoOrient` applies the EXIF orientation to the pixels before the tag is
- * dropped. Without it, stripping metadata would turn every phone photograph
- * that displayed upright into one lying on its side — the metadata would be
- * gone and the image would be wrong, which is a worse outcome than either.
- *
- * `keepIccProfile` carries the colour profile over. It is the only part of the
- * input that reaches the output unexamined, and it is worth it: libvips does
- * not convert colourspaces on its own, so dropping a Display P3 profile leaves
- * wide-gamut values to be read as sRGB and every such upload arrives
- * oversaturated. A profile describes how to read colours and names no person,
- * no place and no device owner, so keeping it gives up none of the privacy the
- * rest of this is for.
+ * `autoOrient` applies the EXIF orientation to the pixels, so a later step may
+ * drop the tag without turning every phone photograph that displayed upright
+ * into one lying on its side — the metadata gone and the image wrong, which is
+ * a worse outcome than either.
  *
  * `failOn: "error"` sits between two settings that are both wrong. `"none"`
- * accepts a truncated file and stores whichever half of the picture decoded,
+ * accepts a truncated file and yields whichever half of the picture decoded,
  * which is a broken upload presented as a good one. libvips' own default,
  * `"warning"`, refuses files that every browser renders — real export tools
  * produce JPEGs libjpeg complains about — and turning away a merchant's
  * working photograph over a complaint would be the wrong trade. It is also
- * unnecessary: the complaint does not survive the re-encoding, because what
- * gets stored is what our own encoder wrote.
+ * unnecessary: the complaint does not survive a re-encoding, because what gets
+ * stored is what our own encoder wrote.
  */
-export async function reencodeRaster(
+export async function openRaster(
   bytes: Uint8Array,
-  encode: RasterEncoder,
   maxPixels: number = MAX_PIXELS,
-): Promise<RasterResult> {
+): Promise<RasterSourceResult> {
   const open = (limitInputPixels: number | false): Sharp =>
     sharp(bytes, { animated: true, autoOrient: true, failOn: "error", limitInputPixels })
 
@@ -162,25 +166,68 @@ export async function reencodeRaster(
      * dimensions and not the image, so reading one costs nothing, and with
      * `animated: true` the height spans every frame.
      */
-    const { width, height } = await open(false).metadata()
+    const { width, height, pages } = await open(false).metadata()
 
     if (width * height > maxPixels) return { ok: false, reason: "too-many-pixels" }
 
-    /*
-     * And enforced again on the decode, because a header is a claim. A file
-     * that understates its dimensions would pass the check above and libvips
-     * would still refuse to allocate past the ceiling.
-     */
-    const written = await encode(open(maxPixels).keepIccProfile()).toBuffer()
+    return {
+      ok: true,
+      source: {
+        /*
+         * Opened again with the ceiling enforced, because a header is a claim.
+         * A file that understates its dimensions passes the check above and
+         * libvips still refuses to allocate past the ceiling.
+         */
+        image: open(maxPixels),
+        width,
+        pages: pages ?? 1,
+      },
+    }
+  } catch {
+    return { ok: false, reason: "unreadable" }
+  }
+}
+
+/**
+ * Decode, drop everything that is not pixels, and write it again.
+ *
+ * What the output does not carry: EXIF — and with it the camera, the serial
+ * number and the GPS coordinates of wherever the photograph was taken — XMP,
+ * IPTC, and the orientation tag. libvips writes none of them unless asked, and
+ * nothing here asks.
+ *
+ * The orientation and the colour profile are the two exceptions, and both are
+ * there because the alternative is a picture that does not look like the one
+ * the merchant uploaded. `openRaster` has already applied the orientation to
+ * the pixels. `keepIccProfile` carries the profile over, which is the only
+ * part of an upload that reaches the stored file unexamined: libvips does not
+ * convert colourspaces on its own, so dropping a Display P3 profile leaves
+ * wide-gamut values to be read as sRGB and every such upload arrives
+ * oversaturated. A profile describes how to read colours and names no person,
+ * no place and no device owner, so keeping it gives up none of the privacy the
+ * rest of this is for.
+ */
+export async function reencodeRaster(
+  bytes: Uint8Array,
+  encode: RasterEncoder,
+  maxPixels: number = MAX_PIXELS,
+): Promise<RasterResult> {
+  const opened = await openRaster(bytes, maxPixels)
+
+  if (!opened.ok) return opened
+
+  try {
+    const written = await encode(opened.source.image.keepIccProfile()).toBuffer()
 
     return { ok: true, bytes: new Uint8Array(written) }
   } catch {
     /*
      * Everything libvips refuses is one answer: we could not read this.
      *
-     * There is nothing to distinguish between — a corrupt header, truncated
-     * pixel data and a format compiled out of this binary are all a file the
-     * merchant has to replace, and the only honest thing to say is so.
+     * There is nothing to distinguish between — a header that read correctly
+     * over pixel data that did not, and a format compiled out of this binary,
+     * are both a file the merchant has to replace, and the only honest thing
+     * to say is so.
      */
     return { ok: false, reason: "unreadable" }
   }
