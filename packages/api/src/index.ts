@@ -124,6 +124,8 @@ export type {
   RasterSourceResult,
 } from "./services/assets/raster"
 export { masterKey, renditionKey } from "./services/assets/keys"
+export { libraryAsset } from "./services/assets/library"
+export type { LibraryAsset } from "./services/assets/library"
 export { recordingStore, s3Store } from "./services/assets/store"
 export { storeUpload, uploadRefusalError } from "./services/assets/upload"
 export type { UploadRequest, UploadResult, UploadStored } from "./services/assets/upload"

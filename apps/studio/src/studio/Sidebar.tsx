@@ -64,6 +64,7 @@ const TABS: Record<
     label: "Assets",
     icon: ImageIcon,
     waitingFor: "Uploads arrive with the asset pipeline.",
+    ownScroll: true,
   },
   templates: {
     label: "Templates",

@@ -56,6 +56,34 @@ export async function post<T>(path: string, body: unknown): Promise<ApiResult<T>
   return unwrap<T>(response)
 }
 
+/**
+ * Sends a file, as the multipart body a file has to travel in.
+ *
+ * Its own function rather than an option on `post`, because the two differ in
+ * every part: no JSON, no content type of ours — the boundary writes one, and
+ * one we set would be a claim the server is right to ignore.
+ *
+ * No progress. `fetch` cannot report how much of a body has gone, and the
+ * upload manager that will report it is a later piece of Phase 14; a bar that
+ * jumped from nothing to everything would be a lie told smoothly.
+ */
+export async function upload<T>(path: string, file: File): Promise<ApiResult<T>> {
+  const body = new FormData()
+
+  body.set("file", file)
+
+  try {
+    return unwrap<T>(await fetch(path, { method: "POST", body }))
+  } catch {
+    return {
+      ok: false,
+      code: "NETWORK",
+      message: "We could not reach the server. Check your connection and try again.",
+      fields: {},
+    }
+  }
+}
+
 export async function send<T>(
   path: string,
   method: "GET" | "DELETE" | "PUT" | "PATCH",

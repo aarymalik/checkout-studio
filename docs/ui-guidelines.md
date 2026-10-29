@@ -120,6 +120,18 @@ Contains
 - Templates
 - Theme
 
+The Assets panel is a grid rather than a list, because what identifies a picture
+is the picture. Columns come from the panel's measured width rather than a
+breakpoint — the panel is a width the reader is dragging — and a cell never goes
+below 96px, which is where a logo stops being a logo and becomes a smudge.
+
+It virtualizes, like Layers: a thousand assets is the target in
+[phases.md](./phases.md), and a thousand thumbnails in the DOM is a thousand
+image requests. The grid carries its row and column counts for a screen reader,
+so what is announced is the size of the library rather than the size of the
+window onto it. One tab stop for the whole grid, with the arrows moving within
+it, and focus stops at the ends rather than wrapping.
+
 Collapsed width
 
 64px
