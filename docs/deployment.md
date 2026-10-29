@@ -71,7 +71,7 @@ Local Redis
 
 Storage
 
-Local UploadThing development
+Local MinIO, or any S3-compatible store
 
 Payments
 
@@ -153,7 +153,7 @@ PostgreSQL
 
 Redis
 
-UploadThing
+S3-compatible object storage
 
 Stripe Live
 
@@ -188,7 +188,9 @@ Cache
 
 File Storage
 
-- UploadThing
+- S3-compatible object storage, spoken over the S3 API with path-style
+  addressing, so a self-hosted store works without wildcard DNS or a
+  certificate per bucket
 
 Payments
 
@@ -391,7 +393,7 @@ Secrets include
 - Stripe Keys
 - Database URL
 - Redis URL
-- UploadThing Keys
+- Object store credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 - Encryption Keys
 
 ---

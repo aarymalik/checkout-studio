@@ -38,7 +38,7 @@ Caching:
 Redis (Upstash)
 
 File Storage:
-UploadThing
+S3-compatible object storage
 
 Authentication:
 Ours — see [security.md](./security.md)

@@ -661,7 +661,9 @@ Upstash
 
 Storage:
 
-UploadThing
+S3-compatible object storage, over the S3 API — MinIO or Garage on a
+machine you run, or a hosted bucket. See [security.md](./security.md)
+§ Image Security.
 
 Payments:
 

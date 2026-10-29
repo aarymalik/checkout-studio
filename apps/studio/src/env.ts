@@ -34,8 +34,21 @@ const schema = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: stripePublishableKey(nodeEnv),
   STRIPE_WEBHOOK_SECRET_BILLING: z.string().min(1),
 
-  UPLOADTHING_SECRET: z.string().min(1),
-  UPLOADTHING_APP_ID: z.string().min(1),
+  /**
+   * Object storage, over the S3 API.
+   *
+   * Which is not a choice of vendor: S3's API is what every self-hostable
+   * object store speaks, so these five point at MinIO or Garage on a machine
+   * you run just as readily as at a hosted bucket. `S3_ENDPOINT` carries no
+   * bucket — the bucket is in the path.
+   */
+  S3_ENDPOINT: z.string().url(),
+  S3_REGION: z.string().min(1),
+  S3_BUCKET: z.string().min(1),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  /** Where assets are served from: a CDN, or the bucket itself. */
+  ASSET_BASE_URL: z.string().url(),
 })
 
 export type Env = z.infer<typeof schema>

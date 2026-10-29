@@ -275,7 +275,7 @@ Studio (`apps/studio`)
 
 - Stripe (Connect onboarding, Billing Customer Portal)
 - Resend (transactional email only; it never sees a credential)
-- UploadThing
+- The object store, which holds asset bytes and no credential
 - Sentry, PostHog
 
 Published checkouts (`apps/renderer`)
@@ -386,7 +386,7 @@ Secrets include
 - Resend API key
 - Database URL
 - Redis URL
-- UploadThing Keys
+- Object store credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 
 Production secrets managed by hosting provider.
 
