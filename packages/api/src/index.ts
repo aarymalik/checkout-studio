@@ -125,6 +125,8 @@ export type {
 } from "./services/assets/raster"
 export { masterKey, renditionKey } from "./services/assets/keys"
 export { recordingStore, s3Store } from "./services/assets/store"
+export { storeUpload, uploadRefusalError } from "./services/assets/upload"
+export type { UploadRequest, UploadResult, UploadStored } from "./services/assets/upload"
 export type { ObjectStore, S3Config, StoredObject } from "./services/assets/store"
 export { deriveRenditions } from "./services/assets/renditions"
 export type { Rendition, RenditionsResult } from "./services/assets/renditions"

@@ -282,6 +282,132 @@ describe("finding assets", () => {
   })
 })
 
+describe("finding the asset some bytes already are", () => {
+  beforeEach(truncateAll)
+
+  it("finds it by its hash", async () => {
+    const tenant = await scoped()
+    const { asset } = await assetRepository.create(tenant, upload())
+
+    expect(await assetRepository.findBySha256(tenant, HASH)).toMatchObject({ id: asset.id })
+  })
+
+  it("finds nothing for bytes the project does not have", async () => {
+    const tenant = await scoped()
+
+    expect(await assetRepository.findBySha256(tenant, HASH)).toBeNull()
+  })
+
+  it("does not find another tenant's", async () => {
+    const mine = await scoped()
+    const theirs = await scoped()
+
+    await assetRepository.create(mine, upload())
+
+    expect(await assetRepository.findBySha256(theirs, HASH)).toBeNull()
+  })
+
+  it("does not find one that was deleted", async () => {
+    // Which is what makes re-uploading deleted bytes reach `create`, where it
+    // is restored rather than reported as already present.
+    const tenant = await scoped()
+    const { asset } = await assetRepository.create(tenant, upload())
+
+    await prisma.asset.update({ where: { id: asset.id }, data: { deletedAt: new Date() } })
+
+    expect(await assetRepository.findBySha256(tenant, HASH)).toBeNull()
+  })
+})
+
+describe("bytes a tenant holds", () => {
+  beforeEach(truncateAll)
+
+  it("is nothing before anything is uploaded", async () => {
+    const tenant = await scoped()
+
+    expect(await assetRepository.storageUsed(tenant)).toBe(0)
+  })
+
+  it("counts the master and every rendition", async () => {
+    /*
+     * A ten-megabyte photograph occupies more than ten megabytes once it has
+     * been written at three widths in two formats. A quota ignoring them would
+     * under-report every image in the account.
+     */
+    const tenant = await scoped()
+
+    await assetRepository.create(
+      tenant,
+      upload({
+        sizeBytes: 1_000,
+        renditions: [THUMBNAIL, { ...THUMBNAIL, format: "avif", sizeBytes: 2_500 }],
+      }),
+    )
+
+    expect(await assetRepository.storageUsed(tenant)).toBe(1_000 + 4_100 + 2_500)
+  })
+
+  it("counts an asset with no renditions", async () => {
+    const tenant = await scoped()
+
+    await assetRepository.create(tenant, upload({ sizeBytes: 900, renditions: [] }))
+
+    expect(await assetRepository.storageUsed(tenant)).toBe(900)
+  })
+
+  it("counts every project the tenant owns, not just one", async () => {
+    /*
+     * `storageBytes` is a plan limit and a plan belongs to a person. Summed
+     * per project, somebody with five projects would get five times their
+     * allowance.
+     */
+    const { userId } = await createTenant()
+    const one = { userId, projectId: await project(userId) }
+    const two = { userId, projectId: await project(userId) }
+
+    await assetRepository.create(one, upload({ sizeBytes: 100, renditions: [] }))
+    await assetRepository.create(two, upload({ sizeBytes: 250, renditions: [] }))
+
+    expect(await assetRepository.storageUsed({ userId })).toBe(350)
+  })
+
+  it("counts nobody else's", async () => {
+    const mine = await scoped()
+    const theirs = await scoped()
+
+    await assetRepository.create(theirs, upload({ sizeBytes: 5_000, renditions: [] }))
+
+    expect(await assetRepository.storageUsed(mine)).toBe(0)
+  })
+
+  it("stops counting what was deleted", async () => {
+    const tenant = await scoped()
+    const { asset } = await assetRepository.create(
+      tenant,
+      upload({ sizeBytes: 700, renditions: [] }),
+    )
+
+    expect(await assetRepository.storageUsed(tenant)).toBe(700)
+
+    await prisma.asset.update({ where: { id: asset.id }, data: { deletedAt: new Date() } })
+
+    expect(await assetRepository.storageUsed(tenant)).toBe(0)
+  })
+
+  it("stops counting a project that was deleted", async () => {
+    const tenant = await scoped()
+
+    await assetRepository.create(tenant, upload({ sizeBytes: 700, renditions: [] }))
+
+    await prisma.project.update({
+      where: { id: tenant.projectId },
+      data: { deletedAt: new Date() },
+    })
+
+    expect(await assetRepository.storageUsed(tenant)).toBe(0)
+  })
+})
+
 describe("a renditions column this release cannot read", () => {
   beforeEach(truncateAll)
 

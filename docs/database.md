@@ -359,6 +359,14 @@ column's shape, so a row written by an older release is something to notice
 rather than trust. A row whose list does not parse raises rather than reporting
 no renditions, which would show up as a slow page instead of a bug.
 
+Bytes held are summed across every project an account owns, not per project:
+`storageBytes` is a plan limit and a plan belongs to a person, so summing per
+project would give somebody with five projects five times their allowance.
+Renditions are included — a ten-megabyte photograph occupies more than ten
+megabytes once it has been written at three widths in two formats — and the sum
+is done in SQL, because an account near a twenty-gigabyte ceiling has a great
+many rows to add up.
+
 The set is recorded and not inferred, because it depends on the master: a logo
 narrower than a thumbnail has none, and an animated one has no AVIF. What is
 _not_ recorded is where each file lives — a rendition's key is a function of the
