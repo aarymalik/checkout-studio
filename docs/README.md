@@ -335,7 +335,7 @@ Reading upward from any document gives you its prerequisites.
       schema · types · utils · observability
                 │
                 ▼
-       PostgreSQL · Redis · Stripe · Resend · UploadThing
+       PostgreSQL · Redis · Stripe · Resend · S3-compatible storage
 ```
 
 ## Data Flow — Editing
@@ -596,29 +596,29 @@ Where a concept is defined, and where it is used.
 
 Decisions already made. Changing any of them requires an RFC, per [contributing.md](./contributing.md).
 
-| Decision               | Choice                    | Why                                                  |
-| ---------------------- | ------------------------- | ---------------------------------------------------- |
-| Framework              | Next.js App Router        | SSR, streaming, route handlers, Vercel               |
-| Language               | TypeScript, strict        | Correctness at scale                                 |
-| Monorepo               | Turborepo + pnpm          | Caching, boundaries, workspace linking               |
-| Editor state           | Zustand + Immer           | Fine-grained subscriptions, minimal re-renders       |
-| Drag & drop            | dnd-kit                   | Accessible, keyboard-capable, composable             |
-| Forms                  | React Hook Form + Zod     | Uncontrolled performance, shared schemas             |
-| Styling                | Tailwind + design tokens  | Consistency, no stylesheet sprawl                    |
-| UI base                | shadcn/ui                 | Owned code, not a dependency                         |
-| Icons                  | Lucide, only              | One visual language                                  |
-| Animation              | Framer Motion             | Declarative, interruptible                           |
-| ORM                    | Prisma                    | Type safety, migrations                              |
-| Database               | PostgreSQL                | JSONB for schemas, relational for the rest           |
-| Auth                   | Ours                      | Owned outright; see security.md for what that costs  |
-| Payments (merchants)   | Stripe Connect Standard   | Direct charges; we never hold merchant keys or funds |
-| Payments (our billing) | Stripe Billing + Checkout | We never build a card form                           |
-| Cache                  | Upstash Redis             | Serverless-friendly                                  |
-| Storage                | UploadThing               | Managed uploads and optimization                     |
-| Testing                | Vitest, RTL, Playwright   | Speed, realism, accessibility support                |
-| Errors                 | Sentry                    | Correlation with releases                            |
-| Analytics              | PostHog                   | Product funnels and feature flags                    |
-| Hosting                | Vercel                    | Edge, preview deploys, remote cache                  |
+| Decision               | Choice                     | Why                                                  |
+| ---------------------- | -------------------------- | ---------------------------------------------------- |
+| Framework              | Next.js App Router         | SSR, streaming, route handlers, Vercel               |
+| Language               | TypeScript, strict         | Correctness at scale                                 |
+| Monorepo               | Turborepo + pnpm           | Caching, boundaries, workspace linking               |
+| Editor state           | Zustand + Immer            | Fine-grained subscriptions, minimal re-renders       |
+| Drag & drop            | dnd-kit                    | Accessible, keyboard-capable, composable             |
+| Forms                  | React Hook Form + Zod      | Uncontrolled performance, shared schemas             |
+| Styling                | Tailwind + design tokens   | Consistency, no stylesheet sprawl                    |
+| UI base                | shadcn/ui                  | Owned code, not a dependency                         |
+| Icons                  | Lucide, only               | One visual language                                  |
+| Animation              | Framer Motion              | Declarative, interruptible                           |
+| ORM                    | Prisma                     | Type safety, migrations                              |
+| Database               | PostgreSQL                 | JSONB for schemas, relational for the rest           |
+| Auth                   | Ours                       | Owned outright; see security.md for what that costs  |
+| Payments (merchants)   | Stripe Connect Standard    | Direct charges; we never hold merchant keys or funds |
+| Payments (our billing) | Stripe Billing + Checkout  | We never build a card form                           |
+| Cache                  | Upstash Redis              | Serverless-friendly                                  |
+| Storage                | S3-compatible object store | The one API every self-hostable store speaks         |
+| Testing                | Vitest, RTL, Playwright    | Speed, realism, accessibility support                |
+| Errors                 | Sentry                     | Correlation with releases                            |
+| Analytics              | PostHog                    | Product funnels and feature flags                    |
+| Hosting                | Vercel                     | Edge, preview deploys, remote cache                  |
 
 ---
 

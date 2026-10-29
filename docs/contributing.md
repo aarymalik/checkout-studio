@@ -193,8 +193,12 @@ EMAIL_FROM                        The address verification mail comes from
 STRIPE_SECRET_KEY                 Test mode only (sk_test_…)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 STRIPE_WEBHOOK_SECRET             From `stripe listen`
-UPLOADTHING_SECRET
-UPLOADTHING_APP_ID
+S3_ENDPOINT                       Local MinIO, or any S3-compatible store
+S3_REGION
+S3_BUCKET
+S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY
+ASSET_BASE_URL                    Where a browser fetches an asset from
 ```
 
 Rules
@@ -220,6 +224,26 @@ Test cards
 ```
 
 Webhook signature verification is enabled locally. Testing against a bypassed verifier means the production path is untested.
+
+## Storage Locally
+
+Asset bytes go to an object store over the S3 API. That is not a choice of
+vendor — it is the one API every self-hostable store speaks — so locally the
+store is one you run:
+
+```bash
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address :9001
+```
+
+Then create the bucket named by `S3_BUCKET`, from the console on port 9001 or
+with `mc`. Garage, SeaweedFS and a hosted bucket all work the same way: the
+five `S3_*` variables and `ASSET_BASE_URL` are the whole contract.
+
+Addressing is path style — the bucket goes in the path rather than the
+hostname — so a local store needs no wildcard DNS and no certificate per
+bucket.
 
 ## Verifying Setup
 

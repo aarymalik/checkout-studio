@@ -124,6 +124,8 @@ export type {
   RasterSourceResult,
 } from "./services/assets/raster"
 export { masterKey, renditionKey } from "./services/assets/keys"
+export { recordingStore, s3Store } from "./services/assets/store"
+export type { ObjectStore, S3Config, StoredObject } from "./services/assets/store"
 export { deriveRenditions } from "./services/assets/renditions"
 export type { Rendition, RenditionsResult } from "./services/assets/renditions"
 export { sanitizeSvg } from "./services/assets/svg"

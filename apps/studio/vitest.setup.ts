@@ -22,8 +22,12 @@ Object.assign(process.env, {
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_stripe",
   STRIPE_WEBHOOK_SECRET: "whsec_test",
   STRIPE_WEBHOOK_SECRET_BILLING: "whsec_test_billing",
-  UPLOADTHING_SECRET: "ut_test",
-  UPLOADTHING_APP_ID: "ut_app",
+  S3_ENDPOINT: "http://localhost:9000",
+  S3_REGION: "us-east-1",
+  S3_BUCKET: "checkout-assets",
+  S3_ACCESS_KEY_ID: "test",
+  S3_SECRET_ACCESS_KEY: "test",
+  ASSET_BASE_URL: "http://localhost:9000/checkout-assets",
 })
 
 /**

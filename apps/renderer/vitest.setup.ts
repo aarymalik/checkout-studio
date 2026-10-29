@@ -18,6 +18,4 @@ Object.assign(process.env, {
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_stripe",
   STRIPE_WEBHOOK_SECRET: "whsec_test",
   STRIPE_WEBHOOK_SECRET_BILLING: "whsec_test_billing",
-  UPLOADTHING_SECRET: "ut_test",
-  UPLOADTHING_APP_ID: "ut_app",
 })

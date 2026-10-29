@@ -134,7 +134,7 @@ A clean monorepo with shared packages and development tooling.
 - Prisma
 - Authentication
 - Redis
-- UploadThing
+- Object storage
 - Environment Configuration
 - Logging
 - Error Handling
