@@ -33,6 +33,7 @@ function asset(index: number): LibraryAsset {
     id: `ast_${index}`,
     fileName: `picture-${index}.png`,
     mimeType: "image/png",
+    kind: "image",
     sizeBytes: 12_000 + index,
     width: 1200,
     height: 800,
@@ -150,7 +151,7 @@ describe("the grid", () => {
   })
 
   it("shows what a file is when there is no picture of it", async () => {
-    renderPanel([{ ...asset(0), mimeType: "font/woff2", fileName: "brand.woff2" }])
+    renderPanel([{ ...asset(0), mimeType: "font/woff2", kind: "font", fileName: "brand.woff2" }])
 
     expect(await screen.findByText("WOFF")).toBeInTheDocument()
   })
@@ -193,6 +194,11 @@ describe("the keyboard", () => {
   it("stays put at the end rather than wrapping to the start", async () => {
     renderPanel()
 
+    // Awaited, because the measured width arrives in an effect and the cells
+    // are rebuilt when it does. A node held from before that is a node the
+    // grid has already replaced.
+    await screen.findByRole("grid", { name: "Assets" })
+
     const last = screen.getByRole("button", { name: /picture-2/ })
 
     last.focus()
@@ -203,6 +209,8 @@ describe("the keyboard", () => {
 
   it("selects the focused cell with Enter", async () => {
     renderPanel()
+
+    await screen.findByRole("grid", { name: "Assets" })
 
     const second = screen.getByRole("button", { name: /picture-1/ })
 
@@ -219,6 +227,7 @@ describe("the asset somebody chose", () => {
   it("shows its shape, its size and its type", async () => {
     renderPanel()
 
+    await screen.findByRole("grid", { name: "Assets" })
     await userEvent.click(screen.getByRole("button", { name: /picture-1/ }))
 
     expect(await screen.findByText(/1200×800/)).toHaveTextContent("12 KB")
@@ -232,6 +241,7 @@ describe("the asset somebody chose", () => {
 
     renderPanel()
 
+    await screen.findByRole("grid", { name: "Assets" })
     await userEvent.click(screen.getByRole("button", { name: /picture-1/ }))
     await userEvent.click(screen.getByRole("button", { name: "Copy URL" }))
 
@@ -309,6 +319,128 @@ describe("uploading", () => {
   })
 })
 
+describe("narrowing the library", () => {
+  const MIXED = [
+    { ...asset(0), id: "ast_hero", fileName: "hero-banner.png" },
+    {
+      ...asset(1),
+      id: "ast_logo",
+      fileName: "Logo.svg",
+      mimeType: "image/svg+xml",
+      kind: "vector" as const,
+    },
+    {
+      ...asset(2),
+      id: "ast_font",
+      fileName: "brand.woff2",
+      mimeType: "font/woff2",
+      kind: "font" as const,
+    },
+  ]
+
+  it("shows only what the search matches", async () => {
+    renderPanel(MIXED)
+
+    await userEvent.type(screen.getByLabelText("Search assets"), "banner")
+
+    const grid = await screen.findByRole("grid", { name: "Assets" })
+
+    expect(within(grid).getAllByRole("gridcell")).toHaveLength(1)
+    expect(within(grid).getByText("hero-banner.png")).toBeInTheDocument()
+  })
+
+  it("tells a screen reader the size of what is shown, not of the library", async () => {
+    renderPanel(MIXED)
+
+    await userEvent.type(screen.getByLabelText("Search assets"), "banner")
+
+    await waitFor(() => {
+      expect(screen.getByRole("grid", { name: "Assets" })).toHaveAttribute("aria-rowcount", "1")
+    })
+  })
+
+  it("offers only the kinds that are there, with how many", async () => {
+    // A library of logos should not offer to show the videos in it.
+    renderPanel(MIXED)
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Filter by kind" }))
+
+    expect(await screen.findByRole("option", { name: "All (3)" })).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "Images (1)" })).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "Drawings (1)" })).toBeInTheDocument()
+    expect(screen.queryByRole("option", { name: /Video/ })).not.toBeInTheDocument()
+  })
+
+  it("shows one kind when one is chosen", async () => {
+    renderPanel(MIXED)
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Filter by kind" }))
+    await userEvent.click(await screen.findByRole("option", { name: "Fonts (1)" }))
+
+    const grid = await screen.findByRole("grid", { name: "Assets" })
+
+    await waitFor(() => {
+      expect(within(grid).getAllByRole("gridcell")).toHaveLength(1)
+    })
+
+    expect(within(grid).getByText("brand.woff2")).toBeInTheDocument()
+  })
+
+  it("reorders without dropping anything", async () => {
+    renderPanel(MIXED)
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Sort by" }))
+    await userEvent.click(await screen.findByRole("option", { name: "Name" }))
+
+    const grid = await screen.findByRole("grid", { name: "Assets" })
+
+    await waitFor(() => {
+      expect(within(grid).getAllByRole("gridcell")).toHaveLength(3)
+    })
+
+    // The filename's own element, not the cell's text — a file with no picture
+    // of it also shows what it is, and "WOFFbrand.woff2" is not a name.
+    const names = within(grid)
+      .getAllByText(/\.(png|svg|woff2)$/)
+      .map((label) => label.textContent)
+
+    expect(names).toEqual(["brand.woff2", "hero-banner.png", "Logo.svg"])
+  })
+
+  it("says so when nothing matches, rather than showing an empty grid", async () => {
+    renderPanel(MIXED)
+
+    await userEvent.type(screen.getByLabelText("Search assets"), "nowhere")
+
+    expect(await screen.findByText("Nothing matches")).toBeInTheDocument()
+    expect(screen.queryByRole("grid")).not.toBeInTheDocument()
+  })
+
+  it("keeps showing the asset somebody was reading about", async () => {
+    /*
+     * The details come from the whole library rather than from what is shown,
+     * so typing in the search box does not pull the panel out from under
+     * somebody who was looking at one asset.
+     */
+    renderPanel(MIXED)
+
+    await screen.findByRole("grid", { name: "Assets" })
+    await userEvent.click(screen.getByRole("button", { name: /brand.woff2/ }))
+    await userEvent.type(screen.getByLabelText("Search assets"), "banner")
+
+    await screen.findByText("hero-banner.png")
+
+    expect(screen.getByRole("button", { name: "Copy URL" })).toBeInTheDocument()
+  })
+
+  it("has no violations with the controls shown", async () => {
+    const { container } = renderPanel(MIXED)
+
+    await screen.findByRole("grid", { name: "Assets" })
+    await expectNoViolations(container)
+  })
+})
+
 describe("a library with nothing in it", () => {
   it("says so, and still offers the way to fill it", async () => {
     renderPanel([])
@@ -316,6 +448,9 @@ describe("a library with nothing in it", () => {
     expect(screen.getByText("No assets yet")).toBeInTheDocument()
     expect(screen.getByLabelText(/Upload files/)).toBeInTheDocument()
     expect(screen.queryByRole("grid")).not.toBeInTheDocument()
+
+    // Nothing to narrow, so nothing to narrow it with.
+    expect(screen.queryByLabelText("Search assets")).not.toBeInTheDocument()
   })
 })
 

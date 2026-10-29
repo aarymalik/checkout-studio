@@ -2,6 +2,8 @@ import "server-only"
 
 import { RENDITION_SIZES } from "@checkout-studio/schema"
 import type { StoredAsset } from "@checkout-studio/database"
+import { kindForMimeType } from "@checkout-studio/utils"
+import type { UploadKind } from "@checkout-studio/utils"
 
 import { renditionKey } from "./keys"
 import type { ObjectStore } from "./store"
@@ -22,6 +24,15 @@ export interface LibraryAsset {
   id: string
   fileName: string
   mimeType: string
+  /**
+   * The group this belongs to, for filtering by.
+   *
+   * Resolved here rather than in the browser, from the same table the
+   * signatures are in, so a library's filter cannot disagree with the ceilings.
+   * Null only for a stored type this release no longer permits, which is a row
+   * from an older one rather than anything a merchant can make.
+   */
+  kind: UploadKind | null
   sizeBytes: number
   width: number | null
   height: number | null
@@ -44,6 +55,7 @@ export function libraryAsset(asset: StoredAsset, store: ObjectStore): LibraryAss
     id: asset.id,
     fileName: asset.fileName,
     mimeType: asset.mimeType,
+    kind: kindForMimeType(asset.mimeType),
     sizeBytes: asset.sizeBytes,
     width: asset.width,
     height: asset.height,

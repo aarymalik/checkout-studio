@@ -181,6 +181,25 @@ function matches(bytes: Uint8Array, signature: Signature): boolean {
 }
 
 /**
+ * The kind a media type belongs to, or null if it is not one we permit.
+ *
+ * Read from the same table the signatures are, so the grouping a merchant
+ * filters a library by cannot drift from the grouping the size ceilings are
+ * written against.
+ *
+ * It takes a media type rather than bytes because by the time anything asks
+ * this, the type is the one a signature matched and was recorded against the
+ * asset — not a value a request supplied. Asking it of an arbitrary string
+ * would be asking the wrong question; asking it of a stored asset's own type
+ * is asking what we already decided.
+ */
+export function kindForMimeType(mimeType: string): UploadKind | null {
+  if (mimeType === SVG_TYPE.mimeType) return "vector"
+
+  return CANDIDATES.find((candidate) => candidate.mimeType === mimeType)?.kind ?? null
+}
+
+/**
  * The type these bytes are, or null if they are not a permitted one.
  *
  * SVG is not here. It carries no signature — it is XML, and an XML document
@@ -198,7 +217,7 @@ export function signatureOf(bytes: Uint8Array): UploadType | null {
   return { kind: found.kind, mimeType: found.mimeType, extension: found.extension }
 }
 
-/** What an SVG would be recorded as, once there is something to sanitize one. */
+/** What an SVG is recorded as, once the sanitizer has rewritten it. */
 export const SVG_TYPE: UploadType = {
   kind: "vector",
   mimeType: "image/svg+xml",
