@@ -177,6 +177,63 @@ export const assetRepository = {
     }
   },
 
+  /**
+   * The asset these bytes already are, if the project has it.
+   *
+   * `create` does not need this — it inserts and lets the unique index answer
+   * — but an upload does, and for a different reason: knowing the answer early
+   * saves deriving renditions for a picture already stored, and saves charging
+   * a quota for bytes that will not be written.
+   */
+  async findBySha256(tenant: TenantContext, sha256: string): Promise<StoredAsset | null> {
+    const projectId = requireProject(tenant, "Asset")
+
+    const row = await prisma.asset.findFirst({
+      where: { projectId, sha256, ...ownedBy(tenant) },
+      select: COLUMNS,
+    })
+
+    return row === null ? null : present(row)
+  },
+
+  /**
+   * Bytes this tenant holds, across every project they own.
+   *
+   * Across *every* project, because `storageBytes` is a plan limit and a plan
+   * belongs to a person. Summed per project, somebody with five projects would
+   * get five times their allowance.
+   *
+   * Renditions count. A ten-megabyte photograph occupies more than ten
+   * megabytes once it has been written at three widths in two formats, and a
+   * quota that ignored them would under-report every image in the account.
+   * They are summed in SQL rather than by reading every row into memory: an
+   * account near a twenty-gigabyte ceiling has a great many of them.
+   */
+  async storageUsed(tenant: TenantContext): Promise<number> {
+    const rows = await prisma.$queryRaw<{ total: bigint | null }[]>`
+      SELECT SUM(
+        "Asset"."sizeBytes"
+        + COALESCE((
+          SELECT SUM((rendition->>'sizeBytes')::bigint)
+          FROM jsonb_array_elements("Asset"."renditions") AS rendition
+        ), 0)
+      ) AS total
+      FROM "Asset"
+      JOIN "Project" ON "Project"."id" = "Asset"."projectId"
+      WHERE "Project"."userId" = ${tenant.userId}
+        AND "Project"."deletedAt" IS NULL
+        AND "Asset"."deletedAt" IS NULL
+    `
+
+    /*
+     * `SUM` over no rows is null, which is zero bytes rather than an absence.
+     * A bigint because the ceiling is measured in gigabytes and the sum is of
+     * every file in an account; it is narrowed on the way out, where the
+     * number is compared against a plan limit that is an ordinary number.
+     */
+    return Number(rows[0]?.total ?? 0n)
+  },
+
   async findById(tenant: TenantContext, id: string): Promise<StoredAsset | null> {
     const row = await prisma.asset.findFirst({
       where: { id, ...ownedBy(tenant) },

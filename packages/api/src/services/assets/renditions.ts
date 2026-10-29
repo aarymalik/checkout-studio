@@ -67,7 +67,21 @@ export interface Rendition {
   bytes: Uint8Array
 }
 
-export type RenditionsResult = { ok: true; renditions: readonly Rendition[] } | RasterRefused
+export interface Derived {
+  ok: true
+  /**
+   * The master's own dimensions, as displayed.
+   *
+   * Reported here because reading them is the first thing deriving does, and
+   * the alternative is the caller decoding the same file a second time to
+   * write them onto the asset row.
+   */
+  width: number
+  height: number
+  renditions: readonly Rendition[]
+}
+
+export type RenditionsResult = Derived | RasterRefused
 
 /**
  * Every rendition a master earns, in the order they should be offered.
@@ -91,7 +105,7 @@ export async function deriveRenditions(
 
   if (!opened.ok) return opened
 
-  const { image, width, pages } = opened.source
+  const { image, width, height, pages } = opened.source
   const formats: readonly RenditionFormat[] = pages > 1 ? ["webp"] : ["webp", "avif"]
   const renditions: Rendition[] = []
 
@@ -129,5 +143,34 @@ export async function deriveRenditions(
     return { ok: false, reason: "unreadable" }
   }
 
-  return { ok: true, renditions }
+  return { ok: true, width, height, renditions }
+}
+
+/**
+ * The renditions of a master this server wrote.
+ *
+ * The same work, with no refusal to answer — because a caller holding a master
+ * has already had every answer `deriveRenditions` could give. The bytes came
+ * from `reencodeRaster`, which decoded them with this library under this same
+ * ceiling, and the decision about which types are decoded at all is
+ * `rasterEncoder`'s, asked once and relied on by both.
+ *
+ * It throws if that stops being true, which would be those modules having come
+ * apart rather than anything a merchant did — and the alternative is every
+ * caller carrying a branch for a refusal that cannot arrive, which is a branch
+ * no test can reach and therefore a branch nobody should write.
+ */
+export async function renditionsOfMaster(
+  master: Uint8Array,
+  maxPixels: number = MAX_PIXELS,
+): Promise<Derived> {
+  const derived = await deriveRenditions(master, maxPixels)
+
+  if (!derived.ok) {
+    throw new Error(
+      `A master could not be derived from, which should not be possible: ${derived.reason}.`,
+    )
+  }
+
+  return derived
 }

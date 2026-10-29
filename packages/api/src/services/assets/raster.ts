@@ -115,8 +115,9 @@ export function rasterEncoder(mimeType: string): RasterEncoder | null {
 export interface RasterSource {
   /** Opened with the pixel ceiling enforced, so reading from it is bounded. */
   image: Sharp
-  /** One frame's width, for an animation. The height depends on what is asked for. */
+  /** One frame's, for an animation, rather than the whole strip's. */
   width: number
+  height: number
   /** 1 for a still image. */
   pages: number
 }
@@ -166,7 +167,7 @@ export async function openRaster(
      * dimensions and not the image, so reading one costs nothing, and with
      * `animated: true` the height spans every frame.
      */
-    const { width, height, pages } = await open(false).metadata()
+    const { width, height, pages, pageHeight } = await open(false).metadata()
 
     if (width * height > maxPixels) return { ok: false, reason: "too-many-pixels" }
 
@@ -180,6 +181,9 @@ export async function openRaster(
          */
         image: open(maxPixels),
         width,
+        // `height` spans every frame when there is more than one; a frame's
+        // height is what the picture is, and what an `<img>` is written from.
+        height: pageHeight ?? height,
         pages: pages ?? 1,
       },
     }

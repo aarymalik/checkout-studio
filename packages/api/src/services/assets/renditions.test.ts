@@ -7,7 +7,12 @@ import type { Sharp } from "sharp"
 import { describe, expect, it } from "vitest"
 
 import { reencodeRaster, rasterEncoder } from "./raster"
-import { deriveRenditions, type Rendition, type RenditionsResult } from "./renditions"
+import {
+  deriveRenditions,
+  renditionsOfMaster,
+  type Rendition,
+  type RenditionsResult,
+} from "./renditions"
 
 /**
  * The sizes and formats a stored image is served as.
@@ -345,5 +350,35 @@ describe("bytes that are not the master we stored", () => {
     expect(result.ok).toBe(false)
     if (result.ok) return
     expect(result.reason).toBe("too-many-pixels")
+  })
+})
+
+describe("deriving from a master, where refusing is not an answer", () => {
+  it("gives the same renditions the refusing form does", async () => {
+    const bytes = await master(1200, 300)
+
+    const direct = made(await deriveRenditions(bytes))
+    const assured = await renditionsOfMaster(bytes)
+
+    expect(named(assured.renditions)).toEqual(named(direct))
+    expect([assured.width, assured.height]).toEqual([1200, 300])
+  })
+
+  it("throws when its one assumption turns out to be false", async () => {
+    /*
+     * Unreachable from the upload pipeline, which only ever hands it bytes
+     * `reencodeRaster` just wrote. Reachable here, because the assumption is
+     * worth stating out loud: a caller that breaks it finds out immediately
+     * rather than storing an image with no renditions and no explanation.
+     */
+    await expect(
+      renditionsOfMaster(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])),
+    ).rejects.toThrow(/should not be possible: unreadable/)
+  })
+
+  it("throws rather than quietly deriving nothing when the ceiling is too low", async () => {
+    await expect(renditionsOfMaster(await master(1200, 300), 1_000)).rejects.toThrow(
+      /should not be possible: too-many-pixels/,
+    )
   })
 })

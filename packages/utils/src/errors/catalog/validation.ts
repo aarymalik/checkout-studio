@@ -37,4 +37,25 @@ export const validationErrors = {
       status: 422,
       context: { bytes, maxBytes },
     }),
+
+  /**
+   * An upload the asset pipeline would not store, for a reason of its own.
+   *
+   * One entry rather than nine, because the nine differ only in the sentence
+   * shown — and a catalog that gained an entry every time the sanitizer
+   * learned a new way to say no would be a catalog nobody reads. The reason is
+   * carried in the context so a log says which, and `userMessage` is the part
+   * a merchant can act on.
+   */
+  uploadRejected: (reason: string, userMessage: string) =>
+    createError({
+      code: "UPLOAD_REJECTED",
+      domain: "validation",
+      severity: "error",
+      recoverability: "user-retryable",
+      message: `Rejected upload: ${reason}`,
+      userMessage,
+      status: 422,
+      context: { reason },
+    }),
 } as const

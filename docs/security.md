@@ -526,6 +526,33 @@ sees the name they chose or an error and never a third thing we invented. It
 matters less than it looks — the stored object's key comes from the content hash
 — but the name is shown to people and read later by code nobody has written yet.
 
+**The order of the pipeline is part of the defence.** An upload is refused
+before any work is done on it; the bytes that will be stored are decided next;
+then the project is asked whether it already has them, which ends the upload
+with no derivation, no write and no quota charged, because uploading a picture
+that is already there costs nothing. The plan's ceiling is checked twice — once
+against the master, cheaply, so an upload that cannot fit is refused before
+seconds of encoding, and once against the exact total, so what is counted is
+what is stored.
+
+**Bytes are written before the row.** A row written first and a store that then
+refuses leaves a record pointing at nothing, which is a broken image on a page
+that takes card details and no way to tell which records are the broken ones.
+The other way round leaves content-addressed rubbish a sweep can collect, and a
+merchant's retry writes the same keys again harmlessly.
+
+**A drawing is never handed to the image decoder.** An SVG is already every
+size, so there is nothing to derive from it — and deriving would rasterize it
+through the librsvg that libvips bundles, which is where the advisory behind the
+`sharp` override lives. Which types are decoded at all is one list, asked by one
+function, so the question is never answered twice.
+
+**Storage is metered per person, not per project.** A plan's `storageBytes`
+belongs to an account, so the bytes it already holds are summed across every
+project it owns — summed per project, somebody with five projects would get five
+times their allowance. Renditions count: a ten-megabyte photograph occupies more
+than ten megabytes once it has been written at three widths in two formats.
+
 **Identical bytes are stored once.** The sha256 of the content is the
 deduplication key, and `Asset` is unique on `(projectId, sha256)`. For a type
 that gets rewritten the hash is of the stored file, not of the upload — so two
