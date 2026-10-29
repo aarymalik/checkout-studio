@@ -1,6 +1,5 @@
 import { authenticate, route, s3Store, storeUpload, uploadRefusalError } from "@checkout-studio/api"
 import type { ObjectStore } from "@checkout-studio/api"
-import { assetRepository } from "@checkout-studio/database"
 import { DEFAULT_LIMITS, Errors } from "@checkout-studio/utils"
 
 import { getEnv } from "@/env"
@@ -45,12 +44,6 @@ function store(): ObjectStore {
     publicUrl: env.ASSET_BASE_URL,
   })
 }
-
-export const GET = route({ authenticate }, async ({ params, userId }) => {
-  const assets = await assetRepository.list({ userId, projectId: idOf(params) })
-
-  return { assets }
-})
 
 export const POST = route(
   {

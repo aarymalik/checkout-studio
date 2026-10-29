@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation"
-import { listPages, readDraft, resolveTheme } from "@checkout-studio/api"
-import { preferenceRepository, projectRepository } from "@checkout-studio/database"
+import { libraryAsset, listPages, readDraft, resolveTheme, s3Store } from "@checkout-studio/api"
+import { assetRepository, preferenceRepository, projectRepository } from "@checkout-studio/database"
 import { normalizeKeymap, normalizeLayout } from "@checkout-studio/editor"
 
+import { AssetsPanel } from "@/studio/assets/AssetsPanel"
 import { PagesPanel } from "@/studio/PagesPanel"
 import { StudioShell } from "@/studio/StudioShell"
+import { getEnv } from "@/env"
 import { requestPlatform } from "@/lib/platform"
 import { requireSession } from "@/lib/session"
 
@@ -28,11 +30,12 @@ export default async function ProjectPage({
   const session = await requireSession(`/projects/${projectId}`)
   const tenant = { userId: session.userId, projectId }
 
-  const [project, preferences, platform, pages] = await Promise.all([
+  const [project, preferences, platform, pages, assets] = await Promise.all([
     projectRepository.findById(tenant, projectId),
     preferenceRepository.all(tenant),
     requestPlatform(),
     listPages(tenant),
+    assetRepository.list(tenant),
   ])
 
   // A project belonging to somebody else answers the same way as one that never
@@ -78,6 +81,7 @@ export default async function ProjectPage({
       platform={platform}
       page={page}
       panels={{
+        assets: <AssetsPanel projectId={projectId} assets={forLibrary(assets)} />,
         pages: (
           <PagesPanel
             projectId={projectId}
@@ -94,6 +98,31 @@ export default async function ProjectPage({
       }}
     />
   )
+}
+
+/**
+ * The assets as the library needs them.
+ *
+ * The store is built here because turning a key into a URL is its job and its
+ * configuration is the environment's. Built once rather than per asset: a
+ * project with a thousand of them would otherwise construct a thousand
+ * signing clients to ask a thousand questions about string concatenation.
+ *
+ * What crosses to the browser is the projection, with no behaviour and no
+ * storage key in it.
+ */
+function forLibrary(assets: readonly Parameters<typeof libraryAsset>[0][]) {
+  const env = getEnv()
+  const store = s3Store({
+    endpoint: env.S3_ENDPOINT,
+    region: env.S3_REGION,
+    bucket: env.S3_BUCKET,
+    accessKeyId: env.S3_ACCESS_KEY_ID,
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    publicUrl: env.ASSET_BASE_URL,
+  })
+
+  return assets.map((asset) => libraryAsset(asset, store))
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }) {
