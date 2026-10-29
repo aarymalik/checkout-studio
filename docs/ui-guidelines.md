@@ -125,6 +125,18 @@ is the picture. Columns come from the panel's measured width rather than a
 breakpoint — the panel is a width the reader is dragging — and a cell never goes
 below 96px, which is where a logo stops being a logo and becomes a smudge.
 
+Above the grid are three controls in two rows, because three across a
+280-pixel panel leaves each too narrow to read. Search takes the full width,
+since what is typed is longer than what is chosen. Searching is a substring of
+the filename and not the fuzzy match the command palette uses: a palette is
+launched, a file list is scanned, and two letters matching half the library is
+not a search. The sort control therefore keeps meaning what it says — fuzzy
+matching comes with a relevance order, and an order that quietly replaces the
+one a merchant chose is the kind of helpfulness nobody asked for.
+
+The filter offers only the kinds that are there, with counts. A library of
+logos should not offer to show the videos in it.
+
 It virtualizes, like Layers: a thousand assets is the target in
 [phases.md](./phases.md), and a thousand thumbnails in the DOM is a thousand
 image requests. The grid carries its row and column counts for a screen reader,

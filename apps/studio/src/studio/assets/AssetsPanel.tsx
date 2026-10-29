@@ -11,6 +11,8 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 import { upload } from "@/lib/api-client"
 
 import { CELL_GAP, cellAt, gridMetrics, gridWindow, neighbour } from "./grid"
+import { LibraryControls } from "./LibraryControls"
+import { EVERYTHING, kindCounts, selectAssets, type Selection } from "./select"
 import { UploadZone } from "./UploadZone"
 
 /**
@@ -24,6 +26,13 @@ import { UploadZone } from "./UploadZone"
  * height, so the scrollbar still tells the truth. `grid.ts` has the
  * arithmetic, and it is the layers panel's windowing with the cells divided
  * into rows first.
+ *
+ * ## Narrowing happens here, not on the server
+ *
+ * The list is already in the browser, so searching it is a filter rather than
+ * a round trip. `select.ts` has that, and is separate for the reason `grid.ts`
+ * is: what matters about a library of a thousand things is what happens at a
+ * thousand, and that cannot be checked by rendering.
  *
  * ## The list is the server's
  *
@@ -62,6 +71,7 @@ const ACCEPT = [
 
 export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const router = useRouter()
+  const [selection, setSelection] = useState<Selection>(EVERYTHING)
   const viewport = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [scrollTop, setScrollTop] = useState(0)
@@ -70,6 +80,22 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const [sending, setSending] = useState<{ done: number; total: number } | null>(null)
   const [problems, setProblems] = useState<readonly string[]>([])
   const [copied, setCopied] = useState(false)
+  const frame = useRef<number | null>(null)
+
+  /*
+   * The pending focus frame is cancelled when the panel goes away.
+   *
+   * Without this a frame scheduled by the last arrow key outlives the
+   * component and focuses whatever is at that position in whatever replaced
+   * it — which is a panel switch pulling focus back out of wherever the reader
+   * just went.
+   */
+  useEffect(
+    () => () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current)
+    },
+    [],
+  )
 
   /*
    * Measured rather than guessed. The panel is a width the reader is dragging,
@@ -92,7 +118,9 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
     return () => observer.disconnect()
   }, [])
 
-  const metrics = useMemo(() => gridMetrics(assets.length, size.width), [assets.length, size.width])
+  const shown = useMemo(() => selectAssets(assets, selection), [assets, selection])
+  const counts = useMemo(() => kindCounts(assets), [assets])
+  const metrics = useMemo(() => gridMetrics(shown.length, size.width), [shown.length, size.width])
   const view = gridWindow(metrics, scrollTop, size.height)
 
   /*
@@ -101,8 +129,8 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
    * on nothing and lose the keyboard.
    */
   useEffect(() => {
-    setFocused((at) => Math.min(at, Math.max(0, assets.length - 1)))
-  }, [assets.length])
+    setFocused((at) => Math.min(at, Math.max(0, shown.length - 1)))
+  }, [shown.length])
 
   const move = useCallback(
     (to: number) => {
@@ -119,9 +147,18 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
 
       if (target !== null) element.scrollTop = target
 
-      // After the scroll, so the cell being focused is one that exists in the
-      // DOM by the time focus is asked for.
-      requestAnimationFrame(() => {
+      /*
+       * After the scroll, so the cell being focused is one that exists in the
+       * DOM by the time focus is asked for: setting `scrollTop` does not
+       * re-render, and the row it scrolled to may not be rendered yet.
+       *
+       * One frame at a time. A held arrow key would otherwise schedule a queue
+       * of them, and the last to run would win rather than the last pressed.
+       */
+      if (frame.current !== null) cancelAnimationFrame(frame.current)
+
+      frame.current = requestAnimationFrame(() => {
+        frame.current = null
         element.querySelector<HTMLButtonElement>(`[data-cell="${to}"]`)?.focus()
       })
     },
@@ -129,7 +166,7 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   )
 
   function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
-    const to = neighbour(metrics, assets.length, focused, event.key)
+    const to = neighbour(metrics, shown.length, focused, event.key)
 
     if (to === null || to === focused) return
 
@@ -164,6 +201,10 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
     if (failures.length < files.length) router.refresh()
   }
 
+  /*
+   * Looked up in the whole library rather than in what is shown, so narrowing
+   * the list does not drop the details of the asset somebody is reading.
+   */
   const chosen = assets.find((asset) => asset.id === selected) ?? null
 
   async function copyUrl(): Promise<void> {
@@ -192,10 +233,24 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
         </Alert>
       )}
 
+      {assets.length > 0 && (
+        <LibraryControls
+          selection={selection}
+          counts={counts}
+          total={assets.length}
+          onChange={setSelection}
+        />
+      )}
+
       {assets.length === 0 ? (
         <EmptyState
           title="No assets yet"
           description="Upload an image, a logo or a font and it will appear here."
+        />
+      ) : shown.length === 0 ? (
+        <EmptyState
+          title="Nothing matches"
+          description="No asset in this project matches what you are looking for."
         />
       ) : (
         <div
@@ -225,7 +280,7 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
                   style={{ height: metrics.rowHeight, gap: CELL_GAP }}
                   className="flex"
                 >
-                  {assets
+                  {shown
                     .slice(row * metrics.columns, row * metrics.columns + metrics.columns)
                     .map((asset, column) => {
                       const index = row * metrics.columns + column

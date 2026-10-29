@@ -46,6 +46,7 @@ describe("what crosses to the browser", () => {
       id: "ast_one",
       fileName: "hero.jpg",
       mimeType: "image/jpeg",
+      kind: "image",
       sizeBytes: 820_000,
       width: 2400,
       height: 1600,
@@ -62,6 +63,19 @@ describe("what crosses to the browser", () => {
 
     expect(projected["storageKey"]).toBeUndefined()
     expect(projected["sha256"]).toBeUndefined()
+  })
+
+  it("names the kind the signature table puts the type in", () => {
+    // So a filter in the browser cannot disagree with the ceilings on the
+    // server about what counts as an image.
+    expect(libraryAsset(asset({ mimeType: "image/svg+xml" }), store).kind).toBe("vector")
+    expect(libraryAsset(asset({ mimeType: "font/woff2" }), store).kind).toBe("font")
+    expect(libraryAsset(asset({ mimeType: "application/pdf" }), store).kind).toBe("document")
+  })
+
+  it("leaves the kind empty for a type this release no longer permits", () => {
+    // A row from an older release. Shown, and not filed under anything.
+    expect(libraryAsset(asset({ mimeType: "image/tiff" }), store).kind).toBeNull()
   })
 
   it("carries the date as a string, because what crosses is JSON", () => {
