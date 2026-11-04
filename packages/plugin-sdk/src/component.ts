@@ -29,6 +29,14 @@ export interface AssetUrls {
   src: string
   /** Responsive candidates, when the pipeline produced them. */
   srcSet?: string
+  /**
+   * How wide the image will be shown, for choosing among `srcSet`.
+   *
+   * Present whenever `srcSet` is. Without it a browser assumes `100vw` and
+   * takes the widest candidate every time, so the renditions would cost five
+   * extra files and save nothing.
+   */
+  sizes?: string
   width?: number
   height?: number
   /** A tiny inline placeholder, to hold the space while the image arrives. */

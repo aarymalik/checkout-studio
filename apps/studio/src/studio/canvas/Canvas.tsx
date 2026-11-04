@@ -42,6 +42,7 @@ import { SelectionAnnouncer } from "./SelectionAnnouncer"
 import { RULER_SIZE, Rulers } from "./Rulers"
 import { useHeldKey } from "./useHeldKey"
 import { registry as shippedRegistry } from "@/studio/registry"
+import { useAssetResolver } from "@/studio/assets/ProjectAssets"
 
 /**
  * The canvas.
@@ -98,6 +99,7 @@ export interface CanvasProps {
 
 export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): ReactElement {
   const store = useEditorStoreApi()
+  const resolveAsset = useAssetResolver()
 
   /*
    * The canvas is a keyboard scope while it is mounted.
@@ -250,9 +252,15 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
         registry={registry}
         mode="editor-preview"
         breakpoint={breakpoint}
+        /*
+         * So an image in the editor is the image on the page. Without this the
+         * renderer resolves every reference to nothing, and the canvas draws
+         * the empty-image placeholder for an asset that is perfectly fine.
+         */
+        resolveAsset={resolveAsset}
       />
     ),
-    [document, theme, registry, breakpoint],
+    [document, theme, registry, breakpoint, resolveAsset],
   )
 
   const primary = selected[0]

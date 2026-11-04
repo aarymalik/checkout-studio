@@ -61,6 +61,7 @@ export default async function PublishedPage({ params }: RouteParams): Promise<Re
       theme={page.theme}
       registry={registry}
       mode="published"
+      resolveAsset={page.resolveAsset}
       onWarnings={(warnings) => {
         for (const warning of warnings) {
           logger.warn("renderer.page.warning", {

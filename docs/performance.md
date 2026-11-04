@@ -694,6 +694,40 @@ Deriving these is measured in seconds — a 1920-wide AVIF alone takes libvips a
 second or two — so it is a separate call from accepting an upload, and the
 merchant is not kept waiting on it.
 
+## How a page fetches them
+
+An asset reference becomes a `src`, a `srcset` and a `sizes`. The `src` is
+always the master, so a browser that reads no `srcset` and an asset that earned
+no renditions both work.
+
+The `srcset` is **one format**, AVIF where there is any. A browser picks from a
+`srcset` by width and not by what it can decode, so two formats in one list
+means a browser that supports AVIF taking a wider JPEG over a narrower AVIF — a
+choice it cannot make on merit. Choosing between formats is `<picture>`'s job,
+and a component that wants it can have it once one asks.
+
+The `sizes` is what makes any of it pay. A `srcset` of width candidates with no
+`sizes` means `100vw`, so a browser takes the widest every time: the same bytes
+as serving the master, plus five extra files. What we can honestly say is not
+the display width — that is a style, and it changes per breakpoint — but the
+asset's own: past its intrinsic width an image is being upscaled, so no layout
+shows it usefully wider. `sizes` is therefore
+`(max-width: Wpx) 100vw, Wpx` for an asset W wide. That is a ceiling rather than
+a measurement, and it stops the 1920 being fetched for a 600-pixel asset. An
+image in a narrow column on a wide screen still over-fetches by a step; closing
+that needs a component to declare how wide it expects to be.
+
+Resolution happens before rendering starts, in the application rather than the
+renderer: the renderer walks the tree synchronously — it has to, to be a server
+component that ships no JavaScript — so an asset that had to be fetched
+mid-walk could not be. Only the assets a document names are loaded, in one
+query, scoped to the page's own project.
+
+An asset that resolves to nothing is reported as `asset-missing` and the page
+renders without it. That is the honest outcome for an asset deleted after a page
+referenced it, and the reason resolution does not throw: one missing logo should
+not take down a checkout.
+
 ---
 
 # Responsive Rendering

@@ -8,6 +8,8 @@
  * See docs/schema.md.
  */
 
+export { assetReferences } from "./asset/references"
+
 export {
   RENDITION_FORMATS,
   RENDITION_MIME_TYPES,

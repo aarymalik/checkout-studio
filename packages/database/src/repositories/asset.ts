@@ -234,6 +234,37 @@ export const assetRepository = {
     return Number(rows[0]?.total ?? 0n)
   },
 
+  /**
+   * The assets a published page refers to, by id, within one project.
+   *
+   * Not tenant-scoped, for the reason `published.ts` is not: the visitor
+   * looking at a checkout has no account, so there is no tenant to scope to.
+   * What stands in for ownership is the project — which the caller does not
+   * choose either, because it comes from the published revision being served.
+   *
+   * Scoped to the project anyway, rather than looking ids up globally. An id
+   * is a cuid and not a secret, but a page that could name any asset in the
+   * database would be a page that could serve another merchant's file from
+   * their own domain.
+   *
+   * Deleted assets are left out. A page referring to one renders without it
+   * and the renderer reports `asset-missing`, which is the honest answer: the
+   * file is gone, and a checkout should not fail over a missing logo.
+   */
+  async findForProject(projectId: string, ids: Iterable<string>): Promise<readonly StoredAsset[]> {
+    const wanted = [...new Set(ids)]
+
+    // No query for a page that references nothing, which is most pages.
+    if (wanted.length === 0) return []
+
+    const rows = await prisma.asset.findMany({
+      where: { projectId, id: { in: wanted }, deletedAt: null },
+      select: COLUMNS,
+    })
+
+    return rows.map(present)
+  },
+
   async findById(tenant: TenantContext, id: string): Promise<StoredAsset | null> {
     const row = await prisma.asset.findFirst({
       where: { id, ...ownedBy(tenant) },

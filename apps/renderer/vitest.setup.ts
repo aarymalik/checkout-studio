@@ -14,6 +14,7 @@ Object.assign(process.env, {
   AUTH_SESSION_SECRET: "test-session-secret-at-least-32-bytes-long",
   RESEND_API_KEY: "re_test_key",
   EMAIL_FROM: "noreply@example.test",
+  ASSET_BASE_URL: "http://localhost:9000/checkout-assets",
   STRIPE_SECRET_KEY: "sk_test_stripe",
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_stripe",
   STRIPE_WEBHOOK_SECRET: "whsec_test",

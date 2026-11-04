@@ -25,6 +25,16 @@ const schema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
 
+  /**
+   * Where a browser fetches an asset from: a CDN, or the bucket itself.
+   *
+   * The base and not the credentials. Serving a checkout means saying where an
+   * image is, which needs neither key — and this application holds as few as
+   * it can, because every one is a credential on the path that handles
+   * payments. Writing an object is the Studio's job.
+   */
+  ASSET_BASE_URL: z.string().url(),
+
   STRIPE_SECRET_KEY: stripeSecretKey(nodeEnv),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: stripePublishableKey(nodeEnv),
   STRIPE_WEBHOOK_SECRET: stripeWebhookSecret,

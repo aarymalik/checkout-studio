@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { libraryAsset, listPages, readDraft, resolveTheme, s3Store } from "@checkout-studio/api"
+import { assetUrlMap, libraryAsset, listPages, readDraft, resolveTheme } from "@checkout-studio/api"
 import { assetRepository, preferenceRepository, projectRepository } from "@checkout-studio/database"
 import { normalizeKeymap, normalizeLayout } from "@checkout-studio/editor"
 
@@ -80,6 +80,16 @@ export default async function ProjectPage({
       projectId={projectId}
       platform={platform}
       page={page}
+      /*
+       * The canvas resolves asset references through the same list the Assets
+       * panel shows. One query, and what the editor draws is what the asset
+       * rows actually say — a reference to something deleted goes missing in
+       * the editor exactly as it would on the published page.
+       *
+       * A map and not a resolver: the shell is a client component, and a
+       * function is not something that crosses that boundary.
+       */
+      assetUrls={assetUrlMap(assets, getEnv().ASSET_BASE_URL)}
       panels={{
         assets: <AssetsPanel projectId={projectId} assets={forLibrary(assets)} />,
         pages: (
@@ -103,26 +113,13 @@ export default async function ProjectPage({
 /**
  * The assets as the library needs them.
  *
- * The store is built here because turning a key into a URL is its job and its
- * configuration is the environment's. Built once rather than per asset: a
- * project with a thousand of them would otherwise construct a thousand
- * signing clients to ask a thousand questions about string concatenation.
- *
- * What crosses to the browser is the projection, with no behaviour and no
- * storage key in it.
+ * Projected on the server, because turning an asset row into URLs is server
+ * work. What crosses to the browser has no behaviour in it and no storage key.
  */
 function forLibrary(assets: readonly Parameters<typeof libraryAsset>[0][]) {
-  const env = getEnv()
-  const store = s3Store({
-    endpoint: env.S3_ENDPOINT,
-    region: env.S3_REGION,
-    bucket: env.S3_BUCKET,
-    accessKeyId: env.S3_ACCESS_KEY_ID,
-    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-    publicUrl: env.ASSET_BASE_URL,
-  })
+  const base = getEnv().ASSET_BASE_URL
 
-  return assets.map((asset) => libraryAsset(asset, store))
+  return assets.map((asset) => libraryAsset(asset, base))
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }) {
