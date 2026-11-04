@@ -10,6 +10,7 @@ import {
 import type { ReactNode } from "react"
 import { defaultTheme } from "@checkout-studio/schema"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
+import type { AssetUrls } from "@checkout-studio/plugin-sdk"
 
 import { Autosave } from "./autosave/Autosave"
 import { CanvasArea } from "./canvas/CanvasArea"
@@ -23,6 +24,7 @@ import { EditSessionProvider } from "./session/EditSessionProvider"
 import { EditorStatus } from "./session/EditorStatus"
 import { TakeoverPrompt } from "./session/TakeoverPrompt"
 import { Sidebar, type SidebarPanels } from "./Sidebar"
+import { ProjectAssetsProvider } from "./assets/ProjectAssets"
 import { ProjectThemeProvider, useProjectTheme } from "./theme/ProjectTheme"
 import { ThemePanel } from "./theme/ThemePanel"
 import { ShortcutReference } from "./ShortcutReference"
@@ -60,6 +62,7 @@ export function StudioShell({
   platform,
   panels = {},
   page = null,
+  assetUrls = {},
 }: {
   projectId: string
   projectName: string
@@ -69,6 +72,13 @@ export function StudioShell({
   /** What each sidebar tab shows, for the tabs that have something to show. */
   panels?: SidebarPanels
   page?: OpenPage | null
+  /**
+   * The project's assets, keyed by id, so the canvas can resolve a reference.
+   *
+   * A map rather than a resolver: a function is not something that crosses
+   * from a server component to a client one.
+   */
+  assetUrls?: Readonly<Record<string, AssetUrls>>
 }) {
   /**
    * @param overlays dialogs that belong inside the keyboard provider.
@@ -89,12 +99,19 @@ export function StudioShell({
     return (
       <StudioProviders initialLayout={initialLayout} userKeymap={userKeymap} platform={platform}>
         <ProjectThemeProvider projectId={projectId} initial={page?.theme ?? defaultTheme}>
-          <Frame
-            projectName={projectName}
-            panels={{ theme: <ThemePanel />, ...panelsForTabs }}
-            hasPage={page !== null}
-            saveStatus={saveStatus}
-          />
+          {/*
+            Beside the theme and for the same reason: the canvas is three
+            components below this and reads both directly, rather than having
+            them threaded through two that do not.
+          */}
+          <ProjectAssetsProvider urls={assetUrls}>
+            <Frame
+              projectName={projectName}
+              panels={{ theme: <ThemePanel />, ...panelsForTabs }}
+              hasPage={page !== null}
+              saveStatus={saveStatus}
+            />
+          </ProjectAssetsProvider>
         </ProjectThemeProvider>
         {overlays}
       </StudioProviders>

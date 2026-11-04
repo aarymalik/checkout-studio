@@ -3,6 +3,8 @@ import "server-only"
 import { contentHash } from "@checkout-studio/utils"
 import { AwsClient } from "aws4fetch"
 
+import { publicUrl } from "./keys"
+
 /**
  * Where an asset's bytes go.
  *
@@ -107,10 +109,6 @@ const RETRY_BACKOFF_MS = 100
 /** A delete carries no body, and the hash of no bytes is still a hash. */
 const EMPTY_HASH = contentHash(new Uint8Array())
 
-function joined(base: string, key: string): string {
-  return `${base.replace(/\/+$/, "")}/${key.replace(/^\/+/, "")}`
-}
-
 export function s3Store(config: S3Config): ObjectStore {
   const client = new AwsClient({
     accessKeyId: config.accessKeyId,
@@ -121,7 +119,7 @@ export function s3Store(config: S3Config): ObjectStore {
     initRetryMs: RETRY_BACKOFF_MS,
   })
 
-  const object = (key: string): string => joined(joined(config.endpoint, config.bucket), key)
+  const object = (key: string): string => publicUrl(publicUrl(config.endpoint, config.bucket), key)
 
   return {
     async put(stored) {
@@ -162,7 +160,7 @@ export function s3Store(config: S3Config): ObjectStore {
     },
 
     url(key) {
-      return joined(config.publicUrl, key)
+      return publicUrl(config.publicUrl, key)
     },
   }
 }
@@ -197,7 +195,7 @@ async function refuse(response: Response, verb: string, key: string): Promise<vo
  * upload pipeline's, above all, where the interesting part is which keys and
  * which bytes and not whether a socket worked.
  */
-export function recordingStore(publicUrl = "https://assets.test"): ObjectStore & {
+export function recordingStore(base = "https://assets.test"): ObjectStore & {
   objects: Map<string, StoredObject>
 } {
   const objects = new Map<string, StoredObject>()
@@ -214,7 +212,7 @@ export function recordingStore(publicUrl = "https://assets.test"): ObjectStore &
     },
 
     url(key) {
-      return joined(publicUrl, key)
+      return publicUrl(base, key)
     },
   }
 }

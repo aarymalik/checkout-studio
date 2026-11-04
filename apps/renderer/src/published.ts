@@ -1,12 +1,15 @@
 import "server-only"
 
-import { publishedRepository } from "@checkout-studio/database"
+import { assetResolver } from "@checkout-studio/api"
+import { assetRepository, publishedRepository } from "@checkout-studio/database"
 import type { PublishedPage } from "@checkout-studio/database"
 import { logger } from "@checkout-studio/observability"
-import { checkoutTheme, defaultTheme } from "@checkout-studio/schema"
+import { assetReferences, checkoutTheme, defaultTheme } from "@checkout-studio/schema"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 import { prepare } from "@checkout-studio/renderer"
+import type { AssetUrls } from "@checkout-studio/plugin-sdk"
 
+import { getEnv } from "./env"
 import { registry } from "./registry"
 
 /**
@@ -32,7 +35,8 @@ import { registry } from "./registry"
  * See docs/error-handling.md § Renderer Error Handling.
  */
 
-export interface ResolvedPage {
+/** A revision that parsed, before its assets have been looked up. */
+interface ReadRevision {
   document: CheckoutSchema
   theme: CheckoutTheme
   title: string
@@ -41,8 +45,19 @@ export interface ResolvedPage {
   degraded: boolean
 }
 
-/** A revision, prepared for rendering, or the reason it cannot be. */
-function readRevision(revision: PublishedPage): ResolvedPage | null {
+export interface ResolvedPage extends ReadRevision {
+  /**
+   * The URLs for the assets this page names.
+   *
+   * Resolved before rendering because the renderer walks the tree
+   * synchronously — it has to, to be a server component that ships no
+   * JavaScript — so an asset that had to be fetched mid-walk could not be.
+   */
+  resolveAsset: (assetId: string) => AssetUrls | null
+}
+
+/** A revision, parsed and prepared, or null when it will not render. */
+function readRevision(revision: PublishedPage): ReadRevision | null {
   const theme = checkoutTheme.safeParse(revision.theme)
 
   // A theme that does not parse is recoverable in a way a document is not: the
@@ -88,6 +103,23 @@ function readRevision(revision: PublishedPage): ResolvedPage | null {
   }
 }
 
+/**
+ * The resolver for one revision's assets.
+ *
+ * Only the ones the document names, loaded in one query — a project may hold a
+ * thousand and a page may use three. Scoped to the revision's own project, so
+ * a document cannot name a file belonging to another merchant.
+ *
+ * An id that resolves to nothing is reported by the renderer as
+ * `asset-missing`, which is what an asset deleted after a page referenced it
+ * should look like: a page that renders, minus one image.
+ */
+async function resolverFor(page: PublishedPage, document: CheckoutSchema) {
+  const assets = await assetRepository.findForProject(page.projectId, assetReferences(document))
+
+  return assetResolver(assets, getEnv().ASSET_BASE_URL)
+}
+
 /** The page serving `hostname/slug`, following the fallback chain. */
 export async function resolvePage(hostname: string, slug: string): Promise<ResolvedPage | null> {
   const published = await publishedRepository.findByHostAndSlug(hostname, slug)
@@ -96,7 +128,9 @@ export async function resolvePage(hostname: string, slug: string): Promise<Resol
 
   const current = readRevision(published)
 
-  if (current !== null) return current
+  if (current !== null) {
+    return { ...current, resolveAsset: await resolverFor(published, current.document) }
+  }
 
   const previous = await publishedRepository.previousRevision(
     published.pageId,
@@ -107,5 +141,15 @@ export async function resolvePage(hostname: string, slug: string): Promise<Resol
 
   const fallback = readRevision(previous)
 
-  return fallback === null ? null : { ...fallback, degraded: true }
+  if (fallback === null) return null
+
+  /*
+   * The older revision's own assets, not the failed one's. A revision is a
+   * snapshot and may name a different set.
+   */
+  return {
+    ...fallback,
+    degraded: true,
+    resolveAsset: await resolverFor(previous, fallback.document),
+  }
 }

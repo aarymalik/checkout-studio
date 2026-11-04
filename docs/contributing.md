@@ -198,7 +198,8 @@ S3_REGION
 S3_BUCKET
 S3_ACCESS_KEY_ID
 S3_SECRET_ACCESS_KEY
-ASSET_BASE_URL                    Where a browser fetches an asset from
+ASSET_BASE_URL                    Where a browser fetches an asset from;
+                                  read by both applications
 ```
 
 Rules

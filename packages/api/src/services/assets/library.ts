@@ -5,16 +5,14 @@ import type { StoredAsset } from "@checkout-studio/database"
 import { kindForMimeType } from "@checkout-studio/utils"
 import type { UploadKind } from "@checkout-studio/utils"
 
-import { renditionKey } from "./keys"
-import type { ObjectStore } from "./store"
+import { publicUrl, renditionKey } from "./keys"
 
 /**
  * An asset as the media library needs it.
  *
- * The library runs in the browser, and everything that turns an asset into
- * URLs — the key functions, the store's configuration — is server code. So the
- * projection happens here, once, and what crosses to the client is a shape
- * with no behaviour in it.
+ * The library runs in the browser, and turning an asset row into URLs is
+ * server work. So the projection happens here, once, and what crosses to the
+ * client is a shape with no behaviour in it.
  *
  * It is a projection and not the row: `storageKey` and `sha256` are how we
  * find a file, which is nothing a grid of thumbnails needs to know.
@@ -50,7 +48,7 @@ export interface LibraryAsset {
   createdAt: string
 }
 
-export function libraryAsset(asset: StoredAsset, store: ObjectStore): LibraryAsset {
+export function libraryAsset(asset: StoredAsset, base: string): LibraryAsset {
   return {
     id: asset.id,
     fileName: asset.fileName,
@@ -60,12 +58,12 @@ export function libraryAsset(asset: StoredAsset, store: ObjectStore): LibraryAss
     width: asset.width,
     height: asset.height,
     url: asset.url,
-    thumbnailUrl: thumbnailUrl(asset, store),
+    thumbnailUrl: thumbnailUrl(asset, base),
     createdAt: asset.createdAt.toISOString(),
   }
 }
 
-function thumbnailUrl(asset: StoredAsset, store: ObjectStore): string {
+function thumbnailUrl(asset: StoredAsset, base: string): string {
   /*
    * The narrowest size this asset actually has, in `RENDITION_SIZES` order —
    * which is narrowest first, so the first match is the smallest file. Not the
@@ -75,7 +73,7 @@ function thumbnailUrl(asset: StoredAsset, store: ObjectStore): string {
   for (const size of RENDITION_SIZES) {
     const found = asset.renditions.find((rendition) => rendition.size === size)
 
-    if (found !== undefined) return store.url(renditionKey(asset.sha256, size, found.format))
+    if (found !== undefined) return publicUrl(base, renditionKey(asset.sha256, size, found.format))
   }
 
   return asset.url

@@ -3,7 +3,6 @@ import type { AssetRendition } from "@checkout-studio/schema"
 import { describe, expect, it } from "vitest"
 
 import { libraryAsset } from "./library"
-import { recordingStore } from "./store"
 
 /**
  * An asset as the media library needs it.
@@ -36,11 +35,11 @@ function asset(over: Partial<StoredAsset> = {}): StoredAsset {
   }
 }
 
-const store = recordingStore("https://cdn.test")
+const BASE = "https://cdn.test"
 
 describe("what crosses to the browser", () => {
   it("is what a grid of thumbnails needs", () => {
-    const projected = libraryAsset(asset(), store)
+    const projected = libraryAsset(asset(), BASE)
 
     expect(projected).toEqual({
       id: "ast_one",
@@ -59,7 +58,7 @@ describe("what crosses to the browser", () => {
   it("says nothing about where the file is kept", () => {
     // A storage key is how we find a file. A browser has a URL, which is how
     // it asks for one, and no reason to know the other.
-    const projected: Record<string, unknown> = { ...libraryAsset(asset(), store) }
+    const projected: Record<string, unknown> = { ...libraryAsset(asset(), BASE) }
 
     expect(projected["storageKey"]).toBeUndefined()
     expect(projected["sha256"]).toBeUndefined()
@@ -68,24 +67,24 @@ describe("what crosses to the browser", () => {
   it("names the kind the signature table puts the type in", () => {
     // So a filter in the browser cannot disagree with the ceilings on the
     // server about what counts as an image.
-    expect(libraryAsset(asset({ mimeType: "image/svg+xml" }), store).kind).toBe("vector")
-    expect(libraryAsset(asset({ mimeType: "font/woff2" }), store).kind).toBe("font")
-    expect(libraryAsset(asset({ mimeType: "application/pdf" }), store).kind).toBe("document")
+    expect(libraryAsset(asset({ mimeType: "image/svg+xml" }), BASE).kind).toBe("vector")
+    expect(libraryAsset(asset({ mimeType: "font/woff2" }), BASE).kind).toBe("font")
+    expect(libraryAsset(asset({ mimeType: "application/pdf" }), BASE).kind).toBe("document")
   })
 
   it("leaves the kind empty for a type this release no longer permits", () => {
     // A row from an older release. Shown, and not filed under anything.
-    expect(libraryAsset(asset({ mimeType: "image/tiff" }), store).kind).toBeNull()
+    expect(libraryAsset(asset({ mimeType: "image/tiff" }), BASE).kind).toBeNull()
   })
 
   it("carries the date as a string, because what crosses is JSON", () => {
-    expect(libraryAsset(asset(), store).createdAt).toBe("2026-10-01T09:30:00.000Z")
+    expect(libraryAsset(asset(), BASE).createdAt).toBe("2026-10-01T09:30:00.000Z")
   })
 
   it("keeps the dimensions empty for a type we do not decode", () => {
     const projected = libraryAsset(
       asset({ mimeType: "font/woff2", width: null, height: null }),
-      store,
+      BASE,
     )
 
     expect([projected.width, projected.height]).toEqual([null, null])
@@ -96,7 +95,7 @@ describe("which file a cell shows", () => {
   it("is the narrowest rendition the asset has", () => {
     const projected = libraryAsset(
       asset({ renditions: [rendition({ size: "large" }), rendition({ size: "thumbnail" })] }),
-      store,
+      BASE,
     )
 
     expect(projected.thumbnailUrl).toBe(`https://cdn.test/assets/${SHA}/thumbnail-320.webp`)
@@ -106,13 +105,13 @@ describe("which file a cell shows", () => {
     // A 1,200-pixel master earns a thumbnail and a medium and no large. A
     // 1,000-pixel one earns only a thumbnail. Neither is a reason to ask for a
     // file that was never written.
-    const projected = libraryAsset(asset({ renditions: [rendition({ size: "medium" })] }), store)
+    const projected = libraryAsset(asset({ renditions: [rendition({ size: "medium" })] }), BASE)
 
     expect(projected.thumbnailUrl).toBe(`https://cdn.test/assets/${SHA}/medium-960.webp`)
   })
 
   it("names the format that rendition was written in", () => {
-    const projected = libraryAsset(asset({ renditions: [rendition({ format: "avif" })] }), store)
+    const projected = libraryAsset(asset({ renditions: [rendition({ format: "avif" })] }), BASE)
 
     expect(projected.thumbnailUrl).toBe(`https://cdn.test/assets/${SHA}/thumbnail-320.avif`)
   })
@@ -123,13 +122,13 @@ describe("which file a cell shows", () => {
      * already small enough to have earned none, so the master *is* the
      * thumbnail.
      */
-    const projected = libraryAsset(asset({ renditions: [] }), store)
+    const projected = libraryAsset(asset({ renditions: [] }), BASE)
 
     expect(projected.thumbnailUrl).toBe(projected.url)
   })
 
   it("is the master for a file there is no picture of", () => {
-    const projected = libraryAsset(asset({ mimeType: "application/pdf", renditions: [] }), store)
+    const projected = libraryAsset(asset({ mimeType: "application/pdf", renditions: [] }), BASE)
 
     expect(projected.thumbnailUrl).toBe(projected.url)
   })

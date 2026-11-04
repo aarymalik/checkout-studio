@@ -24,8 +24,13 @@ import type { RenditionFormat, RenditionSize } from "@checkout-studio/schema"
  * nothing to migrate if the layout ever changes.
  *
  * Nothing here knows about a storage provider. These are keys inside a bucket
- * or paths inside a directory, and the URL an asset is served from is a
- * separate thing recorded on the row.
+ * or paths inside a directory, and the base a browser fetches them from is a
+ * separate thing, passed to `publicUrl`.
+ *
+ * None of it needs a credential, which is why it is not on the store. Writing
+ * an object needs keys; saying where one is needs a base and a string. The
+ * published checkout only ever asks the second question, and its environment
+ * is deliberately smaller than the Studio's.
  */
 
 const PREFIX = "assets"
@@ -50,4 +55,15 @@ export function masterKey(sha256: string, extension: string): string {
  */
 export function renditionKey(sha256: string, size: RenditionSize, format: RenditionFormat): string {
   return `${PREFIX}/${sha256}/${size}-${RENDITION_WIDTHS[size]}.${format}`
+}
+
+/**
+ * Where a browser fetches a key from.
+ *
+ * The base is a CDN, or the bucket itself, and a key is a path under it. A
+ * trailing separator on one and a leading one on the other are both ordinary
+ * ways to write them, so neither doubles.
+ */
+export function publicUrl(base: string, key: string): string {
+  return `${base.replace(/\/+$/, "")}/${key.replace(/^\/+/, "")}`
 }

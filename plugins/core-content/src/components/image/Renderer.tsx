@@ -52,6 +52,12 @@ export function ImageRenderer({
       className={className}
       src={asset.src}
       {...(asset.srcSet === undefined ? {} : { srcSet: asset.srcSet })}
+      /*
+       * Emitted with the `srcSet` and never without it. A `srcset` of width
+       * candidates and no `sizes` means `100vw`, so the browser takes the
+       * widest every time and the renditions cost five files and save nothing.
+       */
+      {...(asset.sizes === undefined ? {} : { sizes: asset.sizes })}
       {...(asset.width === undefined ? {} : { width: asset.width })}
       {...(asset.height === undefined ? {} : { height: asset.height })}
       alt={decorative ? "" : String(props["alt"] ?? "")}
