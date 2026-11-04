@@ -89,9 +89,10 @@ export default async function ProjectPage({
        * A map and not a resolver: the shell is a client component, and a
        * function is not something that crosses that boundary.
        */
+      assets={forLibrary(assets)}
       assetUrls={assetUrlMap(assets, getEnv().ASSET_BASE_URL)}
       panels={{
-        assets: <AssetsPanel projectId={projectId} assets={forLibrary(assets)} />,
+        assets: <AssetsPanel projectId={projectId} />,
         pages: (
           <PagesPanel
             projectId={projectId}

@@ -12,6 +12,7 @@ import { upload } from "@/lib/api-client"
 
 import { CELL_GAP, cellAt, gridMetrics, gridWindow, neighbour } from "./grid"
 import { LibraryControls } from "./LibraryControls"
+import { useProjectAssets } from "./ProjectAssets"
 import { EVERYTHING, kindCounts, selectAssets, type Selection } from "./select"
 import { UploadZone } from "./UploadZone"
 
@@ -40,6 +41,11 @@ import { UploadZone } from "./UploadZone"
  * the moment one of them fails to update. Uploading refreshes through the
  * router rather than pushing a row into local state.
  *
+ * Read from context rather than taken as a prop, because the inspector's
+ * picker offers the same list and the two must be the same list — a panel
+ * showing an asset a picker cannot offer is a bug nobody would think to look
+ * for.
+ *
  * ## One upload affordance, not two
  *
  * `UploadZone` is a real file input with a drop zone labelling it, so dropping
@@ -51,7 +57,6 @@ import { UploadZone } from "./UploadZone"
 
 export interface AssetsPanelProps {
   projectId: string
-  assets: readonly LibraryAsset[]
 }
 
 /** What the boundary accepts, as an `accept` attribute for the file chooser. */
@@ -69,7 +74,8 @@ const ACCEPT = [
   "application/pdf",
 ].join(",")
 
-export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
+export function AssetsPanel({ projectId }: AssetsPanelProps) {
+  const assets = useProjectAssets()
   const router = useRouter()
   const [selection, setSelection] = useState<Selection>(EVERYTHING)
   const viewport = useRef<HTMLDivElement>(null)
