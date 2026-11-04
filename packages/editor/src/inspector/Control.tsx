@@ -17,7 +17,7 @@ import { isHexColor } from "@checkout-studio/design-system"
 import { isSafeCssValue, isTokenReference } from "@checkout-studio/schema"
 import { safeHref } from "@checkout-studio/plugin-sdk"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
-import type { Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
+import type { AssetReference, Breakpoint, CheckoutTheme } from "@checkout-studio/schema"
 import type { KeyboardEvent, ReactElement, ReactNode } from "react"
 
 import { useRef, useState } from "react"
@@ -55,6 +55,23 @@ import {
  * components shipped in Phases 9 to 11 actually ask for most.
  */
 
+/**
+ * What a control may write.
+ *
+ * The scalars every other control writes, plus an asset reference — which is
+ * an object, and the reason this is a named type rather than the inline union
+ * it was. A reference is how a document names an asset: the renderer resolves
+ * `{ "$asset": "ast_9f2a" }` to URLs before a component sees anything, so the
+ * value a control stores and the value a component receives are deliberately
+ * not the same shape.
+ *
+ * Deliberately not `PropValue`, which also admits arrays and arbitrary
+ * objects. A control writes one property's value, and the only object-shaped
+ * value a property holds today is a reference — widening to anything would
+ * stop the type saying which.
+ */
+export type ControlValue = string | number | boolean | null | AssetReference
+
 export interface ControlProps {
   definition: PropertyDefinition
   value: unknown
@@ -65,7 +82,7 @@ export interface ControlProps {
    * because writing the shorthand replaces all four sides at once, which is
    * how changing a left padding used to flatten the top and bottom.
    */
-  onChange: (value: string | number | boolean | null, key?: string) => void
+  onChange: (value: ControlValue, key?: string) => void
   /**
    * Puts this property back to what the component ships, when the node holds
    * a value of its own. Absent means the panel cannot reset — a gallery

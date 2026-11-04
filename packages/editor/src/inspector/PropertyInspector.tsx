@@ -14,6 +14,7 @@ import type { ReactElement } from "react"
 import { useRef, useState } from "react"
 
 import { Control } from "./Control"
+import type { ControlValue } from "./Control"
 import { searchProperties } from "./search"
 import { sectionsFor } from "./sections"
 
@@ -48,7 +49,7 @@ export interface PropertyInspectorProps {
   values: Readonly<Record<string, unknown>>
   onChange: (
     definition: PropertyDefinition,
-    value: string | number | boolean | null,
+    value: ControlValue,
     /** The key to write, when it is not the definition's own — a side writes its longhand. */
     key?: string,
   ) => void

@@ -1,5 +1,5 @@
 export { Control } from "./Control"
-export type { ControlProps } from "./Control"
+export type { ControlProps, ControlValue } from "./Control"
 export { PropertyInspector } from "./PropertyInspector"
 export type { PropertyInspectorProps } from "./PropertyInspector"
 export { columnTracks, formatLength, parseColumns, parseLength } from "./length"
