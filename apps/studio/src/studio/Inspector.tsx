@@ -15,6 +15,7 @@ import {
   useShellLayout,
   valuesFor,
 } from "@checkout-studio/editor"
+import type { ControlValue } from "@checkout-studio/editor"
 import type { PropertyDefinition } from "@checkout-studio/plugin-sdk"
 import { BREAKPOINTS } from "@checkout-studio/schema"
 import type { Breakpoint, CheckoutTheme, Node } from "@checkout-studio/schema"
@@ -134,11 +135,7 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
     return nodes.map((node) => node.id)
   }
 
-  function change(
-    definition: PropertyDefinition,
-    value: string | number | boolean | null,
-    key?: string,
-  ): void {
+  function change(definition: PropertyDefinition, value: ControlValue, key?: string): void {
     if (selected === null) return
 
     const written = key ?? definition.key
@@ -191,6 +188,19 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
 
       return
     }
+
+    /*
+     * A style value is a string, a number, a boolean or null — `styleValue` in
+     * the schema says so, which is why a background image is a prop and not a
+     * style. An object arriving here is a property declared with an asset
+     * control on the style side, which is a plugin's mistake rather than
+     * something a merchant did.
+     *
+     * Not written, rather than written and rejected later: the document would
+     * stop parsing, and the page that stopped opening would be a long way from
+     * the definition that caused it.
+     */
+    if (value !== null && typeof value === "object") return
 
     // `setStyles` already takes them all, and groups them as one entry.
     store.getState().setStyles(ids(), { [written]: value }, { breakpoint: at(definition) })
