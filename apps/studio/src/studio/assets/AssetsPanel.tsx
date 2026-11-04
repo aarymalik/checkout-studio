@@ -101,6 +101,11 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
    * Measured rather than guessed. The panel is a width the reader is dragging,
    * so the number of columns is not a breakpoint — and the viewport's height
    * is what decides how many rows are rendered.
+   *
+   * Nothing is drawn until it has been measured. A first render at zero width
+   * is a one-column grid, and the measurement a frame later rearranges it into
+   * three — which is a layout jump on every mount, and the rows it rebuilds
+   * are rows a reader may already have put focus in.
    */
   useEffect(() => {
     const element = viewport.current
@@ -247,6 +252,13 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
           title="No assets yet"
           description="Upload an image, a logo or a font and it will appear here."
         />
+      ) : size.width === 0 ? (
+        /*
+         * Measured on the next frame, so this is one paint at most. It holds
+         * the scroll container open so the observer has something to measure —
+         * an element with no box is never reported.
+         */
+        <div ref={viewport} className="min-h-0 flex-1" />
       ) : shown.length === 0 ? (
         <EmptyState
           title="Nothing matches"

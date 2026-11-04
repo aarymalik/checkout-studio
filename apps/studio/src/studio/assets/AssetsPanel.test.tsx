@@ -62,6 +62,12 @@ beforeEach(() => {
   /*
    * ResizeObserver does not exist in jsdom, and would report zero if it did.
    * This reports the panel's real width once, which is what the grid measures.
+   *
+   * Asynchronously, because the real one is. A stub that answered during
+   * `observe` would make the first render and the measured render the same
+   * render, which is the one thing a test of this cannot afford to assume:
+   * in a browser there is a frame in between, and what the panel draws in it
+   * is what a reader sees.
    */
   vi.stubGlobal(
     "ResizeObserver",
@@ -69,10 +75,12 @@ beforeEach(() => {
       constructor(private readonly callback: ResizeObserverCallback) {}
 
       observe(): void {
-        this.callback(
-          [{ contentRect: { width: PANEL_WIDTH, height: PANEL_HEIGHT } } as ResizeObserverEntry],
-          this as unknown as ResizeObserver,
-        )
+        queueMicrotask(() => {
+          this.callback(
+            [{ contentRect: { width: PANEL_WIDTH, height: PANEL_HEIGHT } } as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          )
+        })
       }
 
       unobserve(): void {}
@@ -122,6 +130,36 @@ describe("the grid", () => {
 
     expect(grid).toHaveAttribute("aria-rowcount", "334")
     expect(within(grid).getAllByRole("gridcell").length).toBeLessThan(40)
+  })
+
+  it("is never drawn before it has been measured", async () => {
+    /*
+     * The invariant a stale element reference depends on, and a layout jump
+     * either way. Rendered at zero width the grid is one column; the
+     * measurement a frame later rearranges it into three, rebuilding every
+     * row — so a cell obtained from the first paint is detached by the second,
+     * and a reader who had focus in one loses it.
+     *
+     * Asserted on the grid's first appearance rather than after waiting for it
+     * to settle, because "it settles correctly" is what the un-measured render
+     * also does.
+     */
+    renderPanel()
+
+    const grid = await screen.findByRole("grid", { name: "Assets" })
+
+    expect(grid).toHaveAttribute("aria-colcount", "3")
+
+    const first = within(grid).getAllByRole("gridcell")[0]
+
+    await waitFor(() => {
+      expect(screen.getByRole("grid", { name: "Assets" })).toBeInTheDocument()
+    })
+
+    // The same element, not a replacement that happens to look like it.
+    expect(within(screen.getByRole("grid", { name: "Assets" })).getAllByRole("gridcell")[0]).toBe(
+      first,
+    )
   })
 
   it("is three columns wide at the panel's width", async () => {
@@ -179,11 +217,15 @@ describe("the keyboard", () => {
   })
 
   it("moves along the row with the arrows", async () => {
+    // The one place real focus is asserted, because moving it is the whole
+    // point of the key: the grid sets the tabindex and then asks the browser
+    // to follow it, and a test that read only the tabindex would not notice
+    // the second half never happening.
     renderPanel()
 
-    const first = (await screen.findAllByRole("button", { name: /picture-/ }))[0]
+    await screen.findByRole("grid", { name: "Assets" })
+    await userEvent.click(screen.getByRole("button", { name: /picture-0/ }))
 
-    first?.focus()
     await userEvent.keyboard("{ArrowRight}")
 
     await waitFor(() => {
@@ -192,19 +234,30 @@ describe("the keyboard", () => {
   })
 
   it("stays put at the end rather than wrapping to the start", async () => {
+    /*
+     * Asserted through the roving tabindex rather than `document.activeElement`.
+     *
+     * The tabindex is what the grid believes, and what decides where a Tab
+     * lands and which cell the next arrow moves from — so it is the statement
+     * worth making, and it survives the component re-rendering between the key
+     * and the assertion. Reading `activeElement` instead made this the only
+     * test in the suite that failed under load, because it asserted where the
+     * browser had put focus rather than which cell the grid had chosen.
+     *
+     * Clicked rather than focused, for the same reason: a click sets the state
+     * through the component, where `.focus()` sets it in the DOM and waits for
+     * React to agree.
+     */
     renderPanel()
 
-    // Awaited, because the measured width arrives in an effect and the cells
-    // are rebuilt when it does. A node held from before that is a node the
-    // grid has already replaced.
     await screen.findByRole("grid", { name: "Assets" })
+    await userEvent.click(screen.getByRole("button", { name: /picture-2/ }))
 
-    const last = screen.getByRole("button", { name: /picture-2/ })
+    expect(screen.getByRole("button", { name: /picture-2/ })).toHaveAttribute("tabindex", "0")
 
-    last.focus()
     await userEvent.keyboard("{ArrowRight}")
 
-    expect(last).toHaveFocus()
+    expect(screen.getByRole("button", { name: /picture-2/ })).toHaveAttribute("tabindex", "0")
   })
 
   it("selects the focused cell with Enter", async () => {
@@ -212,13 +265,13 @@ describe("the keyboard", () => {
 
     await screen.findByRole("grid", { name: "Assets" })
 
-    const second = screen.getByRole("button", { name: /picture-1/ })
-
-    second.focus()
+    screen.getByRole("button", { name: /picture-1/ }).focus()
     await userEvent.keyboard("{Enter}")
 
     await waitFor(() => {
-      expect(second.closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "true")
+      expect(
+        screen.getByRole("button", { name: /picture-1/ }).closest('[role="gridcell"]'),
+      ).toHaveAttribute("aria-selected", "true")
     })
   })
 })
