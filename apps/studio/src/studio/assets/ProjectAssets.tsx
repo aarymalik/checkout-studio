@@ -1,11 +1,12 @@
 "use client"
 
+import type { LibraryAsset } from "@checkout-studio/api"
 import type { AssetUrls } from "@checkout-studio/plugin-sdk"
 import { createContext, useContext, useMemo } from "react"
 import type { ReactElement, ReactNode } from "react"
 
 /**
- * The URLs for the project's assets, for the canvas to resolve references with.
+ * The project's assets: what the canvas draws with, and what a picker offers.
  *
  * ## Why a context rather than a prop
  *
@@ -20,6 +21,14 @@ import type { ReactElement, ReactNode } from "react"
  * component to a client one. The closure the renderer wants is made here, once,
  * and memoised so the canvas is not handed a new function on every render.
  *
+ * ## Two projections, one query
+ *
+ * The canvas needs URLs to draw with — `srcSet` and `sizes` among them. A
+ * picker needs names, sizes and a thumbnail to show. Neither is a subset of
+ * the other, so both are projected on the server from the same rows, and both
+ * arrive here. Fetching them separately would be two queries answering one
+ * question, and two answers that could disagree.
+ *
  * ## What it does not do yet
  *
  * Change. Uploading refreshes the route, which re-renders the server component
@@ -29,7 +38,15 @@ import type { ReactElement, ReactNode } from "react"
  * browser already has and that list is this map's source.
  */
 
-const ProjectAssetsContext = createContext<(assetId: string) => AssetUrls | null>(() => null)
+interface ProjectAssetsValue {
+  /** Everything the project holds, newest first, as the library shows it. */
+  assets: readonly LibraryAsset[]
+  resolve: (assetId: string) => AssetUrls | null
+}
+
+const EMPTY: ProjectAssetsValue = { assets: [], resolve: () => null }
+
+const ProjectAssetsContext = createContext<ProjectAssetsValue>(EMPTY)
 
 /**
  * The canvas's asset resolver.
@@ -40,17 +57,33 @@ const ProjectAssetsContext = createContext<(assetId: string) => AssetUrls | null
  * editor already draws.
  */
 export function useAssetResolver(): (assetId: string) => AssetUrls | null {
-  return useContext(ProjectAssetsContext)
+  return useContext(ProjectAssetsContext).resolve
+}
+
+/**
+ * The project's assets, for anything that offers a choice among them.
+ *
+ * Empty outside the provider, which is what a gallery or a test rendering one
+ * control gets — and an empty library is a state the picker has to handle
+ * anyway, because a project starts with one.
+ */
+export function useProjectAssets(): readonly LibraryAsset[] {
+  return useContext(ProjectAssetsContext).assets
 }
 
 export function ProjectAssetsProvider({
+  assets,
   urls,
   children,
 }: {
+  assets: readonly LibraryAsset[]
   urls: Readonly<Record<string, AssetUrls>>
   children: ReactNode
 }): ReactElement {
-  const resolve = useMemo(() => (assetId: string) => urls[assetId] ?? null, [urls])
+  const value = useMemo(
+    () => ({ assets, resolve: (assetId: string) => urls[assetId] ?? null }),
+    [assets, urls],
+  )
 
-  return <ProjectAssetsContext.Provider value={resolve}>{children}</ProjectAssetsContext.Provider>
+  return <ProjectAssetsContext.Provider value={value}>{children}</ProjectAssetsContext.Provider>
 }
