@@ -19,10 +19,9 @@ const PROPERTIES = defineProperties([
   },
   { key: "hidden", target: "prop", label: "Hidden", group: "General", control: "toggle" },
   { key: "shade", target: "style", label: "Shadow", group: "Effects", control: "shadow" },
-  // Still unbuilt, and the fixture for the fallback below. The shadow served
-  // this purpose until the shadow control was built, and the gradient until
-  // the gradient control was. An asset is the last one left: Phase 14 builds
-  // the storage it would pick from, and depends on this phase for the picker.
+  // The one control that reads a context, and so the fixture for a panel
+  // rendered outside one. It was the fixture for the unbuilt-control fallback
+  // until Phase 14 built it — the last kind that had none.
   { key: "picture", target: "prop", label: "Picture", group: "Background", control: "asset" },
 ])
 
@@ -180,12 +179,12 @@ describe("what a node currently holds", () => {
   })
 })
 
-describe("a control nobody has built yet", () => {
-  it("says so rather than drawing the wrong one", async () => {
+describe("a control whose choices come from a context", () => {
+  it("says where they come from rather than throwing", async () => {
     /*
-     * A text box over a shadow writes the wrong shape into the document, and a
-     * disabled slider teaches somebody the product is broken. Saying it plainly
-     * does neither.
+     * The asset control outside the editor's asset provider: a gallery, a
+     * design review page, or this test. An empty library is an ordinary state
+     * — every project starts in it — so the control names the next step.
      *
      * Opened first, because a closed accordion section is not in the document
      * at all — which is the panel keeping its own promise about one section at
@@ -195,8 +194,8 @@ describe("a control nobody has built yet", () => {
 
     await userEvent.click(screen.getByText("Background"))
 
-    expect(container.querySelector('[data-inspector-unbuilt="asset"]')).not.toBeNull()
-    expect(screen.getByText("No asset control yet.")).toBeVisible()
+    expect(container.querySelector('[data-inspector-asset="picture"]')).not.toBeNull()
+    expect(screen.getByText("No assets yet. Upload one in the Assets panel.")).toBeVisible()
   })
 
   it("does not stop the controls around it rendering", () => {

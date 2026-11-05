@@ -15,4 +15,5 @@ export * from "./canvas"
 export * from "./layers"
 
 export { AssetsProvider, useAssetResolver } from "./assets/context"
+export type { EditorAsset } from "./assets/context"
 export * from "./inspector"

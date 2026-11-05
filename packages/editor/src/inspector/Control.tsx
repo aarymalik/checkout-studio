@@ -22,6 +22,7 @@ import type { KeyboardEvent, ReactElement, ReactNode } from "react"
 
 import { useRef, useState } from "react"
 
+import { AssetPicker } from "./AssetPicker"
 import { DraftInput, useDraft } from "./DraftInput"
 import { CORNER_LABELS, EMPTY_SIDES, SIDE_LABELS, longhandFor, parseSides } from "./sides"
 import { pathOf, referenceFor, resolved, takesTokens, tokensFor } from "./tokens"
@@ -44,15 +45,18 @@ import {
 /**
  * One control, chosen by what the property asked for.
  *
- * ## An unbuilt control is said, not faked
+ * ## Every kind, and no fallback
  *
- * A kind this does not draw yet renders as its label and a sentence. The
- * alternative — a text box over a shadow, or a disabled slider — either writes
- * the wrong shape into the document or teaches somebody the product is broken.
- * docs/ui-guidelines.md makes the same argument about empty sections.
+ * The switch has no default, because all fifteen members of `CONTROL_KINDS`
+ * are built and an unreachable branch is dead code. It is also the better
+ * guard: a kind added to the vocabulary with nothing to draw it now fails the
+ * typecheck, where it used to render as a row saying "No x control yet" —
+ * which is a thing a merchant could meet in the product.
  *
- * The rest of the controls are the next slices. This one is the four that the
- * components shipped in Phases 9 to 11 actually ask for most.
+ * That row was the right answer while half the controls were unwritten: a
+ * text box over a shadow writes the wrong shape into the document, and a
+ * disabled slider teaches somebody the product is broken. The honest version
+ * of it now is a build that does not ship.
  */
 
 /**
@@ -754,8 +758,16 @@ function Literal({
         />
       )
 
-    default:
-      return <Unbuilt definition={definition} reason={`No ${definition.control} control yet.`} />
+    case "asset":
+      return (
+        <AssetPicker
+          definition={definition}
+          value={value}
+          mixed={mixed}
+          disabled={disabled}
+          onChange={onChange}
+        />
+      )
   }
 }
 
@@ -1684,22 +1696,6 @@ function Token({
     <div data-inspector-token={definition.key}>
       <p className="text-small text-foreground">{definition.label}</p>
       <p className="text-caption text-foreground-muted">{`From the theme: ${value}`}</p>
-    </div>
-  )
-}
-
-/** Something this panel cannot edit yet, said plainly. */
-function Unbuilt({
-  definition,
-  reason,
-}: {
-  definition: PropertyDefinition
-  reason: string
-}): ReactElement {
-  return (
-    <div data-inspector-unbuilt={definition.control}>
-      <p className="text-small text-foreground">{definition.label}</p>
-      <p className="text-caption text-foreground-muted">{reason}</p>
     </div>
   )
 }

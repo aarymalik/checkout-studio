@@ -10,8 +10,8 @@ import type { ReactElement, ReactNode } from "react"
  * ## Why the editor owns this and not the application
  *
  * The canvas resolves `{ "$asset": "ast_9f2a" }` into URLs before drawing, and
- * the inspector's asset control will offer the same assets to choose from.
- * That control lives in this package, and this package may not import
+ * the inspector's asset control offers the same assets to choose from. That
+ * control lives in this package, and this package may not import
  * `@checkout-studio/api` — they are the same layer — so a context in the
  * application could never reach it.
  *
@@ -20,18 +20,45 @@ import type { ReactElement, ReactNode } from "react"
  * *is* on the server is Checkout Studio's business.
  */
 
+/**
+ * An asset as the editor needs it.
+ *
+ * Deliberately not the application's library row. That one carries a MIME
+ * type, a byte count and an upload kind, and the kind is
+ * `@checkout-studio/utils`' word — a package this one may not import. What is
+ * left is what editing actually needs: something to draw with, something to
+ * call it, and something to show beside the name in a list.
+ */
+export interface EditorAsset {
+  /** The id a reference holds: `{ "$asset": id }`. */
+  id: string
+  /** What to call it in a list. The name it was uploaded under. */
+  name: string
+  /**
+   * A small picture of it, or null when there is none to show.
+   *
+   * Null for a file that is not an image — a font, or a video no frame was
+   * taken from. The picker then offers it by name alone, rather than drawing
+   * an image that will not load.
+   */
+  previewUrl: string | null
+  /** What a browser needs to draw it at full size. */
+  urls: AssetUrls
+}
+
 interface AssetsValue {
+  assets: readonly EditorAsset[]
   resolve: (assetId: string) => AssetUrls | null
 }
 
 /**
- * A resolver that answers nothing.
+ * No assets, and a resolver that answers nothing.
  *
  * What a gallery, a test rendering one component, or an editor opened before
  * anything has been uploaded gets. An empty library is an ordinary state —
  * every project starts in it — so the default is that rather than an error.
  */
-const EMPTY: AssetsValue = { resolve: () => null }
+const EMPTY: AssetsValue = { assets: [], resolve: () => null }
 
 const AssetsContext = createContext<AssetsValue>(EMPTY)
 
@@ -46,22 +73,38 @@ export function useAssetResolver(): (assetId: string) => AssetUrls | null {
   return useContext(AssetsContext).resolve
 }
 
+/**
+ * The assets there are to choose from, in the order they arrived.
+ *
+ * The inspector's asset control is the reader: a picker has to list what a
+ * document *could* point at, which a resolver cannot answer — it only knows
+ * what an id means once somebody has an id.
+ */
+export function useAssets(): readonly EditorAsset[] {
+  return useContext(AssetsContext).assets
+}
+
 export function AssetsProvider({
-  urls,
+  assets,
   children,
 }: {
   /**
-   * The project's assets keyed by id, with what a browser needs to fetch them.
+   * The project's assets, already projected for the browser.
    *
-   * A map rather than a resolver, because a function is not something that
-   * crosses from a server component to a client one. The closure is made
-   * here, once, and memoised so the canvas is not handed a new one on every
-   * render.
+   * One list and not a list plus a map of URLs: two props keyed by the same
+   * ids are two things that can disagree, and the picker and the canvas have
+   * to be looking at the same library. The lookup the canvas needs is built
+   * from it here, once, and memoised so the canvas is not handed a new
+   * resolver on every render.
    */
-  urls: Readonly<Record<string, AssetUrls>>
+  assets: readonly EditorAsset[]
   children: ReactNode
 }): ReactElement {
-  const value = useMemo(() => ({ resolve: (assetId: string) => urls[assetId] ?? null }), [urls])
+  const value = useMemo(() => {
+    const urls = new Map(assets.map((asset) => [asset.id, asset.urls] as const))
+
+    return { assets, resolve: (assetId: string) => urls.get(assetId) ?? null }
+  }, [assets])
 
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>
 }

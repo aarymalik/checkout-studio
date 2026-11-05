@@ -125,7 +125,7 @@ export type {
 } from "./services/assets/raster"
 export { masterKey, renditionKey } from "./services/assets/keys"
 export { libraryAsset } from "./services/assets/library"
-export { assetResolver, assetUrlMap, assetUrls } from "./services/assets/urls"
+export { assetResolver, assetUrls } from "./services/assets/urls"
 export type { LibraryAsset } from "./services/assets/library"
 export { recordingStore, s3Store } from "./services/assets/store"
 export { storeUpload, uploadRefusalError } from "./services/assets/upload"
