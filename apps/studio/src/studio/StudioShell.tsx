@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  AssetsProvider,
   EditorProvider,
   useScope,
   type Platform,
@@ -10,7 +11,6 @@ import {
 import type { ReactNode } from "react"
 import { defaultTheme } from "@checkout-studio/schema"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
-import type { LibraryAsset } from "@checkout-studio/api"
 import type { AssetUrls } from "@checkout-studio/plugin-sdk"
 
 import { Autosave } from "./autosave/Autosave"
@@ -25,7 +25,6 @@ import { EditSessionProvider } from "./session/EditSessionProvider"
 import { EditorStatus } from "./session/EditorStatus"
 import { TakeoverPrompt } from "./session/TakeoverPrompt"
 import { Sidebar, type SidebarPanels } from "./Sidebar"
-import { ProjectAssetsProvider } from "./assets/ProjectAssets"
 import { ProjectThemeProvider, useProjectTheme } from "./theme/ProjectTheme"
 import { ThemePanel } from "./theme/ThemePanel"
 import { ShortcutReference } from "./ShortcutReference"
@@ -63,7 +62,6 @@ export function StudioShell({
   platform,
   panels = {},
   page = null,
-  assets = [],
   assetUrls = {},
 }: {
   projectId: string
@@ -75,15 +73,7 @@ export function StudioShell({
   panels?: SidebarPanels
   page?: OpenPage | null
   /**
-   * The project's assets, as the library and the picker show them.
-   *
-   * Beside `assetUrls` rather than derived from it: what a picker shows and
-   * what the canvas draws with are different projections of the same rows,
-   * and neither is a subset of the other.
-   */
-  assets?: readonly LibraryAsset[]
-  /**
-   * The same assets keyed by id, so the canvas can resolve a reference.
+   * The project's assets keyed by id, so the canvas can resolve a reference.
    *
    * A map rather than a resolver: a function is not something that crosses
    * from a server component to a client one.
@@ -114,14 +104,14 @@ export function StudioShell({
             components below this and reads both directly, rather than having
             them threaded through two that do not.
           */}
-          <ProjectAssetsProvider assets={assets} urls={assetUrls}>
+          <AssetsProvider urls={assetUrls}>
             <Frame
               projectName={projectName}
               panels={{ theme: <ThemePanel />, ...panelsForTabs }}
               hasPage={page !== null}
               saveStatus={saveStatus}
             />
-          </ProjectAssetsProvider>
+          </AssetsProvider>
         </ProjectThemeProvider>
         {overlays}
       </StudioProviders>

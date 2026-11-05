@@ -28,6 +28,7 @@ import {
   useScope,
   useViewport,
 } from "@checkout-studio/editor"
+import { useAssetResolver } from "@checkout-studio/editor"
 import type { Rect, Rejection } from "@checkout-studio/editor"
 import { CheckoutRenderer } from "@checkout-studio/renderer"
 import type { CheckoutTheme, Node } from "@checkout-studio/schema"
@@ -42,7 +43,6 @@ import { SelectionAnnouncer } from "./SelectionAnnouncer"
 import { RULER_SIZE, Rulers } from "./Rulers"
 import { useHeldKey } from "./useHeldKey"
 import { registry as shippedRegistry } from "@/studio/registry"
-import { useAssetResolver } from "@/studio/assets/ProjectAssets"
 
 /**
  * The canvas.

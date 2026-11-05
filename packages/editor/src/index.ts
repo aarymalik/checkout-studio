@@ -13,4 +13,6 @@ export * from "./library"
 export * from "./state"
 export * from "./canvas"
 export * from "./layers"
+
+export { AssetsProvider, useAssetResolver } from "./assets/context"
 export * from "./inspector"
