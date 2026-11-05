@@ -63,6 +63,18 @@ for (const testCase of INSPECTOR_CASES) {
       }
 
       /*
+       * Opened by clicking it, for a case about what is behind a select. The
+       * options are where the asset picker draws its thumbnails, and a
+       * thumbnail out of line with the name beside it is exactly the fault
+       * this suite exists for — jsdom has no layout, so nothing else can see
+       * it.
+       */
+      if (testCase.open !== undefined) {
+        await page.getByRole("combobox", { name: testCase.open }).click()
+        await expect(page.getByRole("listbox")).toBeVisible()
+      }
+
+      /*
        * Next's development indicator is not part of the design system, and it
        * moves between framework releases. Removed rather than masked: it
        * renders inside a shadow root, which Playwright's `mask` cannot reach.

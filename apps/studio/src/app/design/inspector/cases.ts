@@ -28,7 +28,70 @@
  * were behind a closed header in every picture.
  */
 
+import type { EditorAsset } from "@checkout-studio/editor"
 import type { Breakpoint } from "@checkout-studio/schema"
+
+/*
+ * A stand-in asset, as a data URI.
+ *
+ * A screenshot that fetched a picture would be a screenshot that depended on
+ * a network, and the visual job runs without one. These are drawn by the
+ * browser from the bytes in this file, so every platform draws the same
+ * square. The component gallery next door stands its photographs up the same
+ * way.
+ */
+function drawn(shape: string, width: number, height: number): string {
+  return (
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}">${shape}</svg>`,
+    )
+  )
+}
+
+// A stand-in photograph's own ink. Nothing in the interface is drawn in these.
+// design-system-ignore: photograph bytes, not interface colour.
+const SKY = "#3b6ea5"
+// design-system-ignore: the darker band of the same photograph.
+const GROUND = "#2f4858"
+// design-system-ignore: a stand-in brand's mark.
+const MARK = "#111827"
+
+/**
+ * A library with one of each row the picker draws.
+ *
+ * Three, because a list of one is a poor picture of a list, and because the
+ * third is the row with no thumbnail in it: a font has no picture, and the
+ * control offers it by name alone rather than by a broken image.
+ */
+const LIBRARY: readonly EditorAsset[] = [
+  {
+    id: "ast_hero",
+    name: "hero-banner.jpg",
+    previewUrl: drawn(
+      `<rect width="160" height="90" fill="${SKY}"/><rect y="58" width="160" height="32" fill="${GROUND}"/>`,
+      160,
+      90,
+    ),
+    urls: { src: "https://assets.example/hero-banner.jpg", width: 1600, height: 900 },
+  },
+  {
+    id: "ast_logo",
+    name: "northwind-logo.svg",
+    previewUrl: drawn(
+      `<circle cx="24" cy="24" r="18" fill="${MARK}"/><rect x="48" y="18" width="96" height="12" rx="6" fill="${MARK}"/>`,
+      160,
+      48,
+    ),
+    urls: { src: "https://assets.example/northwind-logo.svg" },
+  },
+  {
+    id: "ast_font",
+    name: "inter-variable.woff2",
+    previewUrl: null,
+    urls: { src: "https://assets.example/inter-variable.woff2" },
+  },
+]
 
 export interface InspectorCase {
   /** Also the screenshot's name, so it must stay stable. */
@@ -66,6 +129,22 @@ export interface InspectorCase {
     // value it overrides.
     styles?: Partial<Record<Breakpoint, Record<string, unknown>>>
   }
+  /**
+   * The assets the panel may choose from, for a case about the asset control.
+   *
+   * Absent means none, which is what every other case photographs and what
+   * the search case is about: a gallery is not opened inside a project, so an
+   * empty library is its honest state.
+   */
+  assets?: readonly EditorAsset[]
+  /**
+   * A control to open before the picture, named as its label.
+   *
+   * For a case about what is behind a select rather than about the panel at
+   * rest. Opened by clicking it, the way a merchant would, so what is
+   * photographed is a state the product can actually reach.
+   */
+  open?: string
   /** What it is here to show, for somebody browsing rather than diffing. */
   shows: string
 }
@@ -140,6 +219,25 @@ export const INSPECTOR_CASES: readonly InspectorCase[] = [
     // design-system-ignore: the case is about the parts of this exact value.
     own: { styles: { desktop: { border: "1px solid #e5e5e5" } } },
     shows: "A border as a width beside its style, with the colour under them.",
+  },
+  {
+    id: "section-asset",
+    type: "core.section",
+    section: "Background",
+    assets: LIBRARY,
+    // An asset chosen, because the empty state is already photographed by the
+    // search case and the thing worth looking at here is the picture.
+    own: { props: { backgroundImage: { $asset: "ast_hero" } } },
+    shows: "An asset that is set: its name in the control, and the picture under it.",
+  },
+  {
+    id: "section-asset-choosing",
+    type: "core.section",
+    section: "Background",
+    assets: LIBRARY,
+    open: "Background image",
+    own: { props: { backgroundImage: { $asset: "ast_hero" } } },
+    shows: "The library open: a thumbnail against each name, and a font with none.",
   },
   {
     id: "heading-gradient",

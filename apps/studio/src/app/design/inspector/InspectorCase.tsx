@@ -1,6 +1,12 @@
 "use client"
 
-import { BASE_BREAKPOINT, PropertyInspector, ownKeys, valuesFor } from "@checkout-studio/editor"
+import {
+  AssetsProvider,
+  BASE_BREAKPOINT,
+  PropertyInspector,
+  ownKeys,
+  valuesFor,
+} from "@checkout-studio/editor"
 import { defaultTheme } from "@checkout-studio/schema"
 import type { Node } from "@checkout-studio/schema"
 import type { ReactElement } from "react"
@@ -58,26 +64,36 @@ export function InspectorCase({ id }: { id: string }): ReactElement {
 
   return (
     <div data-case={id} className="w-80 border-l border-border">
-      <PropertyInspector
-        definitions={definitions}
-        values={valuesFor(
-          node,
-          definitions,
-          {
-            ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
-            ...(component?.defaultStyles === undefined ? {} : { styles: component.defaultStyles }),
-          },
-          at,
-        )}
-        theme={defaultTheme}
-        overridden={ownKeys(node, definitions, at)}
-        {...(current.mixed === undefined ? {} : { mixedKeys: new Set(current.mixed) })}
-        {...(current.notes === undefined ? {} : { notes: current.notes })}
-        breakpoint={at}
-        /* Nothing is edited here: a gallery that wrote would need a store. */
-        onChange={() => undefined}
-        onReset={() => undefined}
-      />
+      {/*
+        Always, with nothing in it unless the case says otherwise. An empty
+        library is what a gallery honestly has — it is not opened inside a
+        project — and the provider's default is the same emptiness, so this
+        changes no picture but the ones that ask for assets.
+      */}
+      <AssetsProvider assets={current.assets ?? []}>
+        <PropertyInspector
+          definitions={definitions}
+          values={valuesFor(
+            node,
+            definitions,
+            {
+              ...(component?.defaultProps === undefined ? {} : { props: component.defaultProps }),
+              ...(component?.defaultStyles === undefined
+                ? {}
+                : { styles: component.defaultStyles }),
+            },
+            at,
+          )}
+          theme={defaultTheme}
+          overridden={ownKeys(node, definitions, at)}
+          {...(current.mixed === undefined ? {} : { mixedKeys: new Set(current.mixed) })}
+          {...(current.notes === undefined ? {} : { notes: current.notes })}
+          breakpoint={at}
+          /* Nothing is edited here: a gallery that wrote would need a store. */
+          onChange={() => undefined}
+          onReset={() => undefined}
+        />
+      </AssetsProvider>
     </div>
   )
 }
