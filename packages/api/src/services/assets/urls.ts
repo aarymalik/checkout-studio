@@ -107,10 +107,9 @@ export function assetUrls(asset: StoredAsset, base: string): AssetUrls {
 /**
  * The URLs for a set of assets, keyed by id.
  *
- * A plain object rather than a Map or a closure, because this is the form that
- * crosses from a server component to a client one: the Studio's canvas renders
- * in the browser, and a function passed as a prop is not something Next can
- * serialise. The client side builds the lookup from this.
+ * The lookup `assetResolver` closes over. A plain object rather than a Map
+ * because it is built once and only read, and because an object is a shape
+ * that could cross to a client component if one ever needed the whole set.
  */
 export function assetUrlMap(
   assets: readonly StoredAsset[],
@@ -137,7 +136,8 @@ export function assetUrlMap(
  * should not take down a checkout.
  *
  * For the published page, which renders in the same process that built this.
- * A client renderer gets `assetUrlMap` and makes its own closure.
+ * The Studio's editor is handed the assets themselves instead, because its
+ * inspector has to list them as well as resolve them.
  */
 export function assetResolver(
   assets: readonly StoredAsset[],

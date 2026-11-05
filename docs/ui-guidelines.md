@@ -709,6 +709,37 @@ that did not happen.
 A property showing an inherited value has nothing to reset at this breakpoint.
 Offering it would suggest the value belongs here when it does not.
 
+## Assets
+
+The project's assets in a list with a thumbnail in every row, and the chosen
+one shown underneath at a size somebody can judge.
+
+**It points, it does not upload.** An asset is uploaded once, in the Assets
+panel, and used in as many places as it is needed. A file field here would be a
+second upload path with its own quota and type refusals, and a library holding
+the same logo four times.
+
+**A list and not a grid of thumbnails.** The panel's grid cost a roving
+tabindex, a measured column count and a virtual window; a select brings
+typeahead, arrows, Home, End and Escape with it, and a thumbnail in every row
+is enough to recognise what is being picked by. The preview under the control
+is where the picture is actually looked at — contained rather than cropped,
+since a control showing the middle of somebody's logo would be lying about what
+they chose.
+
+A file with no picture in it — a font, a video no frame was taken from — is
+offered by name alone. Its thumbnail falls back to the master, and an `<img>`
+pointed at a font shows a broken image, which reads as a failed upload.
+
+**What is gone says so.** An asset can be deleted while a page still names it.
+The canvas draws that as a gap, and the control reads "No longer in the
+library" rather than inviting a choice as though none had been made — "Choose
+an asset" over a property that has one sends the reader looking for the wrong
+fault.
+
+An empty library names the next step instead of offering an empty list. Every
+project starts there, and a control that cannot be used yet should say why.
+
 ## Gradients
 
 A picture of the gradient, then the parts that produce it: a kind, a

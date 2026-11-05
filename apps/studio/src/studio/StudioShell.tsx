@@ -4,6 +4,7 @@ import {
   AssetsProvider,
   EditorProvider,
   useScope,
+  type EditorAsset,
   type Platform,
   type ShellLayout,
   type UserKeymap,
@@ -11,7 +12,6 @@ import {
 import type { ReactNode } from "react"
 import { defaultTheme } from "@checkout-studio/schema"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
-import type { AssetUrls } from "@checkout-studio/plugin-sdk"
 
 import { Autosave } from "./autosave/Autosave"
 import { CanvasArea } from "./canvas/CanvasArea"
@@ -62,7 +62,7 @@ export function StudioShell({
   platform,
   panels = {},
   page = null,
-  assetUrls = {},
+  assets = [],
 }: {
   projectId: string
   projectName: string
@@ -73,12 +73,14 @@ export function StudioShell({
   panels?: SidebarPanels
   page?: OpenPage | null
   /**
-   * The project's assets keyed by id, so the canvas can resolve a reference.
+   * The project's assets: what the canvas resolves a reference against, and
+   * what the inspector's asset control offers to choose from.
    *
-   * A map rather than a resolver: a function is not something that crosses
-   * from a server component to a client one.
+   * Already projected, because turning an asset row into URLs is server work
+   * and a resolver is not something that crosses from a server component to a
+   * client one.
    */
-  assetUrls?: Readonly<Record<string, AssetUrls>>
+  assets?: readonly EditorAsset[]
 }) {
   /**
    * @param overlays dialogs that belong inside the keyboard provider.
@@ -104,7 +106,7 @@ export function StudioShell({
             components below this and reads both directly, rather than having
             them threaded through two that do not.
           */}
-          <AssetsProvider urls={assetUrls}>
+          <AssetsProvider assets={assets}>
             <Frame
               projectName={projectName}
               panels={{ theme: <ThemePanel />, ...panelsForTabs }}

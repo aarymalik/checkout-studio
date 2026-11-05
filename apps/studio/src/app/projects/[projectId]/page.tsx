@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation"
-import { assetUrlMap, libraryAsset, listPages, readDraft, resolveTheme } from "@checkout-studio/api"
+import { assetUrls, libraryAsset, listPages, readDraft, resolveTheme } from "@checkout-studio/api"
 import { assetRepository, preferenceRepository, projectRepository } from "@checkout-studio/database"
 import { normalizeKeymap, normalizeLayout } from "@checkout-studio/editor"
+import type { EditorAsset } from "@checkout-studio/editor"
+import type { UploadKind } from "@checkout-studio/utils"
 
 import { AssetsPanel } from "@/studio/assets/AssetsPanel"
 import { PagesPanel } from "@/studio/PagesPanel"
@@ -81,15 +83,16 @@ export default async function ProjectPage({
       platform={platform}
       page={page}
       /*
-       * The canvas resolves asset references through the same list the Assets
-       * panel shows. One query, and what the editor draws is what the asset
-       * rows actually say — a reference to something deleted goes missing in
-       * the editor exactly as it would on the published page.
+       * The canvas resolves references, and the inspector's asset control
+       * offers choices, through the same list the Assets panel shows. One
+       * query, so what the editor draws is what the asset rows actually say —
+       * a reference to something deleted goes missing in the editor exactly as
+       * it would on the published page.
        *
-       * A map and not a resolver: the shell is a client component, and a
+       * A list and not a resolver: the shell is a client component, and a
        * function is not something that crosses that boundary.
        */
-      assetUrls={assetUrlMap(assets, getEnv().ASSET_BASE_URL)}
+      assets={forEditor(assets)}
       panels={{
         assets: <AssetsPanel projectId={projectId} assets={forLibrary(assets)} />,
         pages: (
@@ -110,16 +113,52 @@ export default async function ProjectPage({
   )
 }
 
+/** An asset as the repository returns it, renditions and all. */
+type AssetRow = Parameters<typeof libraryAsset>[0]
+
 /**
  * The assets as the library needs them.
  *
  * Projected on the server, because turning an asset row into URLs is server
  * work. What crosses to the browser has no behaviour in it and no storage key.
  */
-function forLibrary(assets: readonly Parameters<typeof libraryAsset>[0][]) {
+function forLibrary(assets: readonly AssetRow[]) {
   const base = getEnv().ASSET_BASE_URL
 
   return assets.map((asset) => libraryAsset(asset, base))
+}
+
+/** The kinds a browser will draw in an `<img>`. An SVG is one of them. */
+const DRAWABLE = new Set<UploadKind>(["image", "vector"])
+
+/**
+ * The assets as the editor needs them.
+ *
+ * Less than the library gets: an id to match a reference, a name to list it
+ * by, a picture to show beside the name, and the URLs to draw it with. The
+ * editor has no business knowing an asset's MIME type or its byte count, and
+ * the upload kind it would need to interpret them belongs to a package it may
+ * not import.
+ */
+function forEditor(assets: readonly AssetRow[]): readonly EditorAsset[] {
+  const base = getEnv().ASSET_BASE_URL
+
+  return assets.map((asset) => {
+    const library = libraryAsset(asset, base)
+
+    return {
+      id: library.id,
+      name: library.fileName,
+      /*
+       * Only an asset a browser can draw gets a preview. `thumbnailUrl` falls
+       * back to the master when there are no renditions, and a font's master
+       * is a font — an `<img>` pointed at it shows a broken image rather than
+       * nothing.
+       */
+      previewUrl: library.kind !== null && DRAWABLE.has(library.kind) ? library.thumbnailUrl : null,
+      urls: assetUrls(asset, base),
+    }
+  })
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }) {
