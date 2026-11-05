@@ -93,15 +93,25 @@ export function AssetPicker({
         {assets.map((asset) => (
           <SelectOption key={asset.id} value={asset.id}>
             <span className="flex min-w-0 items-center gap-2">
-              {asset.previewUrl === null ? null : (
-                <img
-                  src={asset.previewUrl}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="size-5 shrink-0 rounded-tight object-cover"
-                />
-              )}
+              {/*
+                The slot is drawn whether or not there is a picture for it.
+                Skipping it moved the name of every row without one to where
+                the thumbnails are, so a library holding a font between two
+                images read as three ragged lines. Empty, it is the shape a
+                thumbnail would be, which says "nothing to show" without
+                spelling out a type the name already ends in.
+              */}
+              <span className="size-5 shrink-0 overflow-hidden rounded-tight bg-surface-sunken">
+                {asset.previewUrl === null ? null : (
+                  <img
+                    src={asset.previewUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="size-full object-cover"
+                  />
+                )}
+              </span>
               <span className="truncate">{asset.name}</span>
             </span>
           </SelectOption>

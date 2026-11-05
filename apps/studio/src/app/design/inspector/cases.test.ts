@@ -74,6 +74,34 @@ describe("the inspector gallery", () => {
     }
   })
 
+  it("sets only props the component registers", () => {
+    /*
+     * A case that seeds `backgroundImage` on a component without one writes a
+     * prop nothing reads: the panel draws its default, the picture looks
+     * right, and the case is about nothing. Props only — a side is seeded as
+     * the longhand it was typed into, and `paddingTop` is deliberately not a
+     * registered key.
+     */
+    for (const testCase of INSPECTOR_CASES) {
+      const registered = propertiesFor(testCase.type).map((definition) => definition.key)
+
+      for (const key of Object.keys(testCase.own?.props ?? {})) {
+        expect(registered, `${testCase.id}: ${key}`).toContain(key)
+      }
+    }
+  })
+
+  it("gives a case that opens a control the assets it would list", () => {
+    // An empty library draws no select at all, so the click would find
+    // nothing and Playwright would report a missing combobox rather than this
+    // list being wrong.
+    for (const testCase of INSPECTOR_CASES) {
+      if (testCase.open === undefined) continue
+
+      expect(testCase.assets ?? [], testCase.id).not.toHaveLength(0)
+    }
+  })
+
   it("photographs a panel with controls in it", () => {
     /*
      * A case whose properties stopped reaching the panel is the exact fault
