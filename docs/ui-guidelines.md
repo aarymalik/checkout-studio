@@ -737,6 +737,16 @@ library" rather than inviting a choice as though none had been made — "Choose
 an asset" over a property that has one sends the reader looking for the wrong
 fault.
 
+**Taking an image off is the reset, not a control of its own.** Every component
+that registers an asset ships nothing for it — absent, or the empty string a
+product card uses — so removing the node's own value _is_ removing the image,
+and the reset beneath the control already appears exactly when there is one to
+remove. A "None" in the list beside it would be two buttons for one act.
+
+The case where the two would differ is a component that ships a picture of its
+own, where "no image" and "the image it came with" are different answers. None
+does. When one does, that is the moment this earns a control, and not before.
+
 An empty library names the next step instead of offering an empty list. Every
 project starts there, and a control that cannot be used yet should say why.
 

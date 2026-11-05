@@ -1,5 +1,10 @@
-import { EditorProvider, ShellProvider, useEditorStoreApi } from "@checkout-studio/editor"
-import type { EditorStoreApi } from "@checkout-studio/editor"
+import {
+  AssetsProvider,
+  EditorProvider,
+  ShellProvider,
+  useEditorStoreApi,
+} from "@checkout-studio/editor"
+import type { EditorAsset, EditorStoreApi } from "@checkout-studio/editor"
 import { createDocument, defaultTheme } from "@checkout-studio/schema"
 import { TooltipProvider } from "@checkout-studio/ui"
 import { act, render, screen, within } from "@testing-library/react"
@@ -20,7 +25,7 @@ import { registry } from "./registry"
  * invented properties while the product ships an empty one is the shape this
  * project keeps finding.
  */
-function mount(): { store: EditorStoreApi } {
+function mount(assets: readonly EditorAsset[] = []): { store: EditorStoreApi } {
   let captured: EditorStoreApi | null = null
 
   function Capture(): ReactElement {
@@ -40,9 +45,16 @@ function mount(): { store: EditorStoreApi } {
       baseVersion={1}
     >
       <ShellProvider>
-        <TooltipProvider>
-          <Capture />
-        </TooltipProvider>
+        {/*
+          Where the shell puts it, so the asset control has a library to offer.
+          Empty by default, which is every other case here: a panel with no
+          assets behind it is what a fresh project has.
+        */}
+        <AssetsProvider assets={assets}>
+          <TooltipProvider>
+            <Capture />
+          </TooltipProvider>
+        </AssetsProvider>
       </ShellProvider>
     </EditorProvider>,
   )
@@ -716,5 +728,118 @@ describe("putting a property back", () => {
     })
 
     expect(store.getState().document.nodes[id]?.props[text.key]).toContain("!")
+  })
+})
+
+describe("choosing an asset, and taking it off again", () => {
+  const LIBRARY: readonly EditorAsset[] = [
+    {
+      id: "ast_hero",
+      name: "hero.jpg",
+      previewUrl: "https://cdn.test/hero-thumb.jpg",
+      urls: { src: "https://cdn.test/hero.jpg", width: 1200, height: 600 },
+    },
+  ]
+
+  /** A Section's background image, whatever core-layout calls it. */
+  function imageProperty() {
+    const image = propertiesFor("core.section").find((property) => property.control === "asset")
+
+    if (image === undefined) throw new Error("The section registered no asset property.")
+
+    return image
+  }
+
+  /** The section it is in, which the panel keeps closed until it is asked for. */
+  async function openBackground(): Promise<void> {
+    await userEvent.click(screen.getByRole("button", { name: "Background" }))
+  }
+
+  it("writes a reference, not a URL", async () => {
+    /*
+     * Through the real registry and the real store, where the panel's own
+     * tests go through definitions written for the test. A URL stored here
+     * would outlive the asset: deleting it would leave a hard 404 on a
+     * published page, and the usage check meant to refuse that delete would
+     * have nothing to find.
+     */
+    const { store } = mount(LIBRARY)
+    const id = place(store, "core.section")
+    const image = imageProperty()
+
+    await openBackground()
+    await userEvent.click(screen.getByRole("combobox", { name: image.label }))
+    await userEvent.click(screen.getByRole("option", { name: "hero.jpg" }))
+
+    expect(store.getState().document.nodes[id]?.props[image.key]).toEqual({ $asset: "ast_hero" })
+  })
+
+  it("takes it off again with the reset the panel already has", async () => {
+    /*
+     * The question this slice set out to answer: does "no image" need a
+     * control of its own? It does not. Every component that registers an
+     * asset ships nothing for it — absent, or the empty string a product card
+     * uses — so removing the node's own value *is* removing the image, and
+     * that is what reset does. A second affordance beside it would be two
+     * buttons for one act, and the one case where they would differ — a
+     * component shipping a picture of its own — does not exist.
+     */
+    const { store } = mount(LIBRARY)
+    const id = place(store, "core.section")
+    const image = imageProperty()
+
+    await openBackground()
+    await userEvent.click(screen.getByRole("combobox", { name: image.label }))
+    await userEvent.click(screen.getByRole("option", { name: "hero.jpg" }))
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }))
+
+    expect(image.key in (store.getState().document.nodes[id]?.props ?? {})).toBe(false)
+  })
+
+  it("invites a choice again once it is off", async () => {
+    // The control has to agree with the document. A trigger still naming the
+    // image after the document stopped holding it is how a control that
+    // writes into a void looks right until the page is reloaded.
+    const { store } = mount(LIBRARY)
+
+    place(store, "core.section")
+
+    const image = imageProperty()
+
+    await openBackground()
+    await userEvent.click(screen.getByRole("combobox", { name: image.label }))
+    await userEvent.click(screen.getByRole("option", { name: "hero.jpg" }))
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }))
+
+    expect(screen.getByRole("combobox", { name: image.label })).toHaveTextContent("Choose an asset")
+  })
+
+  it("offers no reset before anything is chosen", async () => {
+    // A row that always carries one says nothing about which rows have been
+    // touched, which is the whole point of the indicator.
+    const { store } = mount(LIBRARY)
+
+    place(store, "core.section")
+
+    await openBackground()
+
+    expect(screen.queryByRole("button", { name: /^Reset/ })).toBeNull()
+  })
+
+  it("puts the image back when the reset is undone", async () => {
+    const { store } = mount(LIBRARY)
+    const id = place(store, "core.section")
+    const image = imageProperty()
+
+    await openBackground()
+    await userEvent.click(screen.getByRole("combobox", { name: image.label }))
+    await userEvent.click(screen.getByRole("option", { name: "hero.jpg" }))
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }))
+
+    act(() => {
+      store.getState().undo()
+    })
+
+    expect(store.getState().document.nodes[id]?.props[image.key]).toEqual({ $asset: "ast_hero" })
   })
 })
