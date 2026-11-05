@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { AssetsPanel } from "./AssetsPanel"
-import { ProjectAssetsProvider } from "./ProjectAssets"
 import { MIN_CELL } from "./grid"
 import { expectNoViolations } from "../../../tests/axe"
 
@@ -46,17 +45,8 @@ function asset(index: number): LibraryAsset {
 
 const THREE = [asset(0), asset(1), asset(2)]
 
-/**
- * Wrapped in the provider the shell supplies, because the panel reads the list
- * from context — the inspector's picker offers the same one, and a panel
- * showing an asset a picker cannot offer is a bug nobody would look for.
- */
 function renderPanel(assets: readonly LibraryAsset[] = THREE) {
-  return render(
-    <ProjectAssetsProvider assets={assets} urls={{}}>
-      <AssetsPanel projectId="prj_one" />
-    </ProjectAssetsProvider>,
-  )
+  return render(<AssetsPanel projectId="prj_one" assets={assets} />)
 }
 
 type Sent = { url: string; fileName: string | null }
