@@ -99,7 +99,7 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const [scrollTop, setScrollTop] = useState(0)
   const [focused, setFocused] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
-  const [sending, setSending] = useState<{ done: number; total: number } | null>(null)
+  const [sending, setSending] = useState<Sending | null>(null)
   const [problems, setProblems] = useState<readonly string[]>([])
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState<LibraryAsset | null>(null)
@@ -206,7 +206,6 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
 
   async function send(files: readonly File[]): Promise<void> {
     setProblems([])
-    setSending({ done: 0, total: files.length })
 
     const failures: string[] = []
 
@@ -216,12 +215,24 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
      * box has. It also makes "3 of 20" a true statement.
      */
     for (const [index, file] of files.entries()) {
+      const at = { done: index, total: files.length, file: file.name }
+
+      setSending({ ...at, sent: 0 })
+
       // Awaited in the loop on purpose. See the note above.
-      const result = await upload(`/api/projects/${projectId}/assets`, file)
+      const result = await upload(`/api/projects/${projectId}/assets`, file, {
+        /*
+         * The bytes, and only the bytes. Reaching 1 means the file has
+         * arrived, not that it is stored: the server then re-encodes it into
+         * four sizes and two formats, which is the longer half. So the last
+         * thing progress does is hand over to a state with no number in it.
+         */
+        onProgress: (fraction) => {
+          setSending({ ...at, sent: fraction < 1 ? fraction : null })
+        },
+      })
 
       if (!result.ok) failures.push(`${file.name} — ${result.message}`)
-
-      setSending({ done: index + 1, total: files.length })
     }
 
     setSending(null)
@@ -279,7 +290,7 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
     <div className="flex min-h-0 flex-col gap-3">
       <UploadZone
         accept={ACCEPT}
-        busy={sending === null ? null : `Uploading ${sending.done} of ${sending.total}…`}
+        busy={sending === null ? null : { label: labelFor(sending), sent: sending.sent }}
         onFiles={(files) => void send(files)}
       />
 
@@ -530,6 +541,30 @@ function Cell({
       </button>
     </div>
   )
+}
+
+/** Which file is going up, how far, and how many there are. */
+interface Sending {
+  /** How many are finished. The one in flight is this one plus one. */
+  done: number
+  total: number
+  file: string
+  /** 0 to 1 while the bytes go up, null while the server works on them. */
+  sent: number | null
+}
+
+/**
+ * What to say about the upload in progress.
+ *
+ * The count only when there is more than one, because "1 of 1" is a sentence
+ * that answers a question nobody asked. The file name always, because with
+ * twenty going up it is the only way to tell which one a refusal was about.
+ */
+function labelFor(sending: Sending): string {
+  const which =
+    sending.total > 1 ? `${String(sending.done + 1)} of ${String(sending.total)} · ` : ""
+
+  return sending.sent === null ? `${which}Storing ${sending.file}…` : `${which}${sending.file}`
 }
 
 /** The type and the shape, for the one asset somebody is looking at. */

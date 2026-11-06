@@ -148,6 +148,18 @@ component library and choosing the asset in the inspector reaches the same
 place with the keyboard alone. Pressing a cell still selects it, so reading
 what a file is costs nothing.
 
+While files are going up the zone carries a bar and says which file it is on
+— and the count only when there is more than one, because "1 of 1" answers a
+question nobody asked.
+
+The bar stops being a number before the upload is over, on purpose. What can
+be measured is the bytes the browser has handed over; what takes longer is the
+server re-encoding a photograph into four sizes and two formats, and there is
+no number for that. So at 100% sent the bar drops its value, takes the
+skeleton's shimmer, and the sentence changes to "Storing hero.png…". A bar
+that sat full for the longer half of the wait would read as stuck, and one
+that crept forward on a timer would be inventing progress.
+
 Below the grid, the chosen asset's name, size and type, and the two things to
 do with it: copy its URL, or delete it. Deleting asks first — a misplaced
 click should not be able to take somebody's picture — and the question says

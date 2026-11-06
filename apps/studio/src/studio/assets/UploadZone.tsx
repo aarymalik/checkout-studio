@@ -20,9 +20,25 @@ import { cn } from "@checkout-studio/ui"
  * close to unusable with a screen reader.
  */
 
+/**
+ * What is happening while files are going up.
+ *
+ * Two fields, because an upload has two halves and they take unequal time. A
+ * photograph's bytes go up in a second and the server then spends several
+ * re-encoding it into four sizes and two formats — so `sent` reaching 1 is
+ * not nearly done, and a bar that sat full for the longest part of the wait
+ * would be the lie this was built to stop telling.
+ */
+export interface UploadProgress {
+  /** What to say. "2 of 5 · hero.jpg", or what the server is doing with it. */
+  label: string
+  /** How much of the file has gone, 0 to 1 — or null while the server works. */
+  sent: number | null
+}
+
 export interface UploadZoneProps {
   accept: string
-  busy: string | null
+  busy: UploadProgress | null
   onFiles: (files: readonly File[]) => void
 }
 
@@ -66,8 +82,10 @@ export function UploadZone({ accept, busy, onFiles }: UploadZoneProps) {
       <Upload aria-hidden="true" className="size-4 text-foreground-muted" />
       <span className="text-small font-medium text-foreground">Upload files</span>
       <span className="text-caption text-foreground-muted">
-        {busy ?? "Images, SVG, video, fonts and PDF"}
+        {busy?.label ?? "Images, SVG, video, fonts and PDF"}
       </span>
+
+      {busy !== null && <Bar sent={busy.sent} label={busy.label} />}
 
       <input
         id={id}
@@ -79,5 +97,44 @@ export function UploadZone({ accept, busy, onFiles }: UploadZoneProps) {
         className="sr-only"
       />
     </label>
+  )
+}
+
+/**
+ * How far along, when that is a thing anybody can know.
+ *
+ * Determinate while the bytes are going up, and striped-and-moving once they
+ * are all there and the server is working — because at that point there is
+ * genuinely no number. A bar that stopped at 100% and stayed there reads as
+ * stuck, and one that crept forward on a timer would be inventing progress.
+ */
+function Bar({ sent, label }: { sent: number | null; label: string }) {
+  const percent = sent === null ? null : Math.round(Math.min(1, Math.max(0, sent)) * 100)
+
+  return (
+    <span
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      /*
+       * No `aria-valuenow` while the server is working, which is how ARIA
+       * says "indeterminate". Any number here would be one nobody measured.
+       */
+      {...(percent === null ? {} : { "aria-valuenow": percent })}
+      className={cn(
+        "mt-1 block h-1 w-full overflow-hidden rounded-pill bg-surface-sunken",
+        // The skeleton's shimmer, which is this system's way of saying
+        // "something is happening and there is no number for it".
+        percent === null && "animate-skeleton",
+      )}
+    >
+      {percent === null ? null : (
+        <span
+          style={{ width: `${String(percent)}%` }}
+          className="block h-full rounded-pill bg-primary transition-[width] duration-normal ease-standard"
+        />
+      )}
+    </span>
   )
 }

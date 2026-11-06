@@ -33,6 +33,21 @@ function fieldsFrom(details: readonly FieldProblem[] | undefined): Record<string
   return fields
 }
 
+/**
+ * No network, or the request never left.
+ *
+ * Distinct from a refusal, and the only case where "try again" is genuinely
+ * the right advice.
+ */
+function unreachable<T>(): ApiResult<T> {
+  return {
+    ok: false,
+    code: "NETWORK",
+    message: "We could not reach the server. Check your connection and try again.",
+    fields: {},
+  }
+}
+
 export async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   let response: Response
 
@@ -43,17 +58,23 @@ export async function post<T>(path: string, body: unknown): Promise<ApiResult<T>
       body: JSON.stringify(body),
     })
   } catch {
-    // No network, or the request never left. Distinct from a refusal, and the
-    // only case where "try again" is genuinely the right advice.
-    return {
-      ok: false,
-      code: "NETWORK",
-      message: "We could not reach the server. Check your connection and try again.",
-      fields: {},
-    }
+    return unreachable<T>()
   }
 
   return unwrap<T>(response)
+}
+
+export interface UploadOptions {
+  /**
+   * How much of the file has been handed over, from 0 to 1.
+   *
+   * Not how much work is done. A photograph reaches 1 and the server then
+   * spends seconds re-encoding it into four sizes and two formats, so a
+   * caller that showed this as "finished" would show finished for the part
+   * of an upload that takes longest. Telling the two apart is the caller's
+   * job, and this reports only the half it can see.
+   */
+  onProgress?: (fraction: number) => void
 }
 
 /**
@@ -63,25 +84,47 @@ export async function post<T>(path: string, body: unknown): Promise<ApiResult<T>
  * every part: no JSON, no content type of ours — the boundary writes one, and
  * one we set would be a claim the server is right to ignore.
  *
- * No progress. `fetch` cannot report how much of a body has gone, and the
- * upload manager that will report it is a later piece of Phase 14; a bar that
- * jumped from nothing to everything would be a lie told smoothly.
+ * `XMLHttpRequest` and not `fetch`, which is the only reason this is written
+ * out rather than being three lines. Fetch cannot say how much of a request
+ * body has gone: there is no event for it and a request stream is not
+ * counted. The alternative was a bar that jumped from nothing to everything,
+ * which is a lie told smoothly.
  */
-export async function upload<T>(path: string, file: File): Promise<ApiResult<T>> {
+export async function upload<T>(
+  path: string,
+  file: File,
+  options: UploadOptions = {},
+): Promise<ApiResult<T>> {
   const body = new FormData()
 
   body.set("file", file)
 
-  try {
-    return unwrap<T>(await fetch(path, { method: "POST", body }))
-  } catch {
-    return {
-      ok: false,
-      code: "NETWORK",
-      message: "We could not reach the server. Check your connection and try again.",
-      fields: {},
-    }
-  }
+  return new Promise<ApiResult<T>>((resolve) => {
+    const request = new XMLHttpRequest()
+
+    request.open("POST", path)
+
+    request.upload.addEventListener("progress", (event) => {
+      // Not computable until the browser knows the total. Nothing is reported
+      // rather than a fraction of an unknown.
+      if (event.lengthComputable) options.onProgress?.(event.loaded / event.total)
+    })
+
+    /*
+     * `load` fires for a refusal as well as for success — a 409 is a response
+     * that arrived. The envelope decides which it was, exactly as it does for
+     * every other call here, so a status is never read in two places.
+     */
+    request.addEventListener("load", () => {
+      void unwrap<T>(new Response(request.responseText)).then(resolve)
+    })
+
+    request.addEventListener("error", () => {
+      resolve(unreachable<T>())
+    })
+
+    request.send(body)
+  })
 }
 
 export async function send<T>(
@@ -99,12 +142,7 @@ export async function send<T>(
 
     return unwrap<T>(response)
   } catch {
-    return {
-      ok: false,
-      code: "NETWORK",
-      message: "We could not reach the server. Check your connection and try again.",
-      fields: {},
-    }
+    return unreachable<T>()
   }
 }
 
