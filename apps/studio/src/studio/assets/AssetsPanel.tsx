@@ -1,14 +1,23 @@
 "use client"
 
 import type { LibraryAsset } from "@checkout-studio/api"
-import { Alert, Button, EmptyState, cn } from "@checkout-studio/ui"
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  EmptyState,
+  cn,
+} from "@checkout-studio/ui"
 import { scrollToRow, useEditorStore, useEditorStoreApi } from "@checkout-studio/editor"
-import { Check, Copy } from "lucide-react"
+import { Check, Copy, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 
-import { upload } from "@/lib/api-client"
+// Aliased: this file already has a `send`, which is the one that sends files.
+import { send as request, upload } from "@/lib/api-client"
 import { registry } from "@/studio/registry"
 
 import { CELL_GAP, cellAt, gridMetrics, gridWindow, neighbour } from "./grid"
@@ -93,6 +102,9 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const [sending, setSending] = useState<{ done: number; total: number } | null>(null)
   const [problems, setProblems] = useState<readonly string[]>([])
   const [copied, setCopied] = useState(false)
+  const [deleting, setDeleting] = useState<LibraryAsset | null>(null)
+  const [refusal, setRefusal] = useState<string | null>(null)
+  const [removing, setRemoving] = useState(false)
   const frame = useRef<number | null>(null)
 
   /*
@@ -225,6 +237,36 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
    */
   const chosen = assets.find((asset) => asset.id === selected) ?? null
 
+  /**
+   * Takes the chosen asset out of the library.
+   *
+   * The refusal stays in the dialog rather than going to the panel's own
+   * problem strip, because the dialog is still open over it — and because
+   * "still used on Checkout" is an answer to the question being asked right
+   * there, not a report about the library.
+   */
+  async function remove(): Promise<void> {
+    if (deleting === null) return
+
+    setRemoving(true)
+    setRefusal(null)
+
+    const result = await request(`/api/projects/${projectId}/assets/${deleting.id}`, "DELETE")
+
+    setRemoving(false)
+
+    if (!result.ok) {
+      setRefusal(result.message)
+
+      return
+    }
+
+    setDeleting(null)
+    // The details strip is about an asset that no longer exists.
+    setSelected(null)
+    router.refresh()
+  }
+
   async function copyUrl(): Promise<void> {
     if (chosen === null) return
 
@@ -348,16 +390,64 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
             {chosen.fileName}
           </p>
           <p className="text-xs text-foreground-muted">{describe(chosen)}</p>
-          <Button variant="ghost" size="sm" onClick={() => void copyUrl()}>
-            {copied ? (
-              <Check aria-hidden="true" className="size-3" />
-            ) : (
-              <Copy aria-hidden="true" className="size-3" />
-            )}
-            {copied ? "Copied" : "Copy URL"}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => void copyUrl()}>
+              {copied ? (
+                <Check aria-hidden="true" className="size-3" />
+              ) : (
+                <Copy aria-hidden="true" className="size-3" />
+              )}
+              {copied ? "Copied" : "Copy URL"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setRefusal(null)
+                setDeleting(chosen)
+              }}
+            >
+              <Trash2 aria-hidden="true" className="size-3" />
+              Delete
+            </Button>
+          </div>
         </div>
       )}
+
+      <Dialog
+        open={deleting !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeleting(null)
+        }}
+      >
+        <DialogContent
+          title={`Delete ${deleting?.fileName ?? "asset"}?`}
+          /*
+           * The second sentence is the refusal said in advance. Somebody who
+           * knows a picture in use cannot be deleted goes and takes it off the
+           * page; somebody who finds out by being refused goes looking for a
+           * bug.
+           */
+          description="It stops being listed straight away. An asset a page still uses cannot be deleted."
+          // A misplaced click should not be able to take somebody's picture.
+          dismissOnClickOutside={false}
+        >
+          {refusal !== null && (
+            <Alert variant="danger" title="Still in use">
+              {refusal}
+            </Alert>
+          )}
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDeleting(null)}>
+              Keep it
+            </Button>
+            <Button variant="danger" disabled={removing} onClick={() => void remove()}>
+              Delete asset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
