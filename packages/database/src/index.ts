@@ -11,6 +11,7 @@ export { preferenceRepository, isPreferenceKey, PREFERENCE_KEYS } from "./reposi
 export type { PreferenceKey } from "./repositories/preference"
 
 export { pageRepository, DraftConflictError } from "./repositories/page"
+export type { StoredDocument } from "./repositories/page"
 export type { CreatePageInput } from "./repositories/page"
 
 export { publishedRepository } from "./repositories/published"

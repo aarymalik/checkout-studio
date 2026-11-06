@@ -110,6 +110,34 @@ export const resourceErrors = {
       },
     }),
 
+  /**
+   * A delete refused because something still points at it.
+   *
+   * `user-retryable` and not `fatal`: there is a thing the person can do, and
+   * the places are in the message so they know where to go. A refusal that
+   * said only "in use" would leave somebody opening pages until they found
+   * it.
+   *
+   * The places arrive already written. What counts as one — a page, a
+   * template, a theme — is the caller's question, and a catalog entry that
+   * tried to answer it would be a catalog entry that knew about pages.
+   */
+  inUse: (entity: string, places: readonly string[]) =>
+    createError({
+      code: "IN_USE",
+      domain: "resource",
+      severity: "warning",
+      recoverability: "user-retryable",
+      message: `${entity} is still used by ${places.join(", ")}`,
+      userMessage: `Still used on ${places.join(", ")}. Take it off there first.`,
+      status: 409,
+      details: places.map((place) => ({
+        path: place,
+        code: "IN_USE",
+        message: `Used on ${place}`,
+      })),
+    }),
+
   rateLimited: (retryAfterSeconds: number) =>
     createError({
       code: "RATE_LIMITED",

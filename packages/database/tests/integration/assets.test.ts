@@ -436,3 +436,63 @@ describe("a renditions column this release cannot read", () => {
     await expect(assetRepository.findById(tenant, asset.id)).rejects.toThrow(AssetRenditionsError)
   })
 })
+
+describe("taking an asset out of the library", () => {
+  beforeEach(truncateAll)
+
+  it("dates the row rather than removing it", async () => {
+    /*
+     * Soft, because whether anything still uses an asset is answered from
+     * documents and that answer can be wrong in one direction. A row with a
+     * date on it can be put back; a file removed from storage cannot.
+     */
+    const tenant = await scoped()
+    const { asset } = await assetRepository.create(tenant, upload())
+
+    expect(await assetRepository.softDelete(tenant, asset.id)).toBe(true)
+    expect(await prisma.asset.findUnique({ where: { id: asset.id } })).toMatchObject({
+      deletedAt: expect.any(Date) as Date,
+    })
+  })
+
+  it("takes it out of the library and out of reach", async () => {
+    const tenant = await scoped()
+    const { asset } = await assetRepository.create(tenant, upload())
+
+    await assetRepository.softDelete(tenant, asset.id)
+
+    expect(await assetRepository.list(tenant)).toEqual([])
+    expect(await assetRepository.findById(tenant, asset.id)).toBeNull()
+  })
+
+  it("answers false the second time, rather than moving the date", async () => {
+    const tenant = await scoped()
+    const { asset } = await assetRepository.create(tenant, upload())
+
+    await assetRepository.softDelete(tenant, asset.id)
+
+    const first = await prisma.asset.findUnique({ where: { id: asset.id } })
+
+    expect(await assetRepository.softDelete(tenant, asset.id)).toBe(false)
+    expect((await prisma.asset.findUnique({ where: { id: asset.id } }))?.deletedAt).toEqual(
+      first?.deletedAt,
+    )
+  })
+
+  it("will not delete somebody else's", async () => {
+    // The same answer as an id that never existed. Which of the two it was is
+    // a fact about another tenant's project.
+    const mine = await scoped()
+    const theirs = await scoped()
+    const { asset } = await assetRepository.create(mine, upload())
+
+    expect(await assetRepository.softDelete(theirs, asset.id)).toBe(false)
+    expect(await assetRepository.findById(mine, asset.id)).toMatchObject({ id: asset.id })
+  })
+
+  it("answers false for an id that does not exist", async () => {
+    const tenant = await scoped()
+
+    expect(await assetRepository.softDelete(tenant, "ast_nothing")).toBe(false)
+  })
+})
