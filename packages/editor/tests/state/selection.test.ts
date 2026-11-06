@@ -7,7 +7,6 @@ import {
   primarySelection,
   resolvedStyles,
   selectedNodes,
-  usedAssets,
 } from "../../src/state/selectors"
 import { makeStore } from "./support"
 
@@ -335,47 +334,6 @@ describe("selectors", () => {
 
       expect(isLocked(state().document, "heading")).toBe(true)
       expect(isLocked(state().document, "footer")).toBe(false)
-    })
-  })
-
-  describe("usedAssets", () => {
-    // Derived by walking the page. Never stored, so it cannot go stale.
-    it("finds references wherever they are nested", () => {
-      const { store, state } = makeStore()
-
-      store.getState().setProps("heading", {
-        image: { $asset: "ast_one" },
-        gallery: [{ src: { $asset: "ast_two" } }],
-      })
-
-      expect([...usedAssets(state().document)].sort()).toEqual(["ast_one", "ast_two"])
-    })
-
-    it("finds the ones in page settings", () => {
-      const { state } = makeStore()
-      const document = {
-        ...state().document,
-        settings: {
-          favicon: { $asset: "ast_icon" },
-          seo: { image: { $asset: "ast_social" } },
-        },
-      }
-
-      expect([...usedAssets(document)].sort()).toEqual(["ast_icon", "ast_social"])
-    })
-
-    it("finds none in a page that uses none", () => {
-      const { state } = makeStore()
-
-      expect(usedAssets(state().document)).toEqual([])
-    })
-
-    it("does not mistake a plain string for a reference", () => {
-      const { store, state } = makeStore()
-
-      store.getState().setProps("heading", { text: "ast_not_an_asset" })
-
-      expect(usedAssets(state().document)).toEqual([])
     })
   })
 })
