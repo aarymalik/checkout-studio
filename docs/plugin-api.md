@@ -735,6 +735,33 @@ Lottie
 
 Assets are optimized automatically.
 
+## What a dropped asset becomes
+
+Dragging a picture out of the media library onto the canvas has to make
+something, and which something is not a question the engine can answer: it
+knows about nodes and references, not about there being a component whose job
+is showing a picture. A checkout, a landing page and an email would each
+answer with a different component.
+
+So the component answers. A definition may carry `fromAsset`:
+
+```ts
+fromAsset: { kinds: ["image", "vector"], prop: "src" }
+```
+
+`kinds` are the upload kinds this component is the home for — `image`,
+`vector`, `video`, `font`, `document`. `prop` is the property the reference is
+written to, and it must be one this component registers with an `asset`
+control: a reference written anywhere else is a value no control can edit and
+no renderer resolves. The two halves are registered apart, so nothing in the
+SDK can check that they agree and the application does.
+
+Absent means a dropped asset is not this, which is the answer for all but a
+couple of components. A kind no installed component claims is dropped nowhere
+— nothing on a page _is_ a font — and the canvas shows no drop indicator for
+it. Two components claiming one kind is a tie broken by registration order,
+which is a reason for a catalog not to create one.
+
 ---
 
 # AI Integration

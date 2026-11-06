@@ -2,6 +2,7 @@ import type {
   Breakpoint,
   CheckoutSchema,
   Fragment,
+  PropValue,
   SchemaProblem,
   StyleState,
 } from "@checkout-studio/schema"
@@ -128,15 +129,30 @@ export interface DragState {
    */
   keyboard: KeyboardDrag | null
   /**
-   * The component type being dragged out of the library, if one is.
+   * The node being dragged out of a panel, if one is.
    *
-   * A type rather than an id, because there is no node yet — that is the whole
-   * difference between inserting and moving. It lives here because the gesture
-   * starts in the library panel and is resolved by the canvas, which is the
-   * only thing that knows where anything is; the store is how the two speak
-   * without either importing the other.
+   * A description of a node rather than an id, because there is no node yet —
+   * that is the whole difference between inserting and moving. It lives here
+   * because the gesture starts in a panel and is resolved by the canvas,
+   * which is the only thing that knows where anything is; the store is how
+   * the two speak without either importing the other.
    */
-  inserting: string | null
+  inserting: Insertion | null
+}
+
+/**
+ * A node a drag would create, described before anything exists.
+ *
+ * The props are what makes this more than a type. The component library drags
+ * a bare type and the new node takes the component's own defaults; the media
+ * library drags a picture, and the node has to arrive already pointing at it
+ * — inserting an empty Image and then setting its source would be two undo
+ * steps for one act, and a moment of an image component with no image in it.
+ */
+export interface Insertion {
+  type: string
+  /** What the new node holds of its own. Its component's defaults otherwise. */
+  props?: Readonly<Record<string, PropValue>>
 }
 
 /**

@@ -224,7 +224,13 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
 }
 
 export interface InsertDragControls {
-  /** The component type being dragged out of the library, or null. */
+  /**
+   * The component type being dragged out of a panel, or null.
+   *
+   * The type and not the whole insertion: what the canvas does with this is
+   * decide whether a drag is in progress and what the rules let it land on,
+   * and neither question is answered by the props the new node will hold.
+   */
   type: string | null
   /** Where it would land, or null when nowhere would take it. */
   drop: Drop | null
@@ -249,7 +255,7 @@ export interface InsertDragControls {
  */
 export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): InsertDragControls {
   const store = useEditorStoreApi()
-  const type = useEditorStore((state) => state.drag.inserting)
+  const insertion = useEditorStore((state) => state.drag.inserting)
   const [drop, setDrop] = useState<Drop | null>(null)
   const [rejection, setRejection] = useState<Rejection | null>(null)
 
@@ -258,7 +264,7 @@ export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): In
   latest.current = { rects, toCanvas, rules }
 
   useEffect(() => {
-    if (type === null) {
+    if (insertion === null) {
       setDrop(null)
       setRejection(null)
       return
@@ -299,7 +305,7 @@ export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): In
 
       if (landing === null || refused) return
 
-      store.getState().insertNew(type, landing.parentId, landing.index)
+      store.getState().insertNew(insertion.type, landing.parentId, landing.index, insertion.props)
     }
 
     const cancel = (event: KeyboardEvent): void => {
@@ -321,7 +327,7 @@ export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): In
       window.removeEventListener("pointerup", up)
       window.removeEventListener("keydown", cancel)
     }
-  }, [type, store, drop, rejection])
+  }, [insertion, store, drop, rejection])
 
-  return { type, drop, rejection }
+  return { type: insertion?.type ?? null, drop, rejection }
 }

@@ -1,5 +1,8 @@
 import type { LibraryAsset } from "@checkout-studio/api"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { EditorProvider, useEditorStoreApi } from "@checkout-studio/editor"
+import type { EditorStoreApi } from "@checkout-studio/editor"
+import { createDocument } from "@checkout-studio/schema"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -45,8 +48,39 @@ function asset(index: number): LibraryAsset {
 
 const THREE = [asset(0), asset(1), asset(2)]
 
+/**
+ * The panel, inside the editor the shell puts it inside.
+ *
+ * It reads the store now: dragging an asset onto the canvas starts here, and
+ * whether the reader may write at all is the store's answer. Rendering it
+ * without a provider is a panel the product never shows.
+ */
 function renderPanel(assets: readonly LibraryAsset[] = THREE) {
-  return render(<AssetsPanel projectId="prj_one" assets={assets} />)
+  let captured: EditorStoreApi | null = null
+
+  function Capture() {
+    captured = useEditorStoreApi()
+
+    return <AssetsPanel projectId="prj_one" assets={assets} />
+  }
+
+  const result = render(
+    <EditorProvider
+      document={createDocument({
+        projectId: "prj_one",
+        pageId: "pag_one",
+        themeId: "theme_default",
+        random: () => 0.5,
+      })}
+      baseVersion={1}
+    >
+      <Capture />
+    </EditorProvider>,
+  )
+
+  if (captured === null) throw new Error("The provider did not render.")
+
+  return { ...result, store: captured as EditorStoreApi }
 }
 
 type Sent = { url: string; fileName: string | null }
@@ -519,5 +553,84 @@ describe("accessibility", () => {
     const { container } = renderPanel([])
 
     await expectNoViolations(container)
+  })
+})
+
+describe("dragging an asset onto the canvas", () => {
+  /**
+   * The press, which is where the gesture starts.
+   *
+   * On the press rather than on a movement threshold, as the component
+   * library does it: the canvas resolves the drag and ends it on pointer-up,
+   * so a press that never moves ends with nothing inserted.
+   */
+  async function press(name: string): Promise<void> {
+    // Found rather than got: the grid is not drawn until the panel has been
+    // measured, and the measurement arrives a microtask later as the real
+    // one arrives a frame later.
+    const cell = await screen.findByRole("button", { name })
+
+    await userEvent.pointer({ keys: "[MouseLeft>]", target: cell })
+  }
+
+  it("tells the store what the canvas should make", async () => {
+    /*
+     * A node described before it exists, already pointing at the asset. The
+     * canvas is the only thing that knows where anything is, so it resolves
+     * where this lands; the store is how the two panels speak without either
+     * importing the other.
+     */
+    const { store } = renderPanel()
+
+    await press("picture-0.png")
+
+    expect(store.getState().drag.inserting).toEqual({
+      type: "core.image",
+      props: { src: { $asset: "ast_0" } },
+    })
+  })
+
+  it("starts nothing for a file no component shows", async () => {
+    // Nothing on a page is a font. No insertion means the canvas draws no
+    // drop indicator, which is the honest way to say it would land nowhere.
+    const font: LibraryAsset = {
+      ...asset(0),
+      id: "ast_font",
+      fileName: "inter.woff2",
+      mimeType: "font/woff2",
+      kind: "font",
+      width: null,
+      height: null,
+    }
+    const { store } = renderPanel([font])
+
+    await press("inter.woff2")
+
+    expect(store.getState().drag.inserting).toBeNull()
+  })
+
+  it("starts nothing for a reader who may not write", async () => {
+    // Looking and copying a URL are not edits. Putting a picture on the page
+    // is, and a second editor holding the session must not be able to.
+    const { store } = renderPanel()
+
+    act(() => {
+      store.getState().setCanEdit(false)
+    })
+
+    await press("picture-0.png")
+
+    expect(store.getState().drag.inserting).toBeNull()
+  })
+
+  it("still selects what was pressed", async () => {
+    // The click handler is untouched: a press that goes nowhere is how
+    // somebody reads an asset's size and type, and the drag must not cost
+    // them that.
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole("button", { name: "picture-1.png" }))
+
+    expect(screen.getByText("picture-1.png", { selector: "p" })).toBeVisible()
   })
 })

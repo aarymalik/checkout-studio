@@ -19,6 +19,7 @@ export const video: ComponentDefinition = {
   category: "Media",
   interactive: false,
   container: false,
+  fromAsset: { kinds: ["video"], prop: "src" },
   defaultProps: { controls: true, autoplay: false, loop: false, muted: false },
   defaultStyles: {
     display: "block",

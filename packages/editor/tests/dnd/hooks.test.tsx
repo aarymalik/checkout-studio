@@ -498,7 +498,7 @@ describe("dragging a new component out of the library", () => {
     const { result, store } = insertHarness()
     const before = countOf(store)
 
-    act(() => store.getState().setInserting("core.text"))
+    act(() => store.getState().setInserting({ type: "core.text" }))
     moveTo(200)
 
     expect(result.current.type).toBe("core.text")
@@ -510,10 +510,45 @@ describe("dragging a new component out of the library", () => {
     expect(store.getState().document.nodes["box"]?.children).toHaveLength(1)
   })
 
+  it("lands holding what the panel sent with it", () => {
+    /*
+     * The media library drags a picture, not a type: the node has to arrive
+     * already pointing at the asset. Inserting an empty one and then setting
+     * its source would be two undo steps for one act, and a moment of an
+     * image component with no image in it.
+     */
+    const { store } = insertHarness()
+
+    act(() =>
+      store.getState().setInserting({ type: "core.text", props: { src: { $asset: "ast_hero" } } }),
+    )
+    moveTo(200)
+    release()
+
+    const added = store.getState().document.nodes["box"]?.children[0] ?? ""
+
+    expect(store.getState().document.nodes[added]?.props).toEqual({ src: { $asset: "ast_hero" } })
+  })
+
+  it("lands with nothing of its own when the panel sent no props", () => {
+    // The component library's drag. Its new node takes the component's own
+    // defaults, which is stage two of the cascade rather than props written
+    // onto the node — a copy there would stop following the component.
+    const { store } = insertHarness()
+
+    act(() => store.getState().setInserting({ type: "core.text" }))
+    moveTo(200)
+    release()
+
+    const added = store.getState().document.nodes["box"]?.children[0] ?? ""
+
+    expect(store.getState().document.nodes[added]?.props).toEqual({})
+  })
+
   it("clears the gesture when it is done", () => {
     const { result, store } = insertHarness()
 
-    act(() => store.getState().setInserting("core.text"))
+    act(() => store.getState().setInserting({ type: "core.text" }))
     moveTo(200)
     release()
 
@@ -525,7 +560,7 @@ describe("dragging a new component out of the library", () => {
     const { result, store } = insertHarness()
 
     act(() => store.getState().setLocked(["box"], true))
-    act(() => store.getState().setInserting("core.text"))
+    act(() => store.getState().setInserting({ type: "core.text" }))
     moveTo(200)
 
     expect(result.current.rejection?.code).toBe("locked-destination")
@@ -561,7 +596,7 @@ describe("dragging a new component out of the library", () => {
 
     const api = store as EditorStoreApi
 
-    act(() => api.getState().setInserting("core.text"))
+    act(() => api.getState().setInserting({ type: "core.text" }))
     moveTo(200)
 
     expect(result.current.rejection?.code).toBe("rejects-children")
@@ -570,7 +605,7 @@ describe("dragging a new component out of the library", () => {
   it("adds nothing when it is dropped off the page", () => {
     const { result, store } = insertHarness()
 
-    act(() => store.getState().setInserting("core.text"))
+    act(() => store.getState().setInserting({ type: "core.text" }))
     moveTo(900)
 
     expect(result.current.drop).toBeNull()
@@ -585,7 +620,7 @@ describe("dragging a new component out of the library", () => {
   it("is not cancelled by other keys", () => {
     const { result, store } = insertHarness()
 
-    act(() => store.getState().setInserting("core.text"))
+    act(() => store.getState().setInserting({ type: "core.text" }))
     moveTo(200)
 
     act(() => {
@@ -594,7 +629,7 @@ describe("dragging a new component out of the library", () => {
 
     // Typing while carrying something should not put it down.
     expect(result.current.type).toBe("core.text")
-    expect(store.getState().drag.inserting).toBe("core.text")
+    expect(store.getState().drag.inserting).toEqual({ type: "core.text" })
 
     release()
   })
@@ -603,7 +638,7 @@ describe("dragging a new component out of the library", () => {
     const { store } = insertHarness()
     const before = countOf(store)
 
-    act(() => store.getState().setInserting("core.text"))
+    act(() => store.getState().setInserting({ type: "core.text" }))
     moveTo(200)
 
     act(() => {

@@ -137,6 +137,17 @@ one a merchant chose is the kind of helpfulness nobody asked for.
 The filter offers only the kinds that are there, with counts. A library of
 logos should not offer to show the videos in it.
 
+A cell can be dragged onto the canvas, where it lands as the component that
+shows that kind of file — a picture becomes an Image, a clip becomes a Video.
+Which component is the plugin's answer and not the panel's, so the catalog can
+change without this one moving. A file nothing shows starts no drag at all,
+and the canvas draws no indicator for it.
+
+The drag is a shortcut and not the only way: inserting an Image from the
+component library and choosing the asset in the inspector reaches the same
+place with the keyboard alone. Pressing a cell still selects it, so reading
+what a file is costs nothing.
+
 It virtualizes, like Layers: a thousand assets is the target in
 [phases.md](./phases.md), and a thousand thumbnails in the DOM is a thousand
 image requests. The grid carries its row and column counts for a screen reader,

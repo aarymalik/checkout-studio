@@ -1,4 +1,5 @@
 import type { ComponentValidator, Node, PropValue, StyleProperties } from "@checkout-studio/schema"
+import type { UploadKind } from "@checkout-studio/utils"
 import type { ZodType } from "zod"
 
 import type { SlotField } from "./properties"
@@ -157,6 +158,38 @@ export interface ComponentDefinition {
   insertable?: boolean
   /** Restricts what may be placed inside. Absent means any type. */
   allowedChildTypes?: readonly string[]
+  /**
+   * That this component is what a dropped asset becomes.
+   *
+   * Dragging a picture from the media library onto the canvas has to make
+   * *something*, and which something is not a question the editor can answer:
+   * it knows about nodes and references, not about there being a component
+   * whose job is showing a picture. A checkout, a landing page and an email
+   * would each answer it with a different component, and none of them should
+   * need the engine changed to say so.
+   *
+   * So the component says it. Absent means an asset dropped on the canvas is
+   * not this, which is the answer for all but a couple of them.
+   */
+  fromAsset?: {
+    /**
+     * The upload kinds this component is the home for.
+     *
+     * Two components claiming one kind is a tie the application breaks, and
+     * the only honest way to break it is the order they were registered in —
+     * so it is worth not doing.
+     */
+    kinds: readonly UploadKind[]
+    /**
+     * The prop the reference is written to.
+     *
+     * A property this component registers with an `asset` control. The two
+     * halves are registered separately — a definition here, its properties in
+     * the plugin's editor half — so nothing in this package can check that
+     * they agree. The application that assembles both does.
+     */
+    prop: string
+  }
   defaultProps: Readonly<Record<string, PropValue>>
   /**
    * Stage 2 of the cascade, and the value an unresolvable token reference falls

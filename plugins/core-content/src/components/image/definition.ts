@@ -23,6 +23,10 @@ export const image: ComponentDefinition = {
   category: "Media",
   interactive: false,
   container: false,
+  // What a picture dragged out of the media library becomes. An SVG as well
+  // as a photograph: both are things a browser draws in an `<img>`, and the
+  // alternative for a logo would be no answer at all.
+  fromAsset: { kinds: ["image", "vector"], prop: "src" },
   defaultProps: { alt: "", decorative: false, eager: false },
   defaultStyles: {
     display: "block",

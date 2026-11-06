@@ -2,15 +2,17 @@
 
 import type { LibraryAsset } from "@checkout-studio/api"
 import { Alert, Button, EmptyState, cn } from "@checkout-studio/ui"
-import { scrollToRow } from "@checkout-studio/editor"
+import { scrollToRow, useEditorStore, useEditorStoreApi } from "@checkout-studio/editor"
 import { Check, Copy } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 
 import { upload } from "@/lib/api-client"
+import { registry } from "@/studio/registry"
 
 import { CELL_GAP, cellAt, gridMetrics, gridWindow, neighbour } from "./grid"
+import { insertionForAsset } from "./insert"
 import { LibraryControls } from "./LibraryControls"
 import { EVERYTHING, kindCounts, selectAssets, type Selection } from "./select"
 import { UploadZone } from "./UploadZone"
@@ -78,6 +80,10 @@ const ACCEPT = [
 
 export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const router = useRouter()
+  const store = useEditorStoreApi()
+  // A reader who may not write may not drag one onto the page either. The
+  // rest of the panel still works: looking and copying a URL are not edits.
+  const canEdit = useEditorStore((state) => state.persistence.canEdit)
   const [selection, setSelection] = useState<Selection>(EVERYTHING)
   const viewport = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -317,6 +323,13 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
                             setFocused(index)
                             setSelected(asset.id)
                           }}
+                          onDrag={() => {
+                            if (!canEdit) return
+
+                            const insertion = insertionForAsset(registry, asset)
+
+                            if (insertion !== null) store.getState().setInserting(insertion)
+                          }}
                         />
                       )
                     })}
@@ -367,6 +380,7 @@ function Cell({
   focused,
   selected,
   onChoose,
+  onDrag,
 }: {
   asset: LibraryAsset
   index: number
@@ -375,6 +389,16 @@ function Cell({
   focused: boolean
   selected: boolean
   onChoose: () => void
+  /**
+   * Starts a drag onto the canvas.
+   *
+   * On the press rather than on a movement threshold, which is what the
+   * component library does and for the same reason: the canvas resolves the
+   * drag and ends it on pointer-up, so a press that never moves ends with
+   * nothing inserted. Pressing still selects — the click handler above is
+   * untouched by this.
+   */
+  onDrag: () => void
 }) {
   return (
     <div role="gridcell" aria-colindex={column + 1} aria-selected={selected}>
@@ -383,6 +407,7 @@ function Cell({
         data-cell={index}
         tabIndex={focused ? 0 : -1}
         onClick={onChoose}
+        onPointerDown={onDrag}
         style={{ width }}
         className={cn(
           "flex flex-col gap-1 rounded-control p-1 text-left",

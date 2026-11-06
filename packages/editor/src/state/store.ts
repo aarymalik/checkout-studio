@@ -15,6 +15,7 @@ import {
   type CheckoutSchema,
   type Fragment,
   type Node,
+  type PropValue,
   type StyleProperties,
   type PageSettings,
   type StyleState,
@@ -29,6 +30,7 @@ import type {
   BuilderState,
   CanvasMeasurements,
   HistoryEntry,
+  Insertion,
   KeyboardDrag,
   RecoveryState,
 } from "./types"
@@ -53,7 +55,13 @@ export interface EditorActions {
   /** Replace the document wholesale. Clears history; this is a new page. */
   load: (document: CheckoutSchema, baseVersion?: number) => void
   insert: (node: Node, parentId: string, index?: number) => TreeResult
-  insertNew: (type: string, parentId: string, index?: number) => TreeResult
+  /** @param props what the new node holds of its own, beyond the component's defaults. */
+  insertNew: (
+    type: string,
+    parentId: string,
+    index?: number,
+    props?: Readonly<Record<string, PropValue>>,
+  ) => TreeResult
   move: (id: string, parentId: string, index?: number) => TreeResult
   remove: (ids: readonly string[]) => TreeResult
   duplicate: (ids: readonly string[]) => TreeResult
@@ -138,7 +146,7 @@ export interface EditorActions {
   endDrag: () => void
   setKeyboardDrag: (keyboard: KeyboardDrag | null) => void
   /** Start or stop dragging a new component of `type` out of the library. */
-  setInserting: (type: string | null) => void
+  setInserting: (insertion: Insertion | null) => void
 
   // ── Persistence ───────────────────────────────────────────────────────────
   markSaving: () => void
@@ -383,11 +391,11 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
           () => ({ selection: { ...get().selection, ids: [node.id] } }),
         ),
 
-      insertNew: (type, parentId, index) => {
+      insertNew: (type, parentId, index, props) => {
         const node = createNode(
           type,
           new Set(Object.keys(get().document.nodes)),
-          {},
+          props === undefined ? {} : { props },
           options.random,
         )
 
@@ -873,10 +881,10 @@ export function createEditorStore(options: CreateStoreOptions): EditorStoreApi {
       setKeyboardDrag: (keyboard) =>
         set((state) => ({ ...state, drag: { ...state.drag, keyboard } })),
 
-      setInserting: (type) =>
+      setInserting: (insertion) =>
         set((state) => ({
           ...state,
-          drag: { ...state.drag, inserting: type, overId: null, position: null },
+          drag: { ...state.drag, inserting: insertion, overId: null, position: null },
         })),
 
       endDrag: () =>
