@@ -74,6 +74,7 @@ export type {
   DragState,
   HistoryEntry,
   HistoryState,
+  Insertion,
   PersistenceState,
   PublishingState,
   RecoveryState,
