@@ -87,10 +87,13 @@ type Sent = { url: string; fileName: string | null }
 
 let sent: Sent[]
 let answer: { ok: boolean; message?: string }
+/** What the delete endpoint answers. Refusals are the interesting half. */
+let deletion: { ok: boolean; code?: string; message?: string }
 
 beforeEach(() => {
   sent = []
   answer = { ok: true }
+  deletion = { ok: true }
   refresh.mockClear()
 
   /*
@@ -124,10 +127,28 @@ beforeEach(() => {
 
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string, init?: { body?: FormData }) => {
+    vi.fn(async (url: string, init?: { body?: FormData; method?: string }) => {
       const file = init?.body?.get("file")
 
       sent.push({ url, fileName: file instanceof File ? file.name : null })
+
+      if (init?.method === "DELETE") {
+        const refused = {
+          success: false,
+          data: null,
+          error: { code: deletion.code ?? "IN_USE", message: deletion.message },
+          meta: {},
+        }
+
+        return new Response(
+          JSON.stringify(
+            deletion.ok
+              ? { success: true, data: { deleted: true }, error: null, meta: {} }
+              : refused,
+          ),
+          { headers: { "content-type": "application/json" } },
+        )
+      }
 
       const envelope = answer.ok
         ? { success: true, data: { asset: asset(99) }, error: null, meta: {} }
@@ -632,5 +653,139 @@ describe("dragging an asset onto the canvas", () => {
     await userEvent.click(await screen.findByRole("button", { name: "picture-1.png" }))
 
     expect(screen.getByText("picture-1.png", { selector: "p" })).toBeVisible()
+  })
+})
+
+describe("deleting an asset", () => {
+  /** Chooses a cell, which is what puts the details strip on screen. */
+  async function choose(name: string): Promise<void> {
+    await userEvent.click(await screen.findByRole("button", { name }))
+  }
+
+  async function openDialog(name = "picture-0.png"): Promise<void> {
+    renderPanel()
+    await choose(name)
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }))
+  }
+
+  it("offers nothing to delete until something is chosen", async () => {
+    renderPanel()
+
+    await screen.findByRole("grid", { name: "Assets" })
+
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull()
+  })
+
+  it("asks first, naming the file", async () => {
+    // A misplaced click should not be able to take somebody's picture.
+    await openDialog()
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("Delete picture-0.png?")
+  })
+
+  it("says in advance that one in use cannot be deleted", async () => {
+    /*
+     * Somebody who knows this goes and takes the picture off the page.
+     * Somebody who finds out by being refused goes looking for a bug.
+     */
+    await openDialog()
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("still uses cannot be deleted")
+  })
+
+  it("does nothing when it is dismissed", async () => {
+    await openDialog()
+    await userEvent.click(screen.getByRole("button", { name: "Keep it" }))
+
+    expect(sent).toEqual([])
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it("sends the delete for the chosen asset", async () => {
+    await openDialog("picture-1.png")
+    await userEvent.click(screen.getByRole("button", { name: "Delete asset" }))
+
+    await waitFor(() => {
+      expect(sent[0]?.url).toBe("/api/projects/prj_one/assets/ast_1")
+    })
+  })
+
+  it("refetches the list rather than editing a copy of it", async () => {
+    // The list is the server's. Two copies disagree the moment one of them
+    // fails to update.
+    await openDialog()
+    await userEvent.click(screen.getByRole("button", { name: "Delete asset" }))
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalled()
+    })
+  })
+
+  it("closes, and stops showing the asset that has gone", async () => {
+    await openDialog()
+    await userEvent.click(screen.getByRole("button", { name: "Delete asset" }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull()
+    })
+
+    expect(screen.queryByRole("button", { name: "Copy URL" })).toBeNull()
+  })
+})
+
+describe("a delete the server refuses", () => {
+  it("says where it is still used, in the dialog that asked", async () => {
+    /*
+     * In the dialog and not the panel's problem strip, which is behind it.
+     * "Still used on Checkout" is an answer to the question being asked right
+     * there.
+     */
+    deletion = {
+      ok: false,
+      code: "IN_USE",
+      message: "Still used on Checkout. Take it off there first.",
+    }
+
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole("button", { name: "picture-0.png" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete asset" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Still used on Checkout")
+  })
+
+  it("stays open, and leaves the library alone", async () => {
+    deletion = { ok: false, code: "IN_USE", message: "Still used on Checkout." }
+
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole("button", { name: "picture-0.png" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete asset" }))
+
+    await screen.findByRole("alert")
+
+    expect(screen.getByRole("dialog")).toBeVisible()
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it("clears the last refusal when the dialog is opened again", async () => {
+    // A stale "still in use" over a different asset is a sentence about
+    // something nobody asked about.
+    deletion = { ok: false, code: "IN_USE", message: "Still used on Checkout." }
+
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole("button", { name: "picture-0.png" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete asset" }))
+    await screen.findByRole("alert")
+
+    await userEvent.click(screen.getByRole("button", { name: "Keep it" }))
+    await userEvent.click(screen.getByRole("button", { name: "picture-1.png" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }))
+
+    expect(screen.queryByRole("alert")).toBeNull()
   })
 })

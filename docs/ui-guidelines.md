@@ -148,6 +148,18 @@ component library and choosing the asset in the inspector reaches the same
 place with the keyboard alone. Pressing a cell still selects it, so reading
 what a file is costs nothing.
 
+Below the grid, the chosen asset's name, size and type, and the two things to
+do with it: copy its URL, or delete it. Deleting asks first — a misplaced
+click should not be able to take somebody's picture — and the question says
+in advance that an asset a page still uses cannot be deleted. Somebody who
+knows that goes and takes the picture off the page; somebody who finds out by
+being refused goes looking for a bug.
+
+A refusal is shown in the dialog that asked, not in the panel's own problem
+strip, which is behind it. "Still used on Checkout" is an answer to the
+question being asked right there, and it names the pages so the next step is
+obvious.
+
 It virtualizes, like Layers: a thousand assets is the target in
 [phases.md](./phases.md), and a thousand thumbnails in the DOM is a thousand
 image requests. The grid carries its row and column counts for a screen reader,
