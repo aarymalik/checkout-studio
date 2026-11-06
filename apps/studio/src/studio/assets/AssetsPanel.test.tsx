@@ -87,6 +87,66 @@ type Sent = { url: string; fileName: string | null }
 
 let sent: Sent[]
 let answer: { ok: boolean; message?: string }
+/** The uploads in flight, for a test that drives one by hand. */
+let uploads: FakeUpload[]
+/** Whether an upload finishes by itself. False for the tests about progress. */
+let autoComplete: boolean
+
+/**
+ * An `XMLHttpRequest` that goes nowhere.
+ *
+ * The panel uploads through XHR rather than `fetch`, which is the only way a
+ * browser will say how much of a request body has gone. jsdom's own XHR would
+ * try to make a real request, so this stands in for it — and with
+ * `autoComplete` off it lets a test decide exactly when the bytes land and
+ * when the server answers.
+ */
+class FakeUpload extends EventTarget {
+  readonly upload = new EventTarget()
+  responseText = ""
+  private url = ""
+
+  open(_method: string, url: string): void {
+    this.url = url
+  }
+
+  send(body: FormData): void {
+    const file = body.get("file")
+
+    sent.push({ url: this.url, fileName: file instanceof File ? file.name : null })
+    uploads.push(this)
+
+    if (autoComplete) {
+      queueMicrotask(() => {
+        this.progress(1)
+        this.finish()
+      })
+    }
+  }
+
+  /** Reports that this much of the file has gone, from 0 to 1. */
+  progress(fraction: number): void {
+    this.upload.dispatchEvent(
+      new ProgressEvent("progress", { lengthComputable: true, loaded: fraction * 100, total: 100 }),
+    )
+  }
+
+  /** Answers, with whatever `answer` says this upload was. */
+  finish(): void {
+    this.responseText = JSON.stringify(
+      answer.ok
+        ? { success: true, data: { asset: asset(99) }, error: null, meta: {} }
+        : {
+            success: false,
+            data: null,
+            error: { code: "UPLOAD_REJECTED", message: answer.message },
+            meta: {},
+          },
+    )
+
+    this.dispatchEvent(new Event("load"))
+  }
+}
 /** What the delete endpoint answers. Refusals are the interesting half. */
 let deletion: { ok: boolean; code?: string; message?: string }
 
@@ -94,7 +154,10 @@ beforeEach(() => {
   sent = []
   answer = { ok: true }
   deletion = { ok: true }
+  uploads = []
+  autoComplete = true
   refresh.mockClear()
+  vi.stubGlobal("XMLHttpRequest", FakeUpload)
 
   /*
    * ResizeObserver does not exist in jsdom, and would report zero if it did.
@@ -125,37 +188,18 @@ beforeEach(() => {
     },
   )
 
+  // Everything but an upload, which goes through the XHR above.
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string, init?: { body?: FormData; method?: string }) => {
-      const file = init?.body?.get("file")
+    vi.fn(async (url: string) => {
+      sent.push({ url, fileName: null })
 
-      sent.push({ url, fileName: file instanceof File ? file.name : null })
-
-      if (init?.method === "DELETE") {
-        const refused = {
-          success: false,
-          data: null,
-          error: { code: deletion.code ?? "IN_USE", message: deletion.message },
-          meta: {},
-        }
-
-        return new Response(
-          JSON.stringify(
-            deletion.ok
-              ? { success: true, data: { deleted: true }, error: null, meta: {} }
-              : refused,
-          ),
-          { headers: { "content-type": "application/json" } },
-        )
-      }
-
-      const envelope = answer.ok
-        ? { success: true, data: { asset: asset(99) }, error: null, meta: {} }
+      const envelope = deletion.ok
+        ? { success: true, data: { deleted: true }, error: null, meta: {} }
         : {
             success: false,
             data: null,
-            error: { code: "UPLOAD_REJECTED", message: answer.message },
+            error: { code: deletion.code ?? "IN_USE", message: deletion.message },
             meta: {},
           }
 
@@ -787,5 +831,107 @@ describe("a delete the server refuses", () => {
     await userEvent.click(screen.getByRole("button", { name: "Delete" }))
 
     expect(screen.queryByRole("alert")).toBeNull()
+  })
+})
+
+describe("while files are going up", () => {
+  /** A file chosen through the zone's input, which is how the product does it. */
+  async function choose(...names: readonly string[]): Promise<void> {
+    renderPanel()
+    autoComplete = false
+
+    await userEvent.upload(
+      screen.getByLabelText(/Upload files/),
+      names.map((name) => new File(["x"], name, { type: "image/png" })),
+    )
+  }
+
+  function bar(): HTMLElement {
+    return screen.getByRole("progressbar")
+  }
+
+  it("says how much of the file has gone", async () => {
+    /*
+     * The number is the bytes the browser has handed over. There is no other
+     * number: fetch cannot report one at all, which is why this goes through
+     * XMLHttpRequest.
+     */
+    await choose("hero.png")
+
+    act(() => {
+      uploads[0]?.progress(0.42)
+    })
+
+    expect(bar()).toHaveAttribute("aria-valuenow", "42")
+  })
+
+  it("stops counting once the bytes are up, and says what is happening instead", async () => {
+    /*
+     * The honest part. A photograph's bytes arrive in a second and the server
+     * then spends several re-encoding it into four sizes and two formats — a
+     * bar that sat at 100% for the longer half would read as stuck, and one
+     * that crept on a timer would be inventing progress.
+     */
+    await choose("hero.png")
+
+    act(() => {
+      uploads[0]?.progress(1)
+    })
+
+    expect(bar()).not.toHaveAttribute("aria-valuenow")
+    expect(screen.getByText(/Storing hero\.png/)).toBeVisible()
+  })
+
+  it("names the file, because a refusal has to be about one", async () => {
+    await choose("hero.png")
+
+    act(() => {
+      uploads[0]?.progress(0.5)
+    })
+
+    expect(screen.getByText("hero.png")).toBeVisible()
+  })
+
+  it("counts them when there are several, and not when there is one", async () => {
+    // "1 of 1" answers a question nobody asked.
+    await choose("one.png")
+
+    act(() => {
+      uploads[0]?.progress(0.5)
+    })
+
+    expect(screen.queryByText(/1 of 1/)).toBeNull()
+  })
+
+  it("moves on to the next file, counting as it goes", async () => {
+    await choose("one.png", "two.png")
+
+    act(() => {
+      uploads[0]?.progress(1)
+      uploads[0]?.finish()
+    })
+
+    await waitFor(() => {
+      expect(uploads).toHaveLength(2)
+    })
+
+    act(() => {
+      uploads[1]?.progress(0.5)
+    })
+
+    expect(screen.getByText(/2 of 2 · two\.png/)).toBeVisible()
+  })
+
+  it("shows nothing once they are all done", async () => {
+    await choose("hero.png")
+
+    act(() => {
+      uploads[0]?.progress(1)
+      uploads[0]?.finish()
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole("progressbar")).toBeNull()
+    })
   })
 })
