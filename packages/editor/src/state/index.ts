@@ -38,7 +38,6 @@ export {
   resolvedStyles,
   selectedIds,
   selectedNodes,
-  usedAssets,
 } from "./selectors"
 
 export {

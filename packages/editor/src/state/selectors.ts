@@ -1,6 +1,5 @@
 import {
   ancestors,
-  collect,
   type Breakpoint,
   type CheckoutSchema,
   type Node,
@@ -102,39 +101,6 @@ export function isHidden(document: CheckoutSchema, id: string): boolean {
 /** Whether a node, or anything above it, is locked. */
 export function isLocked(document: CheckoutSchema, id: string): boolean {
   return ancestors(document, id).some((node) => node.metadata.locked)
-}
-
-/** Every asset the page references, derived by walking it. Never stored. */
-export function usedAssets(document: CheckoutSchema): readonly string[] {
-  const found = new Set<string>()
-
-  const walk = (value: unknown): void => {
-    if (Array.isArray(value)) {
-      for (const item of value) walk(item)
-      return
-    }
-
-    if (value === null || typeof value !== "object") return
-
-    const record = value as Record<string, unknown>
-    const reference = record["$asset"]
-
-    if (typeof reference === "string") {
-      found.add(reference)
-      return
-    }
-
-    for (const item of Object.values(record)) walk(item)
-  }
-
-  for (const node of collect(document)) walk(node.props)
-
-  const settings = document.settings
-
-  if (settings.favicon !== undefined) found.add(settings.favicon.$asset)
-  if (settings.seo?.image !== undefined) found.add(settings.seo.image.$asset)
-
-  return [...found]
 }
 
 export function canUndo(state: BuilderState): boolean {
