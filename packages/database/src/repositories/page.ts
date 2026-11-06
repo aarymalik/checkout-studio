@@ -36,6 +36,21 @@ const ownedBy = (tenant: TenantContext) => ({
   deletedAt: null,
 })
 
+/**
+ * One stored document, and which page it belongs to.
+ *
+ * The title travels with it because the only caller is a refusal that has to
+ * name the page — "still used on Checkout" is an answer somebody can act on
+ * and "still in use" is not.
+ */
+export interface StoredDocument {
+  pageId: string
+  pageTitle: string
+  /** The working copy, or the revision the page is serving. */
+  source: "draft" | "published"
+  schema: Prisma.JsonValue
+}
+
 export const pageRepository = {
   async list(tenant: TenantContext) {
     const projectId = requireProject(tenant, "Page")
@@ -184,6 +199,61 @@ export const pageRepository = {
     })
 
     return result.count === 1
+  },
+
+  /**
+   * Every document this project holds: each live page's draft, and the
+   * revision each has published.
+   *
+   * Both, because they are different pages in the only sense that matters
+   * here. An asset taken out of a draft is still on the page a customer is
+   * looking at until that draft is published, and deleting its file then
+   * would put a hole in a live checkout.
+   *
+   * Deleted pages are left out, as every page query here leaves them out.
+   * Nothing restores one, so a reference held only by a deleted page is a
+   * reference nothing can ever render — and counting it would make an asset
+   * undeletable for a reason the merchant cannot see or undo.
+   *
+   * Older revisions are left out too, which is the one deliberate hole: an
+   * asset deleted today is missing from a revision restored tomorrow. The
+   * renderer reports that as `asset-missing` and draws the rest, and the
+   * alternative — every asset ever used is in use for ever — is a library
+   * nobody can tidy.
+   */
+  async storedDocuments(tenant: TenantContext): Promise<readonly StoredDocument[]> {
+    const projectId = requireProject(tenant, "Page")
+
+    const rows = await prisma.page.findMany({
+      where: { projectId, ...ownedBy(tenant) },
+      select: {
+        id: true,
+        title: true,
+        draftSchema: true,
+        publishedRevision: { select: { schema: true } },
+      },
+    })
+
+    return rows.flatMap((row) => {
+      const draft: StoredDocument = {
+        pageId: row.id,
+        pageTitle: row.title,
+        source: "draft",
+        schema: row.draftSchema,
+      }
+
+      if (row.publishedRevision === null) return [draft]
+
+      return [
+        draft,
+        {
+          pageId: row.id,
+          pageTitle: row.title,
+          source: "published" as const,
+          schema: row.publishedRevision.schema,
+        },
+      ]
+    })
   },
 
   async countPublished(tenant: TenantContext) {

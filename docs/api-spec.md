@@ -647,10 +647,27 @@ Sorting
 DELETE
 
 ```
-/assets/{id}
+/projects/{projectId}/assets/{assetId}
 ```
 
-Soft delete.
+Soft delete: the row is dated and the file stays in storage. Whether anything
+still uses an asset is answered by reading documents, and that answer can be
+wrong in one direction — a row can be put back, and a file removed from
+storage cannot.
+
+Refused with **409 `IN_USE`** while any of the project's live pages still
+names it, in its draft or in the revision it has published. The refusal lists
+the pages, because "in use" leaves somebody opening pages until they find it.
+A page whose published version uses it while its draft no longer does is
+listed as `Checkout (published)`: the edit is waiting to go live.
+
+Older revisions do not count. An asset deleted today is missing from a
+revision restored tomorrow, which the renderer reports as `asset-missing` and
+draws around — the alternative is that every asset ever used is in use for
+ever.
+
+**404 `ASSET_NOT_FOUND`** for an id this project does not have, which is also
+the answer for one already deleted and for another tenant's.
 
 ---
 

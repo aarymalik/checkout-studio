@@ -66,6 +66,22 @@ describe("the catalog", () => {
     expect(error.userMessage).not.toMatch(/permission|forbidden|access/i)
   })
 
+  it("names the places on an in-use refusal, because that is what to do next", () => {
+    /*
+     * The half that makes the refusal worth having. A merchant told "in use"
+     * opens pages until they find it; one told "Checkout" goes to Checkout.
+     */
+    const error = Errors.resource.inUse("Asset", ["Checkout", "Thank you (published)"])
+
+    expect(error.status).toBe(409)
+    expect(error.userMessage).toContain("Checkout")
+    expect(error.userMessage).toContain("Thank you (published)")
+    expect(error.details?.map((detail) => detail.path)).toEqual([
+      "Checkout",
+      "Thank you (published)",
+    ])
+  })
+
   it("carries the limit, current usage and suggested plan on a quota error", () => {
     const error = Errors.resource.quotaExceeded({
       action: "publishPage",

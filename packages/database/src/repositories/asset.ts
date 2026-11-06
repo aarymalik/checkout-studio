@@ -274,6 +274,30 @@ export const assetRepository = {
     return row === null ? null : present(row)
   },
 
+  /**
+   * Takes an asset out of the library without destroying it.
+   *
+   * Soft, because the question "is anything still using this" is answered
+   * from the documents this project holds, and that answer can be wrong in
+   * one direction: a page nobody read, a reference somewhere nothing walks.
+   * A row with a date on it can be put back; a file removed from storage
+   * cannot, and neither can the renditions derived from it.
+   *
+   * False when nothing was deleted — an id that is not this tenant's, or one
+   * already deleted. Both answer the same way on purpose: which of the two it
+   * was is a fact about somebody else's project.
+   */
+  async softDelete(tenant: TenantContext, id: string): Promise<boolean> {
+    const result = await prisma.asset.updateMany({
+      // `ownedBy` already excludes a deleted row, so deleting twice is a
+      // second false rather than a second date.
+      where: { id, ...ownedBy(tenant) },
+      data: { deletedAt: new Date() },
+    })
+
+    return result.count === 1
+  },
+
   /** Newest first, which is the order somebody who just uploaded expects. */
   async list(tenant: TenantContext): Promise<readonly StoredAsset[]> {
     const projectId = requireProject(tenant, "Asset")
