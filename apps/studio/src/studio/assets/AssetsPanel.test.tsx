@@ -131,6 +131,18 @@ class FakeUpload extends EventTarget {
     )
   }
 
+  /**
+   * Stops, as a browser stops one.
+   *
+   * `loadend` after `abort`, in that order, because the client removes its
+   * signal listener on `loadend` and doing it the other way round would let
+   * a test pass against code that never cleaned up.
+   */
+  abort(): void {
+    this.dispatchEvent(new Event("abort"))
+    this.dispatchEvent(new Event("loadend"))
+  }
+
   /** Answers, with whatever `answer` says this upload was. */
   finish(): void {
     this.responseText = JSON.stringify(
@@ -145,6 +157,7 @@ class FakeUpload extends EventTarget {
     )
 
     this.dispatchEvent(new Event("load"))
+    this.dispatchEvent(new Event("loadend"))
   }
 }
 /** What the delete endpoint answers. Refusals are the interesting half. */
@@ -933,5 +946,113 @@ describe("while files are going up", () => {
     await waitFor(() => {
       expect(screen.queryByRole("progressbar")).toBeNull()
     })
+  })
+})
+
+describe("stopping an upload", () => {
+  async function choose(...names: readonly string[]): Promise<void> {
+    renderPanel()
+    autoComplete = false
+
+    await userEvent.upload(
+      screen.getByLabelText(/Upload files/),
+      names.map((name) => new File(["x"], name, { type: "image/png" })),
+    )
+  }
+
+  it("is not offered when nothing is going up", async () => {
+    renderPanel()
+
+    await screen.findByRole("grid", { name: "Assets" })
+
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull()
+  })
+
+  it("stops the queue, leaving the rest unsent", async () => {
+    await choose("one.png", "two.png", "three.png")
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/2 files were not sent/)).toBeVisible()
+    })
+
+    // One request was made and no more. The two behind it never started.
+    expect(sent).toHaveLength(1)
+  })
+
+  it("says which file was interrupted, separately from the ones never sent", async () => {
+    /*
+     * Two different facts. The files behind it were not sent at all; this one
+     * was stopped partway, and whether the server had already taken it is not
+     * something the browser can say.
+     */
+    await choose("one.png", "two.png")
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    expect(await screen.findByText(/one\.png — Upload stopped/)).toBeVisible()
+  })
+
+  it("counts nothing as unsent when the last file is the one stopped", async () => {
+    await choose("only.png")
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole("progressbar")).toBeNull()
+    })
+
+    expect(screen.queryByText(/were not sent/)).toBeNull()
+  })
+
+  it("asks the server what actually landed", async () => {
+    /*
+     * Aborting a request whose body is already up does not un-run what the
+     * server started, so whether that file is in the library is a question
+     * only the server can answer. The list is its answer.
+     */
+    await choose("one.png", "two.png")
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalled()
+    })
+  })
+
+  it("keeps what was already stored", async () => {
+    // They asked for the rest not to go, not for the ones that did to come
+    // back. The library is where they can undo that themselves.
+    await choose("one.png", "two.png", "three.png")
+
+    act(() => {
+      uploads[0]?.progress(1)
+      uploads[0]?.finish()
+    })
+
+    await waitFor(() => {
+      expect(uploads).toHaveLength(2)
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/One file was not sent/)).toBeVisible()
+    })
+
+    expect(sent).toHaveLength(2)
+  })
+
+  it("lets the zone be used again afterwards", async () => {
+    await choose("one.png", "two.png")
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull()
+    })
+
+    expect(screen.getByLabelText(/Upload files/)).toBeEnabled()
   })
 })

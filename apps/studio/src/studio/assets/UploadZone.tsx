@@ -3,7 +3,7 @@
 import { Upload } from "lucide-react"
 import { useId, useState } from "react"
 import type { DragEvent } from "react"
-import { cn } from "@checkout-studio/ui"
+import { Button, cn } from "@checkout-studio/ui"
 
 /**
  * Hands files over as soon as they are chosen.
@@ -40,9 +40,11 @@ export interface UploadZoneProps {
   accept: string
   busy: UploadProgress | null
   onFiles: (files: readonly File[]) => void
+  /** Stops the queue. What has already been stored stays stored. */
+  onCancel: () => void
 }
 
-export function UploadZone({ accept, busy, onFiles }: UploadZoneProps) {
+export function UploadZone({ accept, busy, onFiles, onCancel }: UploadZoneProps) {
   const id = useId()
   const [dragging, setDragging] = useState(false)
 
@@ -59,44 +61,63 @@ export function UploadZone({ accept, busy, onFiles }: UploadZoneProps) {
   }
 
   return (
-    <label
-      htmlFor={id}
-      onDragOver={(event) => {
-        event.preventDefault()
-        if (busy === null) setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-      className={cn(
-        "flex cursor-pointer flex-col items-center justify-center gap-1 p-4",
-        "rounded-card border border-dashed border-border-strong bg-surface text-center",
-        "transition-colors duration-fast ease-standard",
-        "hover:bg-surface-hover",
-        // On the zone, because the input is visually hidden and a keyboard user
-        // has to see what they are about to operate.
-        "focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring",
-        dragging && "border-primary bg-primary-subtle",
-        busy !== null && "pointer-events-none opacity-50",
+    <div className="flex flex-col gap-2">
+      <label
+        htmlFor={id}
+        onDragOver={(event) => {
+          event.preventDefault()
+          if (busy === null) setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        className={cn(
+          "flex cursor-pointer flex-col items-center justify-center gap-1 p-4",
+          "rounded-card border border-dashed border-border-strong bg-surface text-center",
+          "transition-colors duration-fast ease-standard",
+          "hover:bg-surface-hover",
+          // On the zone, because the input is visually hidden and a keyboard
+          // user has to see what they are about to operate.
+          "focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring",
+          dragging && "border-primary bg-primary-subtle",
+          busy !== null && "pointer-events-none opacity-50",
+        )}
+      >
+        <Upload aria-hidden="true" className="size-4 text-foreground-muted" />
+        <span className="text-small font-medium text-foreground">Upload files</span>
+        <span className="text-caption text-foreground-muted">
+          Images, SVG, video, fonts and PDF
+        </span>
+
+        <input
+          id={id}
+          type="file"
+          accept={accept}
+          multiple
+          disabled={busy !== null}
+          onChange={(event) => take([...(event.target.files ?? [])])}
+          className="sr-only"
+        />
+      </label>
+
+      {/*
+        Outside the zone, not inside it. The zone is a label and stops taking
+        pointer events while it is busy — a Cancel in there would be dimmed,
+        and clicking it would open the file picker, because a click on a label
+        is a click on its input.
+      */}
+      {busy !== null && (
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-caption text-foreground-muted">{busy.label}</p>
+            <Bar sent={busy.sent} label={busy.label} />
+          </div>
+
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
       )}
-    >
-      <Upload aria-hidden="true" className="size-4 text-foreground-muted" />
-      <span className="text-small font-medium text-foreground">Upload files</span>
-      <span className="text-caption text-foreground-muted">
-        {busy?.label ?? "Images, SVG, video, fonts and PDF"}
-      </span>
-
-      {busy !== null && <Bar sent={busy.sent} label={busy.label} />}
-
-      <input
-        id={id}
-        type="file"
-        accept={accept}
-        multiple
-        disabled={busy !== null}
-        onChange={(event) => take([...(event.target.files ?? [])])}
-        className="sr-only"
-      />
-    </label>
+    </div>
   )
 }
 

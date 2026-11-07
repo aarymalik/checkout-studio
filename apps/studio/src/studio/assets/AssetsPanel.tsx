@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 
 // Aliased: this file already has a `send`, which is the one that sends files.
-import { send as request, upload } from "@/lib/api-client"
+import { ABORTED, send as request, upload } from "@/lib/api-client"
 import { registry } from "@/studio/registry"
 
 import { CELL_GAP, cellAt, gridMetrics, gridWindow, neighbour } from "./grid"
@@ -101,6 +101,9 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [sending, setSending] = useState<Sending | null>(null)
   const [problems, setProblems] = useState<readonly string[]>([])
+  /** How many files were never sent, after a queue was stopped. */
+  const [skipped, setSkipped] = useState(0)
+  const queue = useRef<AbortController | null>(null)
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState<LibraryAsset | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
@@ -206,8 +209,15 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
 
   async function send(files: readonly File[]): Promise<void> {
     setProblems([])
+    setSkipped(0)
+
+    const stopping = new AbortController()
+
+    queue.current = stopping
 
     const failures: string[] = []
+    let stored = 0
+    let stopped = false
 
     /*
      * One after another. Each upload is seconds of encoding on the server, and
@@ -221,6 +231,7 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
 
       // Awaited in the loop on purpose. See the note above.
       const result = await upload(`/api/projects/${projectId}/assets`, file, {
+        signal: stopping.signal,
         /*
          * The bytes, and only the bytes. Reaching 1 means the file has
          * arrived, not that it is stored: the server then re-encodes it into
@@ -232,14 +243,43 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
         },
       })
 
-      if (!result.ok) failures.push(`${file.name} — ${result.message}`)
+      /*
+       * Stopping ends the queue, and what is already stored stays stored.
+       * Deleting those would be a second decision taken on somebody's behalf:
+       * they asked for the rest not to go, not for the ones that did to come
+       * back, and the library is where they can undo that themselves.
+       *
+       * The counts are deliberately exact about which is which. The files
+       * after this one were never sent. This one was stopped — and whether
+       * the server had already taken it is not ours to say, because aborting
+       * a request whose body is fully up does not un-run what it started. The
+       * refetch below answers that question properly.
+       */
+      if (!result.ok && result.code === ABORTED) {
+        failures.push(`${file.name} — ${result.message}`)
+        setSkipped(files.length - index - 1)
+        stopped = true
+
+        break
+      }
+
+      if (result.ok) stored += 1
+      else failures.push(`${file.name} — ${result.message}`)
     }
+
+    queue.current = null
 
     setSending(null)
     setProblems(failures)
 
-    // Whatever happened to the rest, anything that landed is now in the list.
-    if (failures.length < files.length) router.refresh()
+    /*
+     * Only when something might have landed. Files that were all refused
+     * changed nothing, and refetching to show that is a round trip to redraw
+     * the same list. A stop is the other case: aborting a request whose body
+     * is already up does not un-run what the server started, so whether that
+     * one is there is a question only the server can answer.
+     */
+    if (stored > 0 || stopped) router.refresh()
   }
 
   /*
@@ -292,7 +332,14 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
         accept={ACCEPT}
         busy={sending === null ? null : { label: labelFor(sending), sent: sending.sent }}
         onFiles={(files) => void send(files)}
+        onCancel={() => queue.current?.abort()}
       />
+
+      {skipped > 0 && (
+        <Alert variant="info" title="Upload stopped">
+          {skipped === 1 ? "One file was not sent." : `${String(skipped)} files were not sent.`}
+        </Alert>
+      )}
 
       {problems.length > 0 && (
         <Alert variant="danger" title="Some files were not stored">
