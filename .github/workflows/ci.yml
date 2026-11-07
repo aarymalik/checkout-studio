@@ -188,6 +188,87 @@ jobs:
             apps/studio/test-results
           retention-days: 7
 
+  e2e:
+    name: end to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # ## Why this job exists
+    #
+    # It did not, and the suite went red without anyone noticing. Five specs
+    # were failing on develop when somebody finally ran them, and three of
+    # them were one real fault: opening a project with no pages yet threw
+    # during server rendering. Every project is in that state once.
+    #
+    # The unit suites could not see it. jsdom has no layout and no native
+    # drag-and-drop, and a panel rendered in a test is rendered inside
+    # whatever providers the test supplies — which is exactly the thing that
+    # was wrong.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: checkout_studio
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:8
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # The application's own database, not a per-package test one: these drive
+    # the product through a browser, so the fixtures and the server have to be
+    # looking at the same rows.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/checkout_studio
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Migrate
+        run: pnpm --filter @checkout-studio/database db:deploy
+
+      # As the visual job does it, and for the same reason: the placeholders
+      # in .env.example are shaped to pass the environment's own validation.
+      # The two variables above are set on the job, and Next leaves a variable
+      # that is already in the environment alone — so the real services win
+      # over the file's placeholders without the file having to know.
+      - name: Provide an environment
+        run: cp .env.example apps/studio/.env.local
+
+      - name: Install the browser
+        run: pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium
+
+      - name: The product, in a browser
+        run: pnpm test:e2e
+
+      - name: Upload the report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: end-to-end
+          path: |
+            apps/studio/playwright-report
+            apps/studio/test-results
+          retention-days: 7
+
   audit:
     name: dependency audit
     runs-on: ubuntu-latest
