@@ -24,5 +24,6 @@ export type { Drop, DropPosition, ResolveOptions } from "./resolve"
 export { canDrop, canInsert, dropRejection, insertRejection } from "./validity"
 export type { DropRules, Rejection, RejectionCode } from "./validity"
 
+export { dragSource } from "./source"
 export { indicatorFor } from "./indicator"
 export type { Indicator } from "./indicator"

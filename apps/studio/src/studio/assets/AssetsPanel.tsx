@@ -10,7 +10,7 @@ import {
   EmptyState,
   cn,
 } from "@checkout-studio/ui"
-import { scrollToRow, useEditorStore, useEditorStoreApi } from "@checkout-studio/editor"
+import { dragSource, scrollToRow, useEditorStore, useEditorStoreApi } from "@checkout-studio/editor"
 import { Check, Copy, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -556,9 +556,12 @@ function Cell({
         tabIndex={focused ? 0 : -1}
         onClick={onChoose}
         onPointerDown={onDrag}
+        // Without this the browser drags the thumbnail itself and cancels
+        // the pointer two pixels in. See `dragSource`.
+        {...dragSource}
         style={{ width }}
         className={cn(
-          "flex flex-col gap-1 rounded-control p-1 text-left",
+          "flex select-none flex-col gap-1 rounded-control p-1 text-left",
           "transition-colors duration-fast ease-standard",
           "hover:bg-surface-hover",
           "focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none",

@@ -280,6 +280,19 @@ Undo after drag
 
 Redo after drag
 
+## One of these has to be in a browser
+
+jsdom has no layout and no native drag-and-drop, so a suite that only runs
+there can say a gesture's arithmetic is right and nothing about whether the
+gesture happens at all. Dragging out of a panel was shipped that way and did
+nothing in Chromium: the browser started a drag of its own, fired
+`pointercancel`, and every pointer move after that went somewhere else. Every
+unit test passed, because in jsdom there is no browser drag to compete with.
+
+Dragging a node that already exists was covered end to end and worked.
+Dragging one _in_ was not, and did not. Each distinct gesture needs its own
+browser test — the two share a resolver and nothing else.
+
 ---
 
 # Stripe Testing

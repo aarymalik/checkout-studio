@@ -95,9 +95,25 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
     [store],
   )
 
+  /**
+   * Where this would land, as of the last move, held outside React.
+   *
+   * The release reads this rather than the state beside it, and the two are
+   * not the same thing. These are native listeners, so React's guarantee that
+   * a discrete event sees pending updates does not apply: a pointer-up that
+   * arrives before the render caused by the last pointer-move has committed
+   * would read the previous value — `null`, on a quick drag — and drop
+   * nothing, having just drawn an indicator saying where it would go.
+   *
+   * The state is still set, because the indicator is drawn from it. This is
+   * the same value written somewhere a listener can read it now.
+   */
+  const landing = useRef<{ drop: Drop | null; refused: boolean }>({ drop: null, refused: false })
+
   /** Stop, and leave the tree exactly as it was. */
   const cancel = useCallback(() => {
     armed.current = null
+    landing.current = { drop: null, refused: false }
     setDrop(null)
     setRejection(null)
     setOrigin(null)
@@ -130,6 +146,7 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
       })
 
       setDrop(resolved)
+      landing.current = { drop: resolved, refused: false }
 
       if (resolved === null) {
         setRejection(null)
@@ -147,6 +164,7 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
       const refusal = dropRejection(document, start.ids, resolved.parentId, current)
 
       setRejection(refusal)
+      landing.current = { drop: resolved, refused: refusal !== null }
       store.getState().setDropTarget(resolved.overId, refusal === null ? resolved.position : null)
     }
 
@@ -165,12 +183,11 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
         return
       }
 
-      const landing = drop
-      const refused = rejection !== null
+      const { drop: at, refused } = landing.current
 
       cancel()
 
-      if (landing === null || refused) return
+      if (at === null || refused) return
 
       /*
        * One transaction, so one undo step.
@@ -180,10 +197,10 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
        * order they were in rather than reversed.
        */
       store.getState().transact("Move", () => {
-        let index = landing.index
+        let index = at.index
 
         for (const id of start.ids) {
-          store.getState().move(id, landing.parentId, index)
+          store.getState().move(id, at.parentId, index)
 
           /*
            * Advanced for each one, not only for the ones that landed.
@@ -218,7 +235,13 @@ export function useDrag({ rects, toCanvas, ...rules }: UseDragOptions): DragCont
       window.removeEventListener("pointerup", up)
       window.removeEventListener("keydown", key)
     }
-  }, [store, dragging, drop, rejection, cancel])
+    /*
+     * `drop` and `rejection` are deliberately not dependencies. They were,
+     * which meant every pointer-move detached and reattached three window
+     * listeners — and the release still read a stale closure, because the
+     * reattachment happens a render later than the move that caused it.
+     */
+  }, [store, dragging, cancel])
 
   return { dragging, origin, drop, rejection, begin }
 }
@@ -263,20 +286,34 @@ export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): In
 
   latest.current = { rects, toCanvas, rules }
 
+  /** Where this would land, outside React. See the note on the move drag's. */
+  const landing = useRef<Drop | null>(null)
+
   useEffect(() => {
     if (insertion === null) {
+      landing.current = null
       setDrop(null)
       setRejection(null)
       return
     }
 
-    const { rects: boxes, toCanvas: project, rules: current } = latest.current
-
     const move = (event: PointerEvent): void => {
+      /*
+       * Read here and not when the gesture began, which is the bug that made
+       * dragging out of a panel land nowhere in a browser.
+       *
+       * The canvas measures the boxes a drop resolves against, and starting
+       * this gesture is what asks it to measure them — so at the moment this
+       * effect runs there are none, and a set destructured then stays empty
+       * for the whole drag. The move gesture next door always read them here,
+       * which is why that one worked and this one never did.
+       */
+      const { rects: boxes, toCanvas: project, rules: current } = latest.current
       const document = store.getState().document
       const resolved = resolveDrop(document, boxes, project(event), current)
 
       setDrop(resolved)
+      landing.current = resolved
 
       if (resolved === null) {
         setRejection(null)
@@ -292,20 +329,22 @@ export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): In
       const refusal = insertRejection(document, resolved.parentId, current)
 
       setRejection(refusal)
+      // A refusal is the same as nowhere, for the purpose of releasing.
+      landing.current = refusal === null ? resolved : null
       store.getState().setDropTarget(resolved.overId, refusal === null ? resolved.position : null)
     }
 
     const up = (): void => {
-      const landing = drop
-      const refused = rejection !== null
+      const at = landing.current
 
+      landing.current = null
       store.getState().endDrag()
       setDrop(null)
       setRejection(null)
 
-      if (landing === null || refused) return
+      if (at === null) return
 
-      store.getState().insertNew(insertion.type, landing.parentId, landing.index, insertion.props)
+      store.getState().insertNew(insertion.type, at.parentId, at.index, insertion.props)
     }
 
     const cancel = (event: KeyboardEvent): void => {
@@ -313,6 +352,7 @@ export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): In
 
       // Nothing has been written, so there is nothing to undo.
       event.preventDefault()
+      landing.current = null
       store.getState().endDrag()
       setDrop(null)
       setRejection(null)
@@ -327,7 +367,9 @@ export function useInsertDrag({ rects, toCanvas, ...rules }: UseDragOptions): In
       window.removeEventListener("pointerup", up)
       window.removeEventListener("keydown", cancel)
     }
-  }, [insertion, store, drop, rejection])
+    // `drop` and `rejection` are deliberately not dependencies. See the note
+    // on the move drag's landing ref.
+  }, [insertion, store])
 
   return { type: insertion?.type ?? null, drop, rejection }
 }

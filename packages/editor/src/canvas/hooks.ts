@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { RefObject } from "react"
 
 import { useEditorStore, useEditorStoreApi } from "../state/context"
@@ -198,7 +198,17 @@ export function useNodeRects(frame: RefObject<Element | null>, ids: readonly str
   const [rects, setRects] = useState<NodeRects>(() => new Map())
   const key = ids.join(" ")
 
-  useEffect(() => {
+  /*
+   * A layout effect, because these boxes are what a pointer is hit-tested
+   * against and a passive one lands a frame late.
+   *
+   * That frame was invisible until a drag out of a panel was tested in a
+   * browser: the gesture asks for every node to be measured the moment it
+   * starts, and every pointer move in that first frame resolved against an
+   * empty set of boxes. A drop in that window landed nowhere. Overlays had
+   * the same gap and it only ever showed as an outline arriving late.
+   */
+  useLayoutEffect(() => {
     const element = frame.current
 
     if (element === null) return

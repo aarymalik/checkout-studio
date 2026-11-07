@@ -5,6 +5,7 @@ import type { ReactElement } from "react"
 import {
   catalogOf,
   catalogSize,
+  dragSource,
   searchCatalog,
   useEditorStore,
   useEditorStoreApi,
@@ -151,8 +152,11 @@ export function ComponentLibrary({
                       onPointerDown={() => {
                         if (canEdit) store.getState().setInserting({ type: entry.type })
                       }}
+                      // Or the browser starts a drag of its own and cancels
+                      // the pointer two pixels in. See `dragSource`.
+                      {...dragSource}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-tight px-2 py-1 text-left text-small",
+                        "flex w-full select-none items-center gap-2 rounded-tight px-2 py-1 text-left text-small",
                         "transition-colors duration-fast ease-standard",
                         "hover:bg-surface-hover",
                         "focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none",
