@@ -64,6 +64,9 @@ export async function post<T>(path: string, body: unknown): Promise<ApiResult<T>
   return unwrap<T>(response)
 }
 
+/** What an upload that was stopped answers with, rather than throwing. */
+export const ABORTED = "ABORTED"
+
 export interface UploadOptions {
   /**
    * How much of the file has been handed over, from 0 to 1.
@@ -75,6 +78,14 @@ export interface UploadOptions {
    * job, and this reports only the half it can see.
    */
   onProgress?: (fraction: number) => void
+  /**
+   * Stops the request.
+   *
+   * The answer is an `ABORTED` refusal and not a thrown `AbortError`, because
+   * every other outcome here is a value and a caller that had to catch one of
+   * five would put the handling somewhere else from the rest.
+   */
+  signal?: AbortSignal
 }
 
 /**
@@ -103,6 +114,30 @@ export async function upload<T>(
     const request = new XMLHttpRequest()
 
     request.open("POST", path)
+
+    const stop = (): void => {
+      request.abort()
+    }
+
+    options.signal?.addEventListener("abort", stop, { once: true })
+
+    /*
+     * Removed when the request ends however it ends. The listener holds the
+     * request alive through the signal, and a caller that keeps one
+     * controller for a queue of twenty would keep all twenty.
+     */
+    request.addEventListener("loadend", () => {
+      options.signal?.removeEventListener("abort", stop)
+    })
+
+    request.addEventListener("abort", () => {
+      resolve({
+        ok: false,
+        code: ABORTED,
+        message: "Upload stopped.",
+        fields: {},
+      })
+    })
 
     request.upload.addEventListener("progress", (event) => {
       // Not computable until the browser knows the total. Nothing is reported

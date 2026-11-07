@@ -160,6 +160,18 @@ skeleton's shimmer, and the sentence changes to "Storing hero.png…". A bar
 that sat full for the longer half of the wait would read as stuck, and one
 that crept forward on a timer would be inventing progress.
 
+Cancel sits beside the bar, outside the zone. Inside it the button would be
+dimmed with everything else while the zone is busy, and a click on it would
+open the file picker, because a click on a label is a click on its input.
+
+Stopping ends the queue and keeps what is already stored. They asked for the
+rest not to go, not for the ones that did to come back, and the library is
+where they can undo that themselves. What it says afterwards keeps the two
+facts apart: the files behind it were never sent, and the one in flight was
+stopped partway — aborting a request whose body is already up does not un-run
+what the server started, so the list is refetched and the server's answer is
+the one shown.
+
 Below the grid, the chosen asset's name, size and type, and the two things to
 do with it: copy its URL, or delete it. Deleting asks first — a misplaced
 click should not be able to take somebody's picture — and the question says
