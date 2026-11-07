@@ -152,6 +152,9 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
 
   usePanZoom({ surface, panning })
 
+  /** Whether something is being dragged in from a panel, which changes what has to be measured. */
+  const insertingType = useEditorStore((state) => state.drag.inserting?.type ?? null)
+
   /*
    * Only the boxes the overlays need.
    *
@@ -159,15 +162,31 @@ export function Canvas({ theme, registry = shippedRegistry }: CanvasProps): Reac
    * which is what alignment guides line up against. Measuring two thousand
    * nodes to outline one is how a canvas drops frames, and most of them are not
    * even on screen.
+   *
+   * ## Except while something is being dragged in from a panel
+   *
+   * Then every node is measured, because every node is somewhere it could
+   * land and there is no selection to measure around. This is the bug that
+   * made dragging out of the component library and the media library do
+   * nothing at all in a browser: with nothing selected and nothing hovered,
+   * the drop resolved against an empty set of boxes every time, so the
+   * gesture always landed nowhere. Dragging a node that already exists went
+   * on working, because the thing in hand is selected and its siblings come
+   * with it — which is exactly why no test caught this.
+   *
+   * It is one measurement at the start of a gesture rather than per frame:
+   * this list only changes when the drag begins and ends.
    */
   const measured = useMemo(() => {
+    if (insertingType !== null) return Object.keys(document.nodes)
+
     const ids = new Set<string>(selected)
 
     if (hovered !== null) ids.add(hovered)
     for (const id of selected) for (const sibling of siblings(document, id)) ids.add(sibling)
 
     return [...ids]
-  }, [selected, hovered, document])
+  }, [selected, hovered, document, insertingType])
 
   const rects = useNodeRects(frame, measured)
   /*
