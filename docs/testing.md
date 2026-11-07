@@ -77,6 +77,11 @@ it, so `webServer` clears `NODE_OPTIONS`.
 fixtures rather than on anything being tested, and that limit exists for a reason.
 Create the session through the API once and add its cookie to each context.
 
+**It runs in CI.** It did not, and the suite went red without anyone noticing —
+five specs were failing on `develop` when somebody finally ran them, and three
+of those were one real fault that no unit test could see. A suite nobody runs
+is a suite that is already broken; the only question is for how long.
+
 ---
 
 ## Accessibility Testing
