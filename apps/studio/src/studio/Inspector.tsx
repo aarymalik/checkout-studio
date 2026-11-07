@@ -50,6 +50,18 @@ import { registry } from "./registry"
  * See docs/ui-guidelines.md § Inspector.
  */
 
+/**
+ * What the panel shows when there is nothing to configure.
+ *
+ * Two ways to get here and they look the same on purpose: nothing is
+ * selected, or there is no page to select anything on. The second one is why
+ * this is a component rather than a line inside `Properties` — with no page
+ * there is no store, and `Properties` reads one on its first line.
+ */
+function NoProperties(): ReactElement {
+  return <PropertyInspector definitions={[]} values={{}} onChange={() => undefined} empty />
+}
+
 /** The selected component's properties, and what it currently holds. */
 function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
   const store = useEditorStoreApi()
@@ -82,9 +94,7 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
    */
   const breakpoint = useEditorStore((state) => state.viewport.breakpoint)
 
-  if (selected === null) {
-    return <PropertyInspector definitions={[]} values={{}} onChange={() => undefined} empty />
-  }
+  if (selected === null) return <NoProperties />
 
   /*
    * Only what every selected component has. A Heading and a Button both have a
@@ -324,7 +334,22 @@ function Properties({ theme }: { theme: CheckoutTheme | null }): ReactElement {
   )
 }
 
-export function Inspector({ theme }: { theme: CheckoutTheme | null }) {
+export function Inspector({
+  theme,
+  hasPage,
+}: {
+  theme: CheckoutTheme | null
+  /**
+   * Whether there is a document to inspect.
+   *
+   * Passed rather than discovered, because discovering it means reading the
+   * store and with no page open there is no store to read. Opening a project
+   * that has no pages yet — which is every project, once — threw during
+   * server rendering and took the whole screen down to a client-side
+   * fallback. The canvas is handed the same answer, two lines above this one.
+   */
+  hasPage: boolean
+}) {
   const layout = useShellLayout()
   const actions = useShellActions()
 
@@ -352,7 +377,7 @@ export function Inspector({ theme }: { theme: CheckoutTheme | null }) {
         style={{ width: layout.rightWidth }}
         className="min-w-0"
       >
-        <Properties theme={theme} />
+        {hasPage ? <Properties theme={theme} /> : <NoProperties />}
       </Panel>
     </div>
   )

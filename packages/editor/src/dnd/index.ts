@@ -25,5 +25,7 @@ export { canDrop, canInsert, dropRejection, insertRejection } from "./validity"
 export type { DropRules, Rejection, RejectionCode } from "./validity"
 
 export { dragSource } from "./source"
+export { InsertProvider, useInsertRequest } from "./insert"
+export type { InsertRequest } from "./insert"
 export { indicatorFor } from "./indicator"
 export type { Indicator } from "./indicator"

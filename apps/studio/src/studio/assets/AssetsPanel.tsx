@@ -10,7 +10,7 @@ import {
   EmptyState,
   cn,
 } from "@checkout-studio/ui"
-import { dragSource, scrollToRow, useEditorStore, useEditorStoreApi } from "@checkout-studio/editor"
+import { dragSource, scrollToRow, useInsertRequest } from "@checkout-studio/editor"
 import { Check, Copy, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -89,10 +89,13 @@ const ACCEPT = [
 
 export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const router = useRouter()
-  const store = useEditorStoreApi()
-  // A reader who may not write may not drag one onto the page either. The
-  // rest of the panel still works: looking and copying a URL are not edits.
-  const canEdit = useEditorStore((state) => state.persistence.canEdit)
+  /*
+   * Null when there is nowhere to drag to: a project with no page open has no
+   * store, and this panel is rendered either way because what it lists is a
+   * server query rather than a document. Null too for a reader who may not
+   * write — looking and copying a URL are not edits.
+   */
+  const insert = useInsertRequest()
   const [selection, setSelection] = useState<Selection>(EVERYTHING)
   const viewport = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -424,11 +427,11 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
                             setSelected(asset.id)
                           }}
                           onDrag={() => {
-                            if (!canEdit) return
+                            if (insert === null) return
 
                             const insertion = insertionForAsset(registry, asset)
 
-                            if (insertion !== null) store.getState().setInserting(insertion)
+                            if (insertion !== null) insert(insertion)
                           }}
                         />
                       )

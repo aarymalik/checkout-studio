@@ -1,5 +1,5 @@
 import type { LibraryAsset } from "@checkout-studio/api"
-import { EditorProvider, useEditorStoreApi } from "@checkout-studio/editor"
+import { EditorProvider, InsertProvider, useEditorStoreApi } from "@checkout-studio/editor"
 import type { EditorStoreApi } from "@checkout-studio/editor"
 import { createDocument } from "@checkout-studio/schema"
 import { act, render, screen, waitFor, within } from "@testing-library/react"
@@ -49,11 +49,11 @@ function asset(index: number): LibraryAsset {
 const THREE = [asset(0), asset(1), asset(2)]
 
 /**
- * The panel, inside the editor the shell puts it inside.
+ * The panel, inside the providers the shell puts it inside.
  *
- * It reads the store now: dragging an asset onto the canvas starts here, and
- * whether the reader may write at all is the store's answer. Rendering it
- * without a provider is a panel the product never shows.
+ * `InsertProvider` is what lets a cell start a drag. It is deliberately not
+ * `EditorProvider` on its own: the panel renders with no page open, where
+ * there is no store at all, and the suite below has a case for that.
  */
 function renderPanel(assets: readonly LibraryAsset[] = THREE) {
   let captured: EditorStoreApi | null = null
@@ -74,7 +74,9 @@ function renderPanel(assets: readonly LibraryAsset[] = THREE) {
       })}
       baseVersion={1}
     >
-      <Capture />
+      <InsertProvider>
+        <Capture />
+      </InsertProvider>
     </EditorProvider>,
   )
 
@@ -1054,5 +1056,52 @@ describe("stopping an upload", () => {
     })
 
     expect(screen.getByLabelText(/Upload files/)).toBeEnabled()
+  })
+})
+
+describe("with no page open", () => {
+  /**
+   * The panel, with no store behind it at all.
+   *
+   * What the product shows when a project has no page: the shell renders the
+   * frame without an `EditorProvider`, because "a store built around a
+   * document that does not exist would have to invent one". This panel is
+   * supplied by the page rather than by the shell — what it lists is a server
+   * query — so it is rendered in that state and has to survive it.
+   *
+   * It did not. Reaching for the store to start a drag threw during server
+   * rendering and took the whole screen with it, and five end-to-end tests
+   * went red while every test in this file passed, because every one of them
+   * supplied a provider.
+   */
+  function renderAlone() {
+    return render(<AssetsPanel projectId="prj_one" assets={THREE} />)
+  }
+
+  it("renders", async () => {
+    renderAlone()
+
+    expect(await screen.findByRole("grid", { name: "Assets" })).toBeVisible()
+  })
+
+  it("still shows what an asset is", async () => {
+    // Looking and copying are not edits, so neither needs a page open.
+    renderAlone()
+
+    await userEvent.click(await screen.findByRole("button", { name: "picture-0.png" }))
+
+    expect(screen.getByRole("button", { name: /Copy URL/ })).toBeVisible()
+  })
+
+  it("starts no drag, because there is nowhere to drag to", async () => {
+    renderAlone()
+
+    const cell = await screen.findByRole("button", { name: "picture-0.png" })
+
+    await userEvent.pointer({ keys: "[MouseLeft>]", target: cell })
+
+    // Nothing to assert on a store that does not exist. That this did not
+    // throw is the assertion.
+    expect(cell).toBeVisible()
   })
 })
