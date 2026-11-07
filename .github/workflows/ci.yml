@@ -250,14 +250,24 @@ jobs:
       # The two variables above are set on the job, and Next leaves a variable
       # that is already in the environment alone — so the real services win
       # over the file's placeholders without the file having to know.
+      #
+      # Both applications, because both have a suite. The renderer's serves a
+      # published page and validates its own environment at startup; the first
+      # run of this job gave it nothing and it refused to boot, which is the
+      # environment check doing its job.
       - name: Provide an environment
-        run: cp .env.example apps/studio/.env.local
+        run: |
+          cp .env.example apps/studio/.env.local
+          cp .env.example apps/renderer/.env.local
 
       - name: Install the browser
         run: pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium
 
+      # One suite at a time. Each starts a development server that compiles on
+      # demand, and two of those on a two-core runner is how a 300ms
+      # assertion becomes a timeout.
       - name: The product, in a browser
-        run: pnpm test:e2e
+        run: pnpm test:e2e --concurrency=1
 
       - name: Upload the report
         if: failure()
