@@ -245,20 +245,31 @@ jobs:
       - name: Migrate
         run: pnpm --filter @checkout-studio/database db:deploy
 
-      # As the visual job does it, and for the same reason: the placeholders
-      # in .env.example are shaped to pass the environment's own validation.
-      # The two variables above are set on the job, and Next leaves a variable
-      # that is already in the environment alone — so the real services win
-      # over the file's placeholders without the file having to know.
+      # The placeholders in .env.example are shaped to pass the environment's
+      # own validation, which is what lets a fresh clone — and this job —
+      # start without real credentials. The two real service URLs are written
+      # over them, because these tests talk to real Postgres and Redis.
       #
-      # Both applications, because both have a suite. The renderer's serves a
-      # published page and validates its own environment at startup; the first
-      # run of this job gave it nothing and it refused to boot, which is the
-      # environment check doing its job.
+      # Three copies, and each is read by something different:
+      #
+      #   - the root, which Playwright's own config loads. The fixtures create
+      #     accounts through the repositories and validate the environment
+      #     while doing it, so the *test* process needs one too.
+      #   - each application, because Next reads the file beside the app and
+      #     both applications have a suite. The renderer serves published
+      #     pages and has seven of its own.
+      #
+      # Written rather than relying on the job environment alone: Node's
+      # `loadEnvFile` overwrites what is already set, so a root file carrying
+      # the example's placeholder database would point the fixtures at a
+      # database that does not exist.
       - name: Provide an environment
         run: |
-          cp .env.example apps/studio/.env.local
-          cp .env.example apps/renderer/.env.local
+          cp .env.example .env.local
+          sed -i "s#^DATABASE_URL=.*#DATABASE_URL=${DATABASE_URL}#" .env.local
+          sed -i "s#^REDIS_URL=.*#REDIS_URL=${REDIS_URL}#" .env.local
+          cp .env.local apps/studio/.env.local
+          cp .env.local apps/renderer/.env.local
 
       - name: Install the browser
         run: pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium
