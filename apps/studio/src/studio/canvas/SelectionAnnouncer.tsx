@@ -74,7 +74,14 @@ export function SelectionAnnouncer(): ReactElement {
   }, [document, selected, drag])
 
   return (
-    <div role="status" aria-live="polite" className="sr-only">
+    /*
+     * Named, because it is no longer the only live region in this landmark.
+     * The page being edited is rendered inside the canvas and brings its
+     * own — a form's status, for one — so "the status in the canvas" stopped
+     * identifying anything. A reader meeting two unnamed live regions in one
+     * place has the same problem.
+     */
+    <div role="status" aria-live="polite" aria-label="Selection" className="sr-only">
       {message}
     </div>
   )

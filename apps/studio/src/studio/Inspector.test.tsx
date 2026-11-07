@@ -31,7 +31,7 @@ function mount(assets: readonly EditorAsset[] = []): { store: EditorStoreApi } {
   function Capture(): ReactElement {
     captured = useEditorStoreApi()
 
-    return <Inspector theme={defaultTheme} />
+    return <Inspector theme={defaultTheme} hasPage />
   }
 
   render(
@@ -841,5 +841,28 @@ describe("choosing an asset, and taking it off again", () => {
     })
 
     expect(store.getState().document.nodes[id]?.props[image.key]).toEqual({ $asset: "ast_hero" })
+  })
+})
+
+describe("with no page open", () => {
+  it("says there is nothing to configure, rather than reaching for a store", () => {
+    /*
+     * There is no store at all in that state — the shell does not build one
+     * for a document that does not exist. This panel read one on its first
+     * line, so opening a project with no pages yet threw during server
+     * rendering and dropped the whole screen to a client-side fallback.
+     *
+     * Rendered without a provider here on purpose. Wrapping it in one would
+     * be testing a state the product never reaches.
+     */
+    render(
+      <ShellProvider>
+        <TooltipProvider>
+          <Inspector theme={defaultTheme} hasPage={false} />
+        </TooltipProvider>
+      </ShellProvider>,
+    )
+
+    expect(screen.getByText("Select something on the canvas to edit it.")).toBeVisible()
   })
 })

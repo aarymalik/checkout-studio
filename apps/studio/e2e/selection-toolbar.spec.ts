@@ -118,11 +118,16 @@ test("hides the selection, and the node stops being rendered", async ({ context,
   await expect(page.locator(".ck-section_e2e")).toHaveCount(0)
   await expect(page.getByRole("toolbar", { name: "Selection" })).toBeHidden()
 
-  // Still selected, and still there: the live region is what says so, because
-  // there is nothing left on the canvas to look at.
-  // The canvas's own live region. There are three on the page — this one, the
-  // save status and the shell's layout announcement.
-  await expect(page.getByRole("main", { name: "Canvas" }).getByRole("status")).toHaveText(/hidden/)
+  /*
+   * Still selected, and still there: the live region is what says so, because
+   * there is nothing left on the canvas to look at.
+   *
+   * By name. The canvas is not the only thing with a live region in it — the
+   * page being edited is rendered inside this landmark and brings its own,
+   * which is why this used to match two elements and fail on the ambiguity
+   * rather than on the product.
+   */
+  await expect(page.getByRole("status", { name: "Selection" })).toHaveText(/hidden/)
 
   await page.getByRole("tab", { name: "Layers" }).click()
 

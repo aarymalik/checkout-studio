@@ -3,6 +3,7 @@
 import {
   AssetsProvider,
   EditorProvider,
+  InsertProvider,
   useScope,
   type EditorAsset,
   type Platform,
@@ -149,14 +150,21 @@ export function StudioShell({
             they have to be inside those — and they declare an overlay scope, so
             they have to be inside the keyboard provider too.
           */}
-          {frame(
-            { components: <ComponentLibrary />, layers: <LayersPanel />, ...panels },
-            <EditorStatus />,
-            <>
-              <TakeoverPrompt />
-              <ConflictPrompt />
-            </>,
-          )}
+          {/*
+            What lets a panel start a drag without reaching for the store
+            itself. The media library is supplied by the page and renders with
+            no page open, where there is no store to reach for.
+          */}
+          <InsertProvider>
+            {frame(
+              { components: <ComponentLibrary />, layers: <LayersPanel />, ...panels },
+              <EditorStatus />,
+              <>
+                <TakeoverPrompt />
+                <ConflictPrompt />
+              </>,
+            )}
+          </InsertProvider>
         </EditSessionProvider>
       </Autosave>
     </EditorProvider>
@@ -190,7 +198,7 @@ function Frame({
       <div className="flex min-h-0 flex-1">
         <Sidebar panels={panels} />
         <CanvasArea theme={hasPage ? theme : null} />
-        <Inspector theme={theme} />
+        <Inspector theme={theme} hasPage={hasPage} />
       </div>
 
       <StatusBar status={saveStatus} />

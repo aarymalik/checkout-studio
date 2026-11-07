@@ -212,7 +212,10 @@ test("picks a node up with the keyboard and announces where it would land", asyn
 
   await page.mouse.click(from.x, from.y)
 
-  const announcer = page.getByRole("main", { name: "Canvas" }).getByRole("status")
+  // By name: the page being edited is rendered inside this landmark and
+  // brings live regions of its own, so "the status in the canvas" matches
+  // more than one and fails on the ambiguity rather than on the product.
+  const announcer = page.getByRole("status", { name: "Selection" })
 
   await expect(announcer).toHaveText(/Hero/)
 
