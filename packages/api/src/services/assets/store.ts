@@ -1,5 +1,8 @@
 import "server-only"
 
+import { mkdir, rm, writeFile } from "node:fs/promises"
+import { dirname, resolve, sep } from "node:path"
+
 import { contentHash } from "@checkout-studio/utils"
 import { AwsClient } from "aws4fetch"
 
@@ -186,6 +189,68 @@ async function refuse(response: Response, verb: string, key: string): Promise<vo
   throw new Error(
     `Could not ${verb} ${key}: the object store answered ${response.status}. ${body.slice(0, 300)}`.trim(),
   )
+}
+
+export interface FileConfig {
+  /** The directory objects are written under. */
+  root: string
+  /** What a browser fetches them from. The key is appended to it. */
+  publicUrl: string
+}
+
+/**
+ * Object storage on the filesystem, for development.
+ *
+ * ## Why this exists
+ *
+ * The S3 API is what every self-hostable object store speaks, which is why
+ * `s3Store` is the real one — but it still means a bucket, and a bucket
+ * locally means Docker. A fresh clone could not accept a single upload until
+ * somebody had MinIO running, and dragging a picture into the media library
+ * is the first thing anybody does with it.
+ *
+ * ## Development only
+ *
+ * Nothing here replicates, expires, signs or survives a deploy. The
+ * environment refuses to start in production without the five S3 variables,
+ * so this is only reachable where losing the files costs a re-upload.
+ *
+ * ## A key cannot escape the root
+ *
+ * Keys are derived from a content hash and never from a filename, so a
+ * traversing key is not something this can be handed today. The check is here
+ * because "today" is doing a lot of work in that sentence, and because the
+ * cost of being wrong is writing wherever the process can write.
+ */
+export function fileStore(config: FileConfig): ObjectStore {
+  return {
+    async put(object) {
+      const target = pathFor(config.root, object.key)
+
+      await mkdir(dirname(target), { recursive: true })
+      await writeFile(target, object.bytes)
+    },
+
+    async remove(key) {
+      // `force`, because removing what is not there is the outcome asked for.
+      await rm(pathFor(config.root, key), { force: true })
+    },
+
+    url(key) {
+      return publicUrl(config.publicUrl, key)
+    },
+  }
+}
+
+function pathFor(root: string, key: string): string {
+  const base = resolve(root)
+  const target = resolve(base, key)
+
+  if (target !== base && !target.startsWith(base + sep)) {
+    throw new Error(`"${key}" is not a key this store will write.`)
+  }
+
+  return target
 }
 
 /**

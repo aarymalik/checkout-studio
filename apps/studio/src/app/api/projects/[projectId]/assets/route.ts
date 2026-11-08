@@ -1,8 +1,7 @@
-import { authenticate, route, s3Store, storeUpload, uploadRefusalError } from "@checkout-studio/api"
-import type { ObjectStore } from "@checkout-studio/api"
+import { authenticate, route, storeUpload, uploadRefusalError } from "@checkout-studio/api"
 import { DEFAULT_LIMITS, Errors } from "@checkout-studio/utils"
 
-import { getEnv } from "@/env"
+import { assetStore } from "@/lib/asset-store"
 
 /**
  * A project's assets.
@@ -30,19 +29,6 @@ function idOf(params: Record<string, string>): string {
   if (id === undefined || id === "") throw Errors.resource.notFound("Project")
 
   return id
-}
-
-function store(): ObjectStore {
-  const env = getEnv()
-
-  return s3Store({
-    endpoint: env.S3_ENDPOINT,
-    region: env.S3_REGION,
-    bucket: env.S3_BUCKET,
-    accessKeyId: env.S3_ACCESS_KEY_ID,
-    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-    publicUrl: env.ASSET_BASE_URL,
-  })
 }
 
 export const POST = route(
@@ -81,7 +67,7 @@ export const POST = route(
 
     const result = await storeUpload({
       tenant: { userId, projectId },
-      store: store(),
+      store: assetStore(),
       bytes,
       fileName: file.name,
     })

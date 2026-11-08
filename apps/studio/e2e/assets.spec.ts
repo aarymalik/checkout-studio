@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto"
 import { expect, test, type BrowserContext, type Cookie, type Page } from "@playwright/test"
 
 import { createAccount, removeAccount, signedInCookies, type Account } from "./support/account"
-import { createAsset, type AssetFixture } from "./support/asset"
+import { createAsset, PNG, type AssetFixture } from "./support/asset"
 import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
@@ -179,4 +179,38 @@ test("is still there after the page is reopened", async ({ context, page }) => {
   await expect(
     page.getByRole("main", { name: "Canvas" }).locator(`img[src="${asset.url}"]`),
   ).toBeVisible()
+})
+
+test("takes an upload and shows it in the library", async ({ context, page }) => {
+  /*
+   * The whole pipeline, in one gesture: a file chosen in the browser, a
+   * multipart request, a signature check, metadata stripped, four sizes and
+   * two formats derived, bytes written to the store, a row recorded — and a
+   * thumbnail that a browser actually fetches and draws.
+   *
+   * Phase 14 asks for this and it could not be written: the store was S3, and
+   * a bucket locally means Docker. With no bucket configured the bytes go to
+   * `public` and the development server serves them, which is what makes this
+   * runnable here and in CI.
+   */
+  await openLibrary(context, page)
+
+  await page.getByLabel(/Upload files/).setInputFiles({
+    name: "uploaded.png",
+    mimeType: "image/png",
+    buffer: PNG,
+  })
+
+  const cell = page.getByRole("button", { name: "uploaded.png" })
+
+  await expect(cell).toBeVisible({ timeout: 20_000 })
+
+  /*
+   * Drawn, not merely referenced. `naturalWidth` is zero for an `<img>` whose
+   * source did not load, which is exactly what a URL pointing at a store
+   * nobody is running looks like — and it looks like nothing else.
+   */
+  const drawn = await cell.locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth)
+
+  expect(drawn).toBeGreaterThan(0)
 })

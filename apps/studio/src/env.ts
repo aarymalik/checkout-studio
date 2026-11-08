@@ -10,6 +10,16 @@ import { z } from "zod"
  */
 const nodeEnv = z.enum(NODE_ENVS).catch("development").parse(process.env.NODE_ENV)
 
+/**
+ * Required when this is running for real, optional while somebody is building.
+ *
+ * Read at module scope from the same `NODE_ENV` the schema validates, which
+ * is how the Stripe keys already decide what they will accept.
+ */
+function inProduction<T extends z.ZodTypeAny>(schema: T) {
+  return nodeEnv === "production" ? schema : schema.optional()
+}
+
 const schema = z.object({
   NODE_ENV: z.enum(NODE_ENVS).default("development"),
   APP_URL: z.string().url(),
@@ -41,12 +51,19 @@ const schema = z.object({
    * object store speaks, so these five point at MinIO or Garage on a machine
    * you run just as readily as at a hosted bucket. `S3_ENDPOINT` carries no
    * bucket — the bucket is in the path.
+   *
+   * Optional outside production, where leaving them out puts uploads on the
+   * filesystem instead. A bucket locally means Docker, and a fresh clone
+   * could not accept a single upload until somebody had MinIO running —
+   * which is a poor first hour with a media library. Required in production,
+   * where the filesystem is not storage: it does not replicate, and it does
+   * not survive a deploy.
    */
-  S3_ENDPOINT: z.string().url(),
-  S3_REGION: z.string().min(1),
-  S3_BUCKET: z.string().min(1),
-  S3_ACCESS_KEY_ID: z.string().min(1),
-  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_ENDPOINT: inProduction(z.string().url()),
+  S3_REGION: inProduction(z.string().min(1)),
+  S3_BUCKET: inProduction(z.string().min(1)),
+  S3_ACCESS_KEY_ID: inProduction(z.string().min(1)),
+  S3_SECRET_ACCESS_KEY: inProduction(z.string().min(1)),
   /** Where assets are served from: a CDN, or the bucket itself. */
   ASSET_BASE_URL: z.string().url(),
 })

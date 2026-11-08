@@ -193,8 +193,8 @@ EMAIL_FROM                        The address verification mail comes from
 STRIPE_SECRET_KEY                 Test mode only (sk_test_…)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 STRIPE_WEBHOOK_SECRET             From `stripe listen`
-S3_ENDPOINT                       Local MinIO, or any S3-compatible store
-S3_REGION
+S3_ENDPOINT                       Optional locally. Leave the five out and
+S3_REGION                         uploads go to the filesystem instead
 S3_BUCKET
 S3_ACCESS_KEY_ID
 S3_SECRET_ACCESS_KEY
@@ -228,6 +228,17 @@ Webhook signature verification is enabled locally. Testing against a bypassed ve
 
 ## Storage Locally
 
+**Nothing to run.** With the five `S3_*` variables unset — which is how
+`.env.example` ships — uploads are written to `apps/studio/public/assets` and
+served by the development server. `ASSET_BASE_URL` is then the Studio's own
+origin, because an object's key already begins with `assets/`.
+
+It is development only, and the environment enforces that: in production the
+five are required, because the filesystem does not replicate and does not
+survive a deploy.
+
+### Against a real bucket
+
 Asset bytes go to an object store over the S3 API. That is not a choice of
 vendor — it is the one API every self-hostable store speaks — so locally the
 store is one you run:
@@ -239,8 +250,9 @@ docker run -p 9000:9000 -p 9001:9001 \
 ```
 
 Then create the bucket named by `S3_BUCKET`, from the console on port 9001 or
-with `mc`. Garage, SeaweedFS and a hosted bucket all work the same way: the
-five `S3_*` variables and `ASSET_BASE_URL` are the whole contract.
+with `mc`, uncomment the five variables and point `ASSET_BASE_URL` at the
+bucket. Garage, SeaweedFS and a hosted bucket all work the same way: the five
+`S3_*` variables and `ASSET_BASE_URL` are the whole contract.
 
 Addressing is path style — the bucket goes in the path rather than the
 hostname — so a local store needs no wildcard DNS and no certificate per

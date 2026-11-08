@@ -27,6 +27,22 @@ const PICTURE =
       "</svg>",
   )
 
+/**
+ * A real PNG, four pixels square.
+ *
+ * Real because the upload pipeline will not take anything else: it matches
+ * the file's signature, decodes it, strips its metadata and re-encodes it
+ * into four sizes and two formats. A handwritten byte string gets as far as
+ * the signature check.
+ *
+ * Four pixels so there is nothing to resize — every rendition is wider than
+ * the source, and the pipeline skips those rather than enlarging a picture.
+ */
+export const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEElEQVQImWPgiloARwzEcQCdYxBBEKOrBgAAAABJRU5ErkJggg==",
+  "base64",
+)
+
 export interface AssetFixture {
   id: string
   fileName: string
