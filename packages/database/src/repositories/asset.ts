@@ -55,6 +55,8 @@ export interface StoredAsset {
   sizeBytes: number
   width: number | null
   height: number | null
+  /** The folder it is filed under, or null for unfiled. */
+  folder: string | null
   storageKey: string
   url: string
   sha256: string
@@ -101,6 +103,7 @@ const COLUMNS = {
   sizeBytes: true,
   width: true,
   height: true,
+  folder: true,
   storageKey: true,
   url: true,
   sha256: true,
@@ -293,6 +296,25 @@ export const assetRepository = {
       // second false rather than a second date.
       where: { id, ...ownedBy(tenant) },
       data: { deletedAt: new Date() },
+    })
+
+    return result.count === 1
+  },
+
+  /**
+   * Files an asset under a folder, or takes it out of one.
+   *
+   * A folder is the name its assets carry, so there is nothing to create
+   * first and nothing left behind when the last asset leaves one. Null is
+   * unfiled.
+   *
+   * False when the asset is gone, or is not this tenant's. Both answer the
+   * same way, as every write here does.
+   */
+  async setFolder(tenant: TenantContext, id: string, folder: string | null): Promise<boolean> {
+    const result = await prisma.asset.updateMany({
+      where: { id, ...ownedBy(tenant) },
+      data: { folder },
     })
 
     return result.count === 1

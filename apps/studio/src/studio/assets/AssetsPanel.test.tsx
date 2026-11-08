@@ -40,6 +40,7 @@ function asset(index: number): LibraryAsset {
     sizeBytes: 12_000 + index,
     width: 1200,
     height: 800,
+    folder: null,
     url: `https://assets.test/assets/hash${index}.png`,
     thumbnailUrl: `https://assets.test/assets/hash${index}/thumbnail-320.webp`,
     createdAt: "2026-10-01T00:00:00.000Z",

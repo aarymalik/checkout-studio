@@ -1,7 +1,14 @@
-import { authenticate, deleteAsset, route } from "@checkout-studio/api"
+import {
+  authenticate,
+  deleteAsset,
+  fileAsset,
+  FOLDER_NAME_MAXIMUM,
+  route,
+} from "@checkout-studio/api"
 import { Errors } from "@checkout-studio/utils"
+import { z } from "zod"
 
-/** One asset: take it out of the library. */
+/** One asset: file it under a folder, or take it out of the library. */
 
 function idsOf(params: Record<string, string>): { projectId: string; assetId: string } {
   const projectId = params["projectId"]
@@ -34,5 +41,37 @@ export const DELETE = route(
     if (result.reason === "not-found") throw Errors.resource.notFound("Asset", assetId)
 
     throw Errors.resource.inUse("Asset", result.places)
+  },
+)
+
+/**
+ * Files an asset under a folder, or takes it out of one.
+ *
+ * `null` is unfiled and is a value rather than an omission: a body with no
+ * `folder` at all is a request that asked for nothing, and answering it with
+ * "unfiled" would move an asset because somebody sent an empty object.
+ */
+export const PATCH = route(
+  {
+    authenticate,
+    body: z.object({
+      folder: z
+        .string()
+        .max(FOLDER_NAME_MAXIMUM * 2)
+        .nullable(),
+    }),
+    rateLimit: { scope: "assets.file", limit: 600, windowSeconds: 60 * 60 },
+  },
+  async ({ body, params, userId }) => {
+    const { projectId, assetId } = idsOf(params)
+    const result = await fileAsset({ userId, projectId }, assetId, body.folder)
+
+    if (result.ok) return { folder: result.folder }
+
+    if (result.reason === "not-found") throw Errors.resource.notFound("Asset", assetId)
+
+    throw Errors.validation.invalidInput([
+      { path: "folder", code: "invalid", message: result.message },
+    ])
   },
 )

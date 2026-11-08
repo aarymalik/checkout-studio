@@ -18,6 +18,7 @@ function asset(over: Partial<LibraryAsset> = {}): LibraryAsset {
     kind: "image",
     sizeBytes: 10_000,
     width: 1200,
+    folder: null,
     height: 800,
     url: "https://cdn.test/assets/one.png",
     thumbnailUrl: "https://cdn.test/assets/one/thumbnail-320.webp",

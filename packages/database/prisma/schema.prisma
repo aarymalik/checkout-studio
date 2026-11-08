@@ -339,6 +339,14 @@ model Asset {
   width    Int?
   height   Int?
 
+  /// The folder this is filed under, or null for unfiled.
+  ///
+  /// A column and not a table: a folder is the name its assets carry, so one
+  /// with nothing in it stops existing — which is what somebody who emptied a
+  /// folder meant. Flat, with no separator in the name: nesting is a tree to
+  /// draw, move within and keep from looping, and nobody has asked for one.
+  folder String?
+
   storageKey String
   url        String
   /// Content hash. Identical bytes are stored once.

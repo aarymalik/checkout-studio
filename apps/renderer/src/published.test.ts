@@ -62,6 +62,7 @@ function assetRow(id: string): AssetRow {
     fileName: "hero.jpg",
     mimeType: "image/jpeg",
     sizeBytes: 820_000,
+    folder: null,
     width: 2400,
     height: 1600,
     storageKey: `assets/${SHA}.jpg`,
