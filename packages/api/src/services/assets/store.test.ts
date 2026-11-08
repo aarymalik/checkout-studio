@@ -1,10 +1,13 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { createServer, type IncomingMessage, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
 import { contentHash } from "@checkout-studio/utils"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest"
 
-import { recordingStore, s3Store } from "./store"
+import { fileStore, recordingStore, s3Store } from "./store"
 import type { ObjectStore } from "./store"
 
 /**
@@ -364,4 +367,90 @@ describe("the recording store", () => {
   it("answers the same shape of URL the real one does", async () => {
     expect(recordingStore("https://assets.test").url(KEY)).toBe(`https://assets.test/${KEY}`)
   })
+})
+
+describe("a store on the filesystem", () => {
+  let root: string
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "assets-"))
+  })
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+
+  it("writes the bytes where the key says", async () => {
+    const store = fileStore({ root, publicUrl: "http://localhost:3002" })
+
+    await store.put({ key: "assets/abc.png", bytes: BYTES, contentType: "image/png" })
+
+    expect(new Uint8Array(await readFile(join(root, "assets/abc.png")))).toEqual(BYTES)
+  })
+
+  it("makes the directories a rendition key needs", async () => {
+    // `assets/<sha>/<size>-<width>.<format>`, which is two levels deep and
+    // does not exist until something writes into it.
+    const store = fileStore({ root, publicUrl: "http://localhost:3002" })
+
+    await store.put({
+      key: "assets/abc/thumbnail-320.webp",
+      bytes: BYTES,
+      contentType: "image/webp",
+    })
+
+    expect(new Uint8Array(await readFile(join(root, "assets/abc/thumbnail-320.webp")))).toEqual(
+      BYTES,
+    )
+  })
+
+  it("writes the same key twice without complaint", async () => {
+    // A key names its content, so two uploads of one picture write the same
+    // bytes to the same place. Refusing the second would refuse a duplicate.
+    const store = fileStore({ root, publicUrl: "http://localhost:3002" })
+
+    await store.put({ key: "assets/abc.png", bytes: BYTES, contentType: "image/png" })
+
+    await expect(
+      store.put({ key: "assets/abc.png", bytes: BYTES, contentType: "image/png" }),
+    ).resolves.toBeUndefined()
+  })
+
+  it("removes one", async () => {
+    const store = fileStore({ root, publicUrl: "http://localhost:3002" })
+
+    await store.put({ key: "assets/abc.png", bytes: BYTES, contentType: "image/png" })
+    await store.remove("assets/abc.png")
+
+    await expect(readFile(join(root, "assets/abc.png"))).rejects.toThrow()
+  })
+
+  it("removing what is not there is the outcome asked for", async () => {
+    const store = fileStore({ root, publicUrl: "http://localhost:3002" })
+
+    await expect(store.remove("assets/never.png")).resolves.toBeUndefined()
+  })
+
+  it("says where a browser fetches it from", async () => {
+    const store = fileStore({ root, publicUrl: "http://localhost:3002" })
+
+    expect(store.url("assets/abc.png")).toBe("http://localhost:3002/assets/abc.png")
+  })
+
+  it.each(["../escaped.png", "assets/../../escaped.png", "/etc/passwd"])(
+    "refuses %s rather than writing outside its root",
+    async (key) => {
+      /*
+       * Not something a key can be today — they are derived from a content
+       * hash and never from a filename. The cost of that changing without
+       * anybody noticing is writing wherever the process can write.
+       */
+      const store = fileStore({ root, publicUrl: "http://localhost:3002" })
+
+      await expect(store.put({ key, bytes: BYTES, contentType: "image/png" })).rejects.toThrow(
+        /not a key this store will write/,
+      )
+      await expect(store.remove(key)).rejects.toThrow(/not a key this store will write/)
+    },
+  )
 })

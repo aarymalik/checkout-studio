@@ -14,3 +14,7 @@ test-results/
 
 .DS_Store
 *.log
+
+# Uploads, when this installation keeps them on the filesystem instead of in a
+# bucket. Development only — see `fileStore`.
+apps/studio/public/assets/
