@@ -45,6 +45,16 @@ export interface RasterReencoded {
   ok: true
   /** The bytes to store. Written by the encoder, not by whoever uploaded. */
   bytes: Uint8Array
+  /**
+   * The master's dimensions, as the header reports them.
+   *
+   * Carried out because the pipeline already has them and the row needs
+   * them: reading them again from the bytes just written would be a second
+   * parse to learn what this one knew. With `animated: true` the height
+   * spans every frame, which is the same height everything else here means.
+   */
+  width: number
+  height: number
 }
 
 export interface RasterRefused {
@@ -223,7 +233,12 @@ export async function reencodeRaster(
   try {
     const written = await encode(opened.source.image.keepIccProfile()).toBuffer()
 
-    return { ok: true, bytes: new Uint8Array(written) }
+    return {
+      ok: true,
+      bytes: new Uint8Array(written),
+      width: opened.source.width,
+      height: opened.source.height,
+    }
   } catch {
     /*
      * Everything libvips refuses is one answer: we could not read this.

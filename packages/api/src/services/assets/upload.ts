@@ -85,6 +85,16 @@ export interface UploadStored {
   asset: StoredAsset
   /** True when these bytes were already in the project and nothing was written. */
   deduplicated: boolean
+  /**
+   * The bytes that were stored, which are not the bytes that arrived.
+   *
+   * Handed back so the optimizer derives from the master rather than from
+   * the upload. They are not the same picture: the master has been
+   * re-encoded, its metadata stripped and its orientation applied, so
+   * renditions taken from the original can differ in size and in which way
+   * up they are.
+   */
+  master: Uint8Array
 }
 
 export type UploadResult = UploadStored | RefusedUpload
@@ -103,7 +113,9 @@ export async function storeUpload(request: UploadRequest): Promise<UploadResult>
 
   const existing = await assetRepository.findBySha256(tenant, accepted.sha256)
 
-  if (existing !== null) return { ok: true, asset: existing, deduplicated: true }
+  if (existing !== null) {
+    return { ok: true, asset: existing, deduplicated: true, master: accepted.bytes }
+  }
 
   /*
    * The quota is the plan's, so it is asked of the person rather than the
@@ -116,55 +128,35 @@ export async function storeUpload(request: UploadRequest): Promise<UploadResult>
     increment: accepted.sizeBytes,
   })
 
-  /*
-   * Asked through `renditionsOfMaster`, which does not refuse: these bytes are
-   * ones `acceptUpload` just wrote, for a type `rasterEncoder` named, under
-   * this same ceiling. A branch here for a refusal that cannot arrive would be
-   * a branch no test could reach.
-   */
-  const derived =
-    rasterEncoder(accepted.type.mimeType) === null
-      ? null
-      : await renditionsOfMaster(accepted.bytes, request.maxPixels)
-
-  const renditions = derived === null ? [] : derived.renditions
-  const total = accepted.sizeBytes + renditions.reduce((sum, one) => sum + one.bytes.length, 0)
-
-  await assertCan(tenant.userId, "uploadAsset", { current: held, increment: total })
-
   await store.put({
     key: masterKey(accepted.sha256, accepted.type.extension),
     bytes: accepted.bytes,
     contentType: accepted.type.mimeType,
   })
 
-  /*
-   * One after another, like the encoding that produced them. Six writes in
-   * parallel from every concurrent upload is a way to find out how many
-   * sockets a process has.
-   */
-  for (const rendition of renditions) {
-    // Awaited in the loop on purpose. See the note above.
-    await store.put({
-      key: renditionKey(accepted.sha256, rendition.size, rendition.format),
-      bytes: rendition.bytes,
-      contentType: rendition.mimeType,
-    })
-  }
-
   const created = await assetRepository.create(tenant, {
     fileName: accepted.fileName,
     mimeType: accepted.type.mimeType,
     sizeBytes: accepted.sizeBytes,
-    width: derived === null ? null : derived.width,
-    height: derived === null ? null : derived.height,
+    /*
+     * Measured by the re-encoder, which had the image open anyway. So the
+     * row is complete the moment it is written, even though nothing has been
+     * resized yet — the resizing is what no longer happens here.
+     */
+    width: accepted.width,
+    height: accepted.height,
     storageKey: masterKey(accepted.sha256, accepted.type.extension),
     url: store.url(masterKey(accepted.sha256, accepted.type.extension)),
     sha256: accepted.sha256,
-    renditions: renditions.map(recorded),
+    renditions: [],
   })
 
-  return { ok: true, asset: created.asset, deduplicated: created.deduplicated }
+  return {
+    ok: true,
+    asset: created.asset,
+    deduplicated: created.deduplicated,
+    master: accepted.bytes,
+  }
 }
 
 /**
@@ -173,6 +165,103 @@ export async function storeUpload(request: UploadRequest): Promise<UploadResult>
  * `sizeBytes` is taken from the bytes rather than carried beside them, so the
  * size on the row cannot describe a different file than the one that was put.
  */
+/**
+ * Derives an asset's renditions and records them, after the upload answered.
+ *
+ * ## Why this is not part of the upload
+ *
+ * Four sizes in two formats is seconds of encoding for a photograph, and all
+ * of it used to happen while the merchant's browser held the connection open.
+ * docs/phases.md asks for the opposite in three words — "optimization runs
+ * asynchronously" — and the library was already built for it: an asset with
+ * no renditions serves its master, which `libraryAsset` says in as many
+ * words, and `assetUrls` emits no `srcSet` rather than a broken one.
+ *
+ * So the master is stored, the row is written, the merchant sees their
+ * picture, and this runs afterwards.
+ *
+ * ## What is lost if it never runs
+ *
+ * Bandwidth, and nothing else. The master is stored first and always serves,
+ * so a process that dies between the response and this leaves an asset that
+ * works and is larger than it needs to be. That is the trade `after` makes:
+ * it is not a queue, nothing retries, and the right time to add one is when
+ * something depends on the renditions existing rather than preferring them.
+ *
+ * ## The quota, and what gives way
+ *
+ * The master was charged before it was stored. The renditions are charged
+ * here, against what is held now — and if they do not fit, they are not
+ * written. The upload used to be refused in that case, which spent a
+ * merchant's work to protect a ceiling that the master alone did not reach.
+ * Keeping the picture and skipping its optimization is the smaller loss, and
+ * the ceiling still holds.
+ */
+export async function optimizeAsset(input: {
+  tenant: TenantContext
+  store: ObjectStore
+  asset: StoredAsset
+  /** The master's bytes, as stored. */
+  bytes: Uint8Array
+  maxPixels?: number
+}): Promise<void> {
+  const { tenant, store, asset, bytes } = input
+
+  if (rasterEncoder(asset.mimeType) === null) return
+
+  /*
+   * Asked through `renditionsOfMaster`, which does not refuse: these are
+   * bytes `acceptUpload` wrote, for a type `rasterEncoder` named, under the
+   * same ceiling. A branch for a refusal that cannot arrive is a branch no
+   * test could reach.
+   */
+  const derived = await renditionsOfMaster(bytes, input.maxPixels)
+  const total = derived.renditions.reduce((sum, one) => sum + one.bytes.length, 0)
+
+  if (!(await fits(tenant.userId, total))) return
+
+  /*
+   * One after another, like the encoding that produced them. Six writes in
+   * parallel from every concurrent upload is a way to find out how many
+   * sockets a process has.
+   */
+  for (const rendition of derived.renditions) {
+    // Awaited in the loop on purpose. See the note above.
+    await store.put({
+      key: renditionKey(asset.sha256, rendition.size, rendition.format),
+      bytes: rendition.bytes,
+      contentType: rendition.mimeType,
+    })
+  }
+
+  /*
+   * Last, so the row never claims a rendition that is not in the store. The
+   * other order would have a page asking for a file that is still being
+   * written.
+   */
+  await assetRepository.setRenditions(tenant, asset.id, derived.renditions.map(recorded))
+}
+
+/**
+ * Whether this much more fits, answered rather than thrown.
+ *
+ * `assertCan` throws, which is right where a merchant is waiting for an
+ * answer and wrong here: there is nobody to tell, and the upload has already
+ * succeeded.
+ */
+async function fits(userId: string, increment: number): Promise<boolean> {
+  try {
+    await assertCan(userId, "uploadAsset", {
+      current: await assetRepository.storageUsed({ userId }),
+      increment,
+    })
+
+    return true
+  } catch {
+    return false
+  }
+}
+
 function recorded(rendition: Rendition) {
   return {
     size: rendition.size,

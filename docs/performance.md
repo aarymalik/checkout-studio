@@ -694,6 +694,24 @@ Deriving these is measured in seconds — a 1920-wide AVIF alone takes libvips a
 second or two — so it is a separate call from accepting an upload, and the
 merchant is not kept waiting on it.
 
+**The response goes out first.** The master is stored, the row is written with
+the dimensions the re-encoder already measured, and the upload answers.
+Deriving happens after that, through Next's `after`. The library was built for
+this before it was true: an asset with no renditions serves its master, and
+`assetUrls` emits no `srcset` rather than a broken one.
+
+What is lost if the deriving never runs — a process restarted between the two
+— is bandwidth, and nothing else. The master is stored first and always
+serves. That is the trade `after` makes against a durable queue: nothing
+retries, and the time to add one is when something depends on a rendition
+existing rather than preferring it.
+
+**The quota charges the master before it is stored and the renditions before
+they are.** If the renditions do not fit, they are not written and the picture
+stays. The upload used to be refused in that case, which spent a merchant's
+work to protect a ceiling the master alone did not reach; the ceiling still
+holds either way, because nothing lands that was not charged for.
+
 ## How a page fetches them
 
 An asset reference becomes a `src`, a `srcset` and a `sizes`. The `src` is
