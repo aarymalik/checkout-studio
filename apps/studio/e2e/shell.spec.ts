@@ -141,7 +141,16 @@ test.describe("the editor", () => {
     await saved
     await page.reload()
 
-    expect(await widthOf(page, "Components")).toBe(after)
+    /*
+     * To the pixel, not to the floating-point number.
+     *
+     * A stored width is a whole number — `clampWidth` rounds — and a measured
+     * box is whatever the layout settled on, which inside a flex row can be
+     * 379.734375. Those are the same width. Asserting they are the same
+     * number passes only when the drag happens to land on a whole pixel,
+     * which is why this failed in CI having passed everywhere else.
+     */
+    expect(Math.abs((await widthOf(page, "Components")) - after)).toBeLessThanOrEqual(1)
   })
 
   test("keeps a collapsed panel collapsed across a reload", async ({ page, context }) => {

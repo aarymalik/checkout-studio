@@ -642,6 +642,39 @@ Sorting
 
 ---
 
+## File Asset
+
+PATCH
+
+```
+/projects/{projectId}/assets/{assetId}
+```
+
+```json
+{ "folder": "Spring sale" }
+```
+
+Puts an asset in a folder, or takes it out of one with `null`. A folder is
+the name its assets carry — there is no folder to create first, and one stops
+existing when the last asset leaves it.
+
+The name is trimmed and its inner runs of whitespace collapsed, and if the
+project already has a folder whose name differs only in case, **that spelling
+wins**: two folders called "spring sale" and "Spring Sale" is the kind of
+thing nobody means to make. The answer carries the folder the asset ended up
+in, which is not always the one that was asked for.
+
+**422** for a name that is empty, longer than 60 characters, or contains a
+slash — folders do not nest, and a name with a separator in it means
+something to whoever typed it that it does not mean here. **404** for an
+asset this project does not have.
+
+A body with no `folder` at all is refused rather than read as "unfiled": an
+empty object asked for nothing, and moving an asset on the strength of it
+would be acting on a request nobody made.
+
+---
+
 ## Delete Asset
 
 DELETE

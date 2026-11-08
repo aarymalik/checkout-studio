@@ -26,6 +26,7 @@ function asset(over: Partial<StoredAsset> = {}): StoredAsset {
     sizeBytes: 820_000,
     width: 2400,
     height: 1600,
+    folder: null,
     storageKey: `assets/${SHA}.jpg`,
     url: `https://cdn.test/assets/${SHA}.jpg`,
     sha256: SHA,
@@ -49,6 +50,7 @@ describe("what crosses to the browser", () => {
       sizeBytes: 820_000,
       width: 2400,
       height: 1600,
+      folder: null,
       url: `https://cdn.test/assets/${SHA}.jpg`,
       thumbnailUrl: `https://cdn.test/assets/${SHA}.jpg`,
       createdAt: "2026-10-01T09:30:00.000Z",
@@ -131,5 +133,15 @@ describe("which file a cell shows", () => {
     const projected = libraryAsset(asset({ mimeType: "application/pdf", renditions: [] }), BASE)
 
     expect(projected.thumbnailUrl).toBe(projected.url)
+  })
+})
+
+describe("the folder", () => {
+  it("crosses to the browser, because the panel groups by it", () => {
+    expect(libraryAsset(asset({ folder: "Spring sale" }), BASE).folder).toBe("Spring sale")
+  })
+
+  it("is null for an asset nobody filed", () => {
+    expect(libraryAsset(asset(), BASE).folder).toBeNull()
   })
 })

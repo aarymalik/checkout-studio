@@ -27,6 +27,7 @@ function asset(over: Partial<StoredAsset> = {}): StoredAsset {
     sizeBytes: 820_000,
     width: 2400,
     height: 1600,
+    folder: null,
     storageKey: `assets/${SHA}.jpg`,
     url: `${BASE}/assets/${SHA}.jpg`,
     sha256: SHA,

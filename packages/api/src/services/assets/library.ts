@@ -34,6 +34,8 @@ export interface LibraryAsset {
   sizeBytes: number
   width: number | null
   height: number | null
+  /** The folder it is filed under, or null for unfiled. */
+  folder: string | null
   /** The master, which is what a merchant copies and what a page links to. */
   url: string
   /**
@@ -57,6 +59,7 @@ export function libraryAsset(asset: StoredAsset, base: string): LibraryAsset {
     sizeBytes: asset.sizeBytes,
     width: asset.width,
     height: asset.height,
+    folder: asset.folder,
     url: asset.url,
     thumbnailUrl: thumbnailUrl(asset, base),
     createdAt: asset.createdAt.toISOString(),
