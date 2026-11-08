@@ -298,6 +298,30 @@ export const assetRepository = {
     return result.count === 1
   },
 
+  /**
+   * Records the renditions an asset turned out to have.
+   *
+   * Separate from `create`, because deriving them is seconds of encoding and
+   * that no longer happens while a merchant waits: the row is written as soon
+   * as the master is stored, and this fills in what the optimizer found.
+   *
+   * False when the asset is gone — deleted between the upload and the
+   * optimizer finishing, which is rare and not an error. Nothing is written
+   * to a row that is not this tenant's, as nothing else here is.
+   */
+  async setRenditions(
+    tenant: TenantContext,
+    id: string,
+    renditions: readonly AssetRendition[],
+  ): Promise<boolean> {
+    const result = await prisma.asset.updateMany({
+      where: { id, ...ownedBy(tenant) },
+      data: { renditions: writable(renditions) },
+    })
+
+    return result.count === 1
+  },
+
   /** Newest first, which is the order somebody who just uploaded expects. */
   async list(tenant: TenantContext): Promise<readonly StoredAsset[]> {
     const projectId = requireProject(tenant, "Asset")

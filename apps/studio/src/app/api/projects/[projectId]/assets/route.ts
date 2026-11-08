@@ -1,4 +1,11 @@
-import { authenticate, route, storeUpload, uploadRefusalError } from "@checkout-studio/api"
+import {
+  authenticate,
+  optimizeAsset,
+  route,
+  storeUpload,
+  uploadRefusalError,
+} from "@checkout-studio/api"
+import { after } from "next/server"
 import { DEFAULT_LIMITS, Errors } from "@checkout-studio/utils"
 
 import { assetStore } from "@/lib/asset-store"
@@ -65,14 +72,28 @@ export const POST = route(
 
     if (bytes.length > BODY_LIMIT) throw Errors.validation.fileTooLarge(bytes.length, BODY_LIMIT)
 
-    const result = await storeUpload({
-      tenant: { userId, projectId },
-      store: assetStore(),
-      bytes,
-      fileName: file.name,
-    })
+    const tenant = { userId, projectId }
+    const store = assetStore()
+
+    const result = await storeUpload({ tenant, store, bytes, fileName: file.name })
 
     if (!result.ok) throw uploadRefusalError(result)
+
+    /*
+     * Four sizes in two formats is seconds of encoding, and it used to happen
+     * while the browser held the connection open. `after` runs it once the
+     * response is finished — which is what docs/phases.md asks for in three
+     * words: "optimization runs asynchronously".
+     *
+     * Only for something new. A duplicate is a row that already exists, with
+     * whatever renditions it was given the first time, and deriving them
+     * again would be seconds spent writing the same files.
+     */
+    if (!result.deduplicated) {
+      after(async () => {
+        await optimizeAsset({ tenant, store, asset: result.asset, bytes: result.master })
+      })
+    }
 
     return { asset: result.asset, deduplicated: result.deduplicated }
   },

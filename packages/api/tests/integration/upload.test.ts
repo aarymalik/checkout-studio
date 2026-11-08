@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 
 import { invalidateEntitlements } from "../../src/services/billing/entitlements"
 import { recordingStore } from "../../src/services/assets/store"
-import { storeUpload, uploadRefusalError } from "../../src/services/assets/upload"
+import { optimizeAsset, storeUpload, uploadRefusalError } from "../../src/services/assets/upload"
 import type { UploadResult } from "../../src/services/assets/upload"
 
 /**
@@ -99,13 +99,46 @@ function stored(result: UploadResult) {
   return result
 }
 
+/**
+ * An upload as the route performs it: stored, answered, then optimized.
+ *
+ * The two halves are separate now — the response goes out as soon as the
+ * master is stored, and `after` derives the renditions — so a test about
+ * what an upload *produces* has to do both. The tests that are about which
+ * half does what call them apart.
+ */
+async function uploaded(
+  tenant: TenantContext & { userId: string },
+  store: ReturnType<typeof recordingStore>,
+  bytes: Uint8Array,
+  fileName: string,
+) {
+  const result = stored(await storeUpload({ tenant, store, bytes, fileName }))
+
+  if (!result.deduplicated) {
+    await optimizeAsset({ tenant, store, asset: result.asset, bytes: result.master })
+  }
+
+  const asset = await assetRepository.findById(tenant, result.asset.id)
+
+  if (asset === null) throw new Error("The asset went missing.")
+
+  return { ...result, asset }
+}
+
 beforeEach(async () => {
   await whenReady()
   await redis.flushdb()
 })
 
 describe("a photograph", () => {
-  it("is stored, derived from and recorded", async () => {
+  it("is stored and recorded before anything is derived", async () => {
+    /*
+     * What the merchant waits for. The row is complete except for its
+     * renditions — the dimensions come from the header, which is a parse of
+     * a few dozen bytes, and not from the resizing that used to hold the
+     * connection open for seconds.
+     */
     const tenant = await aTenant()
     const store = recordingStore()
 
@@ -116,12 +149,41 @@ describe("a photograph", () => {
     expect(deduplicated).toBe(false)
     expect(asset.mimeType).toBe("image/jpeg")
     expect([asset.width, asset.height]).toEqual([1200, 400])
+    expect(asset.renditions).toEqual([])
+    expect(store.objects.size).toBe(1)
+  })
+
+  it("is derived from afterwards, and the renditions are recorded", async () => {
+    const tenant = await aTenant()
+    const store = recordingStore()
+
+    const { asset } = await uploaded(tenant, store, await photo(), "hero.jpg")
+
     expect(asset.renditions.map((one) => `${one.size}/${one.format}`)).toEqual([
       "thumbnail/webp",
       "thumbnail/avif",
       "medium/webp",
       "medium/avif",
     ])
+  })
+
+  it("is optimized from the master, not from the bytes that arrived", async () => {
+    /*
+     * They are not the same picture: the master has been re-encoded and its
+     * metadata stripped. Renditions taken from the original would describe a
+     * file nothing serves — and the row would claim sizes the store does not
+     * have.
+     */
+    const tenant = await aTenant()
+    const store = recordingStore()
+
+    const { asset } = await uploaded(tenant, store, await photo(), "hero.jpg")
+
+    for (const rendition of asset.renditions) {
+      const key = `assets/${asset.sha256}/${rendition.size}-${rendition.width}.${rendition.format}`
+
+      expect(store.objects.get(key)?.bytes.length).toBe(rendition.sizeBytes)
+    }
   })
 
   it("is not the bytes that arrived", async () => {
@@ -141,10 +203,9 @@ describe("a photograph", () => {
     const tenant = await aTenant()
     const store = recordingStore()
 
-    const { asset } = stored(
-      await storeUpload({ tenant, store, bytes: await photo(), fileName: "hero.jpg" }),
-    )
+    const { asset } = await uploaded(tenant, store, await photo(), "hero.jpg")
 
+    expect(asset.renditions.length).toBeGreaterThan(0)
     expect(store.objects.size).toBe(1 + asset.renditions.length)
     expect(store.objects.has(asset.storageKey)).toBe(true)
 
@@ -181,12 +242,12 @@ describe("the same picture twice", () => {
     const store = recordingStore()
     const bytes = await photo()
 
-    const first = stored(await storeUpload({ tenant, store, bytes, fileName: "hero.jpg" }))
+    const first = await uploaded(tenant, store, bytes, "hero.jpg")
     const written = store.objects.size
 
     store.objects.clear()
 
-    const again = stored(await storeUpload({ tenant, store, bytes, fileName: "hero-copy.jpg" }))
+    const again = await uploaded(tenant, store, bytes, "hero-copy.jpg")
 
     expect(written).toBeGreaterThan(1)
     expect(again.deduplicated).toBe(true)
@@ -405,18 +466,25 @@ describe("the plan's ceiling", () => {
     expect(await rowsFor(tenant)).toBe(1)
   })
 
-  it("counts the renditions, not only the master", async () => {
+  it("keeps the picture and skips the optimizing when only that would not fit", async () => {
     /*
-     * The second check, after deriving. A master that fits on its own and does
-     * not fit once its renditions exist is refused — and refused before a byte
-     * is written, so a plan's ceiling is never briefly exceeded.
+     * The decision this split forced. A master that fits on its own and does
+     * not fit once its renditions exist used to be refused outright —
+     * spending a merchant's upload to protect a ceiling the master alone did
+     * not reach. The renditions are an optimization; the picture is the work.
+     *
+     * So the master is stored and charged, and the renditions are derived,
+     * found not to fit, and not written. The ceiling still holds: nothing
+     * lands that was not charged for.
      */
     const tenant = await aTenant("free")
     const store = recordingStore()
     const bytes = await photo(1600, 500)
 
-    const measured = stored(await storeUpload({ tenant, store, bytes, fileName: "hero.jpg" }))
+    const measured = await uploaded(tenant, store, bytes, "hero.jpg")
     const renditionBytes = measured.asset.renditions.reduce((sum, one) => sum + one.sizeBytes, 0)
+
+    expect(renditionBytes).toBeGreaterThan(0)
 
     await prisma.asset.deleteMany({ where: { project: { userId: tenant.userId } } })
 
@@ -439,16 +507,12 @@ describe("the plan's ceiling", () => {
     )
 
     const fresh = recordingStore()
-    const failure = await storeUpload({
-      tenant,
-      store: fresh,
-      bytes,
-      fileName: "hero.jpg",
-    }).catch((error: unknown) => error)
+    const { asset } = await uploaded(tenant, fresh, bytes, "hero.jpg")
 
-    expect(failure).toBeInstanceOf(AppError)
-    expect((failure as AppError).code).toBe("QUOTA_EXCEEDED")
-    expect(fresh.objects.size).toBe(0)
+    // The master, and only the master.
+    expect(fresh.objects.size).toBe(1)
+    expect(fresh.objects.has(asset.storageKey)).toBe(true)
+    expect(asset.renditions).toEqual([])
   })
 
   it("does not charge for bytes that are already there", async () => {
@@ -547,5 +611,31 @@ describe("what a refused upload is told", () => {
       expect(message).toMatch(/^[A-Z].*\.$/)
       expect(message).not.toContain(reason)
     }
+  })
+})
+
+describe("optimizing something that is not a raster", () => {
+  it("does nothing, and says so by writing nothing", async () => {
+    /*
+     * An SVG is already the smallest it will be and has no pixel size to
+     * resize to; a font has no picture at all. `rasterEncoder` is what
+     * decides, and it is the same decision the upload made when it recorded
+     * no dimensions for them.
+     */
+    const tenant = await aTenant()
+    const store = recordingStore()
+    const svg = new TextEncoder().encode(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>',
+    )
+
+    const result = stored(await storeUpload({ tenant, store, bytes: svg, fileName: "logo.svg" }))
+
+    expect(result.asset.width).toBeNull()
+    expect(store.objects.size).toBe(1)
+
+    await optimizeAsset({ tenant, store, asset: result.asset, bytes: result.master })
+
+    expect(store.objects.size).toBe(1)
+    expect((await assetRepository.findById(tenant, result.asset.id))?.renditions).toEqual([])
   })
 })

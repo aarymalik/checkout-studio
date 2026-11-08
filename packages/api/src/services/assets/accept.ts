@@ -56,6 +56,15 @@ export interface AcceptedUpload {
    * that is the one who exported it.
    */
   removed: readonly string[]
+  /**
+   * The master's dimensions, or null for a type that has none.
+   *
+   * Carried because the re-encoder already measured them. Null for an SVG,
+   * which has no pixel size, and for a font or a document, which have no
+   * picture — the same types `rasterEncoder` declines.
+   */
+  width: number | null
+  height: number | null
 }
 
 export interface RefusedUpload {
@@ -82,6 +91,9 @@ interface Stored {
   sha256: string
   fileName: string
   removed: readonly string[]
+  /** The master's dimensions, for a type that has any. */
+  width?: number
+  height?: number
 }
 
 /**
@@ -100,6 +112,8 @@ function stored(asset: Stored): AcceptedUpload {
     sizeBytes: asset.bytes.length,
     fileName: asset.fileName,
     removed: asset.removed,
+    width: asset.width ?? null,
+    height: asset.height ?? null,
   }
 }
 
@@ -145,6 +159,8 @@ export async function acceptUpload(input: AcceptInput): Promise<AcceptResult> {
       type: inspected.type,
       bytes: image.bytes,
       sha256: contentHash(image.bytes),
+      width: image.width,
+      height: image.height,
       fileName: inspected.fileName,
       /*
        * Nothing. A raster loses its metadata rather than any of its drawing,
