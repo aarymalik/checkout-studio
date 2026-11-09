@@ -172,6 +172,36 @@ stopped partway — aborting a request whose body is already up does not un-run
 what the server started, so the list is refetched and the server's answer is
 the one shown.
 
+## Folders
+
+A folder is the name its assets carry. There is nothing to create first and
+nothing left behind when the last asset leaves one, which is what somebody who
+emptied a folder meant — and it means the list of folders and the assets in
+them cannot disagree.
+
+Flat. A tree is something to draw, move within and keep from looping, and a
+flat list can grow one later where a tree cannot be taken back. A name with a
+slash in it is refused for that reason and not because it would break
+anything: somebody typing "Spring/Banners" means nesting, and what they would
+get is one flat folder with a slash in its name.
+
+**Filing is a text box, not a menu.** A menu needs a "New folder…" entry, that
+entry needs a dialog, and filing something becomes three interactions and two
+modes. A box is one: a name that exists files it there, a name that does not
+makes the folder, and clearing it unfiles. The names in use are offered as
+suggestions so the box is not a memory test.
+
+It commits when it is left — Enter, or moving away — and Escape puts back what
+was there. Not on every keystroke, which would file an asset under "S", then
+"Sp", then "Spr".
+
+**What comes back is shown, not what was typed.** The server trims the name,
+collapses its inner whitespace, and adopts the spelling the project already
+uses for it: type "spring sale" into a project that has "Spring Sale" and the
+box reads "Spring Sale" afterwards, because that is the folder the asset is
+in. A refused name stays in the box with the reason beneath it, so it can be
+corrected rather than retyped.
+
 Below the grid, the chosen asset's name, size and type, and the two things to
 do with it: copy its URL, or delete it. Deleting asks first — a misplaced
 click should not be able to take somebody's picture — and the question says

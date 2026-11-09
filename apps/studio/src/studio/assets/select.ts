@@ -98,6 +98,24 @@ export function selectAssets(
 }
 
 /**
+ * The folders this library has, in the order to offer them.
+ *
+ * Derived from the assets rather than fetched, because a folder *is* the name
+ * its assets carry — the server answers the same question the same way, and
+ * two sources for one list is two lists that can disagree.
+ *
+ * Sorted by name, case ignored, because the order a merchant looks for a
+ * folder in is alphabetical and not whenever they happened to make it.
+ */
+export function folderNames(assets: readonly LibraryAsset[]): readonly string[] {
+  const named = assets
+    .map((asset) => asset.folder)
+    .filter((folder): folder is string => folder !== null)
+
+  return [...new Set(named)].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+}
+
+/**
  * How many of each kind there are, for a filter that offers only what exists.
  *
  * A library of logos should not offer to show the videos in it. An asset whose

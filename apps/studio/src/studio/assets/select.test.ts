@@ -1,7 +1,7 @@
 import type { LibraryAsset } from "@checkout-studio/api"
 import { describe, expect, it } from "vitest"
 
-import { EVERYTHING, SORTS, SORT_LABELS, kindCounts, selectAssets } from "./select"
+import { EVERYTHING, SORTS, SORT_LABELS, folderNames, kindCounts, selectAssets } from "./select"
 
 /**
  * Finding one asset among a thousand.
@@ -255,5 +255,31 @@ describe("how many of each kind there are", () => {
 
   it("is empty for an empty library", () => {
     expect(kindCounts([]).size).toBe(0)
+  })
+})
+
+describe("the folders a library has", () => {
+  it("is nothing when nothing is filed", () => {
+    expect(folderNames([asset(), asset()])).toEqual([])
+  })
+
+  it("is each name once, whatever it is on", () => {
+    expect(
+      folderNames([
+        asset({ folder: "Spring sale" }),
+        asset({ folder: "Archive" }),
+        asset({ folder: "Spring sale" }),
+        asset({ folder: null }),
+      ]),
+    ).toEqual(["Archive", "Spring sale"])
+  })
+
+  it("is ordered the way somebody looks for one, not the way they made them", () => {
+    // Alphabetical and case-blind: "archive" filed after "Banners" still
+    // comes first, because that is where a reader's eye goes looking.
+    expect(folderNames([asset({ folder: "Banners" }), asset({ folder: "archive" })])).toEqual([
+      "archive",
+      "Banners",
+    ])
   })
 })
