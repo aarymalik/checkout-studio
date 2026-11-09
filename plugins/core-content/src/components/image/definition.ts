@@ -1,6 +1,6 @@
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
-import { ImageRenderer, assetOf } from "./Renderer"
+import { ImageRenderer, hasSource } from "./Renderer"
 
 /**
  * Image's registration.
@@ -39,7 +39,9 @@ export const image: ComponentDefinition = {
   },
   renderer: ImageRenderer,
   validate: (node) => {
-    if (assetOf(node.props["src"]) === null) return "This image has no source."
+    // The document as stored, where a source is a reference. `assetOf` is
+    // for a renderer, which is handed one already resolved.
+    if (!hasSource(node.props["src"])) return "This image has no source."
 
     if (node.props["decorative"] === true) return null
 

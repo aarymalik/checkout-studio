@@ -1,6 +1,6 @@
 import type { ComponentDefinition } from "@checkout-studio/plugin-sdk"
 
-import { assetOf } from "../image/Renderer"
+import { hasSource } from "../image/Renderer"
 import { VideoRenderer } from "./Renderer"
 
 /**
@@ -32,5 +32,7 @@ export const video: ComponentDefinition = {
     backgroundColor: "{colors.surfaceRaised}",
   },
   renderer: VideoRenderer,
-  validate: (node) => (assetOf(node.props["src"]) === null ? "This video has no source." : null),
+  // The stored reference, not a resolved asset: a validator reads the
+  // document as it is written down. See `hasSource`.
+  validate: (node) => (hasSource(node.props["src"]) ? null : "This video has no source."),
 }
