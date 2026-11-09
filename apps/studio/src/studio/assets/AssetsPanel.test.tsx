@@ -89,7 +89,12 @@ function renderPanel(assets: readonly LibraryAsset[] = THREE) {
 type Sent = { url: string; fileName: string | null }
 
 let sent: Sent[]
+/** The bodies sent to the filing endpoint. */
+let patched: { folder: string | null }[]
 let answer: { ok: boolean; message?: string }
+/** What the filing endpoint answers. */
+let filing: { ok: boolean; folder?: string | null; message?: string }
+
 /** The uploads in flight, for a test that drives one by hand. */
 let uploads: FakeUpload[]
 /** Whether an upload finishes by itself. False for the tests about progress. */
@@ -168,8 +173,10 @@ let deletion: { ok: boolean; code?: string; message?: string }
 
 beforeEach(() => {
   sent = []
+  patched = []
   answer = { ok: true }
   deletion = { ok: true }
+  filing = { ok: true, folder: "Spring sale" }
   uploads = []
   autoComplete = true
   refresh.mockClear()
@@ -207,8 +214,32 @@ beforeEach(() => {
   // Everything but an upload, which goes through the XHR above.
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: { method?: string; body?: string }) => {
       sent.push({ url, fileName: null })
+
+      if (init?.method === "PATCH") {
+        patched.push(JSON.parse(init.body ?? "{}") as { folder: string | null })
+
+        return new Response(
+          JSON.stringify(
+            filing.ok
+              ? { success: true, data: { folder: filing.folder ?? null }, error: null, meta: {} }
+              : {
+                  success: false,
+                  data: null,
+                  error: {
+                    code: "INVALID_INPUT",
+                    // As the route sends it: the sentence travels as a field
+                    // detail so it can land under the field.
+                    message: "Please check the highlighted fields.",
+                    details: [{ path: "folder", code: "invalid", message: filing.message }],
+                  },
+                  meta: {},
+                },
+          ),
+          { headers: { "content-type": "application/json" } },
+        )
+      }
 
       const envelope = deletion.ok
         ? { success: true, data: { deleted: true }, error: null, meta: {} }
@@ -1104,5 +1135,161 @@ describe("with no page open", () => {
     // Nothing to assert on a store that does not exist. That this did not
     // throw is the assertion.
     expect(cell).toBeVisible()
+  })
+})
+
+describe("filing an asset", () => {
+  async function chooseAndField(name = "picture-0.png"): Promise<HTMLElement> {
+    renderPanel()
+
+    await userEvent.click(await screen.findByRole("button", { name }))
+
+    return screen.getByLabelText("Folder")
+  }
+
+  it("is offered on the asset that is chosen, and not before", async () => {
+    renderPanel()
+
+    await screen.findByRole("grid", { name: "Assets" })
+
+    expect(screen.queryByLabelText("Folder")).toBeNull()
+  })
+
+  it("says unfiled when it is", async () => {
+    const field = await chooseAndField()
+
+    expect(field).toHaveValue("")
+    expect(field).toHaveAttribute("placeholder", "Unfiled")
+  })
+
+  it("files it under what was typed, on Enter", async () => {
+    const field = await chooseAndField()
+
+    await userEvent.type(field, "Spring sale{Enter}")
+
+    await waitFor(() => {
+      expect(patched).toEqual([{ folder: "Spring sale" }])
+    })
+  })
+
+  it("shows the folder it ended up in, not the one that was asked for", async () => {
+    /*
+     * The server trims, collapses inner whitespace and adopts a spelling the
+     * project already uses. Showing what was typed would show a folder that
+     * does not exist.
+     */
+    filing = { ok: true, folder: "Spring Sale" }
+
+    const field = await chooseAndField()
+
+    await userEvent.type(field, "spring sale{Enter}")
+
+    await waitFor(() => {
+      expect(field).toHaveValue("Spring Sale")
+    })
+  })
+
+  it("asks the server for the list again, so the grid agrees with the box", async () => {
+    const field = await chooseAndField()
+
+    await userEvent.type(field, "Spring sale{Enter}")
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalled()
+    })
+  })
+
+  it("commits when the box is left", async () => {
+    const field = await chooseAndField()
+
+    await userEvent.type(field, "Spring sale")
+    await userEvent.tab()
+
+    await waitFor(() => {
+      expect(patched).toEqual([{ folder: "Spring sale" }])
+    })
+  })
+
+  it("sends nothing when nothing changed", async () => {
+    // Leaving a box without typing in it is not a request to move anything.
+    const field = await chooseAndField()
+
+    await userEvent.click(field)
+    await userEvent.tab()
+
+    expect(patched).toEqual([])
+  })
+
+  it("puts back what was there on Escape", async () => {
+    const field = await chooseAndField()
+
+    await userEvent.type(field, "Spring sale{Escape}")
+
+    expect(field).toHaveValue("")
+    expect(patched).toEqual([])
+  })
+
+  it("takes an asset out of its folder when the box is emptied", async () => {
+    const filed: LibraryAsset = { ...asset(0), folder: "Spring sale" }
+
+    renderPanel([filed])
+
+    await userEvent.click(await screen.findByRole("button", { name: "picture-0.png" }))
+
+    const field = screen.getByLabelText("Folder")
+
+    expect(field).toHaveValue("Spring sale")
+
+    await userEvent.clear(field)
+    await userEvent.tab()
+
+    await waitFor(() => {
+      expect(patched).toEqual([{ folder: null }])
+    })
+  })
+
+  it("offers the folders already in use", async () => {
+    // A box with no suggestions is a memory test. The names come from the
+    // assets, because that is what a folder is.
+    renderPanel([
+      { ...asset(0), folder: "Spring sale" },
+      { ...asset(1), folder: "Archive" },
+      asset(2),
+    ])
+
+    await userEvent.click(await screen.findByRole("button", { name: "picture-2.png" }))
+
+    const list = document.getElementById(screen.getByLabelText("Folder").getAttribute("list") ?? "")
+
+    expect([...(list?.querySelectorAll("option") ?? [])].map((one) => one.value)).toEqual([
+      "Archive",
+      "Spring sale",
+    ])
+  })
+
+  it("says why a name was refused, under the field and not in the upload strip", async () => {
+    /*
+     * A refused name is a fact about what was just typed. The panel's problem
+     * strip says "some files were not stored", which this is not.
+     */
+    filing = { ok: false, message: "Folders do not nest, so a name cannot contain a slash." }
+
+    const field = await chooseAndField()
+
+    await userEvent.type(field, "a/b{Enter}")
+
+    expect(await screen.findByText(/do not nest/)).toBeVisible()
+    expect(screen.queryByText("Some files were not stored")).toBeNull()
+  })
+
+  it("keeps what was typed, so it can be corrected rather than retyped", async () => {
+    filing = { ok: false, message: "A folder needs a name." }
+
+    const field = await chooseAndField()
+
+    await userEvent.type(field, "a/b{Enter}")
+    await screen.findByText("A folder needs a name.")
+
+    expect(field).toHaveValue("a/b")
   })
 })

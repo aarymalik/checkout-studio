@@ -20,10 +20,12 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 import { ABORTED, send as request, upload } from "@/lib/api-client"
 import { registry } from "@/studio/registry"
 
+import { FolderField } from "./FolderField"
+import type { FileOutcome } from "./FolderField"
 import { CELL_GAP, cellAt, gridMetrics, gridWindow, neighbour } from "./grid"
 import { insertionForAsset } from "./insert"
 import { LibraryControls } from "./LibraryControls"
-import { EVERYTHING, kindCounts, selectAssets, type Selection } from "./select"
+import { EVERYTHING, folderNames, kindCounts, selectAssets, type Selection } from "./select"
 import { UploadZone } from "./UploadZone"
 
 /**
@@ -156,6 +158,7 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
 
   const shown = useMemo(() => selectAssets(assets, selection), [assets, selection])
   const counts = useMemo(() => kindCounts(assets), [assets])
+  const folders = useMemo(() => folderNames(assets), [assets])
   const metrics = useMemo(() => gridMetrics(shown.length, size.width), [shown.length, size.width])
   const view = gridWindow(metrics, scrollTop, size.height)
 
@@ -321,6 +324,39 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
     router.refresh()
   }
 
+  /**
+   * Files the chosen asset, and answers with the folder it ended up in.
+   *
+   * Not the one that was asked for: the server trims the name, collapses its
+   * inner whitespace and adopts a spelling the project already uses. The
+   * field shows what came back, and the list is refetched so the suggestions
+   * and the grid agree with it.
+   */
+  async function file(folder: string | null): Promise<FileOutcome> {
+    if (chosen === null) return { ok: false, message: "Nothing is selected." }
+
+    const result = await request<{ folder: string | null }>(
+      `/api/projects/${projectId}/assets/${chosen.id}`,
+      "PATCH",
+      { folder },
+    )
+
+    /*
+     * The field's own message, under the field. A refused name is a fact
+     * about what was just typed, and the panel's problem strip is about
+     * uploads — it says "some files were not stored", which this is not.
+     *
+     * `fields.folder` first: the route sends the sentence as a field detail
+     * so it can land here, and the envelope's own message is the generic
+     * "check the highlighted fields".
+     */
+    if (!result.ok) return { ok: false, message: result.fields["folder"] ?? result.message }
+
+    router.refresh()
+
+    return { ok: true, folder: result.data.folder }
+  }
+
   async function copyUrl(): Promise<void> {
     if (chosen === null) return
 
@@ -451,6 +487,13 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
             {chosen.fileName}
           </p>
           <p className="text-xs text-foreground-muted">{describe(chosen)}</p>
+
+          {/*
+            Keyed by the asset, so choosing another cell resets the box to
+            that asset's folder rather than carrying a half-typed name across.
+          */}
+          <FolderField key={chosen.id} folder={chosen.folder} folders={folders} onFile={file} />
+
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" onClick={() => void copyUrl()}>
               {copied ? (
