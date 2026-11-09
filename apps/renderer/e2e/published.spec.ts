@@ -109,3 +109,73 @@ test("serves nothing for a slug that is not published", async ({ page }) => {
 
   expect(response?.status()).toBe(404)
 })
+
+test.describe("a page that draws an asset", () => {
+  let withPicture: Published
+
+  test.beforeAll(async () => {
+    withPicture = await publish("picture", { picture: true })
+  })
+
+  test.afterAll(async () => {
+    await unpublish(withPicture)
+  })
+
+  test("resolves the reference into the URLs a browser needs", async ({ page }) => {
+    /*
+     * The end Phase 14 asks for: an asset referenced by a published revision,
+     * served. A document stores `{ "$asset": "ast_…" }` and never a URL —
+     * which is what lets an asset be deleted safely and used in six places —
+     * so something has to turn one into the other before a browser sees it,
+     * and on a published page that something is the server.
+     *
+     * The Studio's suite covers the other end: a real file, through a real
+     * file input, into the library.
+     */
+    await page.goto(`/${withPicture.hostname}/${withPicture.slug}`)
+
+    const image = page.locator(".checkout-root img")
+
+    /*
+     * The key rather than the whole URL: which host serves an asset is the
+     * environment's answer and changes between a laptop and a CDN, while
+     * which *file* is what the reference decided.
+     */
+    await expect(image).toHaveAttribute(
+      "src",
+      new RegExp(`assets/${withPicture.asset?.sha256 ?? ""}\\.jpg$`),
+    )
+    await expect(image).toHaveAttribute("alt", "A hero")
+  })
+
+  test("offers the renditions it has, and says how wide it will be shown", async ({ page }) => {
+    /*
+     * A `srcset` without `sizes` is a browser assuming 100vw and taking the
+     * widest candidate every time — which costs the renditions and saves
+     * nothing. The two travel together or neither is worth emitting.
+     */
+    await page.goto(`/${withPicture.hostname}/${withPicture.slug}`)
+
+    const image = page.locator(".checkout-root img")
+    const rendition = withPicture.asset?.rendition
+
+    await expect(image).toHaveAttribute(
+      "srcset",
+      new RegExp(
+        `${rendition?.size ?? ""}-${String(rendition?.width)}\\.${rendition?.format ?? ""} ${String(rendition?.width)}w`,
+      ),
+    )
+    await expect(image).toHaveAttribute("sizes", /\d+px/)
+  })
+
+  test("ships no JavaScript to draw it", async ({ page }) => {
+    // An image is static, and docs/renderer.md § SSR is explicit that only
+    // interactive components hydrate. A picture that needed React to appear
+    // would be a picture that is not there until the bundle lands.
+    await page.goto(`/${withPicture.hostname}/${withPicture.slug}`)
+
+    const served = await (await fetch(page.url())).text()
+
+    expect(served).toContain(`assets/${withPicture.asset?.sha256 ?? ""}.jpg`)
+  })
+})

@@ -9,6 +9,28 @@ export function assetOf(value: unknown): AssetUrls | null {
 }
 
 /**
+ * Whether a source prop points at anything.
+ *
+ * Separate from `assetOf`, and the difference is which document is being
+ * looked at. A renderer is handed a *resolved* prop — the engine turns
+ * `{ "$asset": "ast_9f2a" }` into URLs before a component sees it — while a
+ * validator is handed the document **as stored**, where the same prop is
+ * still the reference.
+ *
+ * Asking `assetOf` in a validator is therefore asking the wrong question of
+ * the right value, and the answer was always no: a published page carrying
+ * an image was refused as inconsistent and served a 404, which is how this
+ * was found.
+ */
+export function hasSource(value: unknown): boolean {
+  if (assetOf(value) !== null) return true
+
+  const reference = value as { $asset?: unknown } | null | undefined
+
+  return typeof reference?.$asset === "string" && reference.$asset !== ""
+}
+
+/**
  * Image.
  *
  * ## The two attributes that are not decoration
