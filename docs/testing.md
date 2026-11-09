@@ -77,6 +77,15 @@ it, so `webServer` clears `NODE_OPTIONS`.
 fixtures rather than on anything being tested, and that limit exists for a reason.
 Create the session through the API once and add its cookie to each context.
 
+**No test is the first to reach a route.** A development server compiles one
+on demand, and the test that pays for that pays with the window between a page
+being interactive and the test acting on it. Three specs were intermittently
+red in CI and all three were a first interaction: a wheel event that arrived
+before anything listened, a pointer move before a gesture was live, and the
+only test that opens the project route with no page. A `globalSetup` asks for
+each route once before the suite, which is cheaper than a number in every test
+that somebody has to keep raising.
+
 **It runs in CI.** It did not, and the suite went red without anyone noticing —
 five specs were failing on `develop` when somebody finally ran them, and three
 of those were one real fault that no unit test could see. A suite nobody runs

@@ -38,6 +38,13 @@ const baseURL = `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: "./e2e",
+  /*
+   * Asks for each route once before the suite, so no test is the first to
+   * reach one. A development server compiles on demand and CI has two cores;
+   * what the first test pays is the window between a page being interactive
+   * and a test acting on it. See `e2e/support/warm.ts`.
+   */
+  globalSetup: "./e2e/support/warm.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 2 : 0,
