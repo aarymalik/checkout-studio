@@ -29,14 +29,29 @@ export const SORT_LABELS: Readonly<Record<Sort, string>> = {
 /** `all` rather than an absent value, so the control always has a selection. */
 export type KindFilter = "all" | UploadKind
 
+/**
+ * Which folder to show: all of them, the unfiled ones, or one by name.
+ *
+ * A name and not an id, because a folder has no id — it is the name its
+ * assets carry. `unfiled` is its own answer rather than an empty name, so
+ * that "show me what I have not sorted yet" is a thing the control can say.
+ */
+export type FolderFilter = { of: "all" } | { of: "unfiled" } | { of: "named"; name: string }
+
 export interface Selection {
   /** Matched against the filename. Trimmed; empty means everything. */
   text: string
   kind: KindFilter
+  folder: FolderFilter
   sort: Sort
 }
 
-export const EVERYTHING: Selection = { text: "", kind: "all", sort: "newest" }
+export const EVERYTHING: Selection = {
+  text: "",
+  kind: "all",
+  folder: { of: "all" },
+  sort: "newest",
+}
 
 /**
  * Whether a filename contains what was typed.
@@ -52,6 +67,13 @@ export const EVERYTHING: Selection = { text: "", kind: "all", sort: "newest" }
  */
 function matches(asset: LibraryAsset, text: string): boolean {
   return asset.fileName.toLowerCase().includes(text)
+}
+
+function inFolder(asset: LibraryAsset, folder: FolderFilter): boolean {
+  if (folder.of === "all") return true
+  if (folder.of === "unfiled") return asset.folder === null
+
+  return asset.folder === folder.name
 }
 
 const COMPARE: Readonly<Record<Sort, (a: LibraryAsset, b: LibraryAsset) => number>> = {
@@ -91,7 +113,10 @@ export function selectAssets(
    * same thing again is a second place for the two answers to disagree.
    */
   const found = assets.filter(
-    (asset) => (selection.kind === "all" || asset.kind === selection.kind) && matches(asset, text),
+    (asset) =>
+      (selection.kind === "all" || asset.kind === selection.kind) &&
+      inFolder(asset, selection.folder) &&
+      matches(asset, text),
   )
 
   return found.sort(COMPARE[selection.sort])
@@ -113,6 +138,34 @@ export function folderNames(assets: readonly LibraryAsset[]): readonly string[] 
     .filter((folder): folder is string => folder !== null)
 
   return [...new Set(named)].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+}
+
+/**
+ * How many assets each folder holds, and how many are in none.
+ *
+ * Counted over the whole library rather than over what is shown, so the
+ * numbers do not move as somebody searches — a folder that says 12 and shows
+ * 2 under a search is answering the question the control asks, which is how
+ * many are in there.
+ */
+export function folderCounts(assets: readonly LibraryAsset[]): {
+  readonly named: ReadonlyMap<string, number>
+  readonly unfiled: number
+} {
+  const named = new Map<string, number>()
+  let unfiled = 0
+
+  for (const asset of assets) {
+    if (asset.folder === null) {
+      unfiled += 1
+
+      continue
+    }
+
+    named.set(asset.folder, (named.get(asset.folder) ?? 0) + 1)
+  }
+
+  return { named, unfiled }
 }
 
 /**

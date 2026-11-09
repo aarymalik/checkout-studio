@@ -56,16 +56,22 @@ const THREE = [asset(0), asset(1), asset(2)]
  * `EditorProvider` on its own: the panel renders with no page open, where
  * there is no store at all, and the suite below has a case for that.
  */
-function renderPanel(assets: readonly LibraryAsset[] = THREE) {
-  let captured: EditorStoreApi | null = null
+let captured: EditorStoreApi | null = null
 
-  function Capture() {
-    captured = useEditorStoreApi()
+function Capture({ assets }: { assets: readonly LibraryAsset[] }) {
+  captured = useEditorStoreApi()
 
-    return <AssetsPanel projectId="prj_one" assets={assets} />
-  }
+  return <AssetsPanel projectId="prj_one" assets={assets} />
+}
 
-  const result = render(
+/**
+ * The tree, as its own function so a test can rerender it with a new list.
+ *
+ * Which is what the server does after an upload or a filing: the panel's
+ * list is a prop, and the way it changes is a fresh render of the route.
+ */
+function panelIn(assets: readonly LibraryAsset[]) {
+  return (
     <EditorProvider
       document={createDocument({
         projectId: "prj_one",
@@ -76,10 +82,16 @@ function renderPanel(assets: readonly LibraryAsset[] = THREE) {
       baseVersion={1}
     >
       <InsertProvider>
-        <Capture />
+        <Capture assets={assets} />
       </InsertProvider>
-    </EditorProvider>,
+    </EditorProvider>
   )
+}
+
+function renderPanel(assets: readonly LibraryAsset[] = THREE) {
+  captured = null
+
+  const result = render(panelIn(assets))
 
   if (captured === null) throw new Error("The provider did not render.")
 
@@ -1291,5 +1303,111 @@ describe("filing an asset", () => {
     await screen.findByText("A folder needs a name.")
 
     expect(field).toHaveValue("a/b")
+  })
+})
+
+describe("the folder filter", () => {
+  const filed = [
+    { ...asset(0), folder: "Spring sale" },
+    { ...asset(1), folder: "Spring sale" },
+    { ...asset(2), folder: null },
+  ]
+
+  function folderFilter() {
+    return screen.getByRole("combobox", { name: "Filter by folder" })
+  }
+
+  it("is absent until the project has a folder", async () => {
+    // A control offering nothing but "All" asks a question with one answer.
+    renderPanel()
+
+    await screen.findByRole("grid", { name: "Assets" })
+
+    expect(screen.queryByRole("combobox", { name: "Filter by folder" })).toBeNull()
+  })
+
+  it("offers each folder with how many are in it", async () => {
+    renderPanel(filed)
+
+    await screen.findByRole("grid", { name: "Assets" })
+    await userEvent.click(folderFilter())
+
+    expect(screen.getByRole("option", { name: "Spring sale (2)" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "Unfiled (1)" })).toBeVisible()
+  })
+
+  it("shows only that folder's assets", async () => {
+    renderPanel(filed)
+
+    const grid = await screen.findByRole("grid", { name: "Assets" })
+
+    await userEvent.click(folderFilter())
+    await userEvent.click(screen.getByRole("option", { name: "Spring sale (2)" }))
+
+    await waitFor(() => {
+      expect(within(grid).getAllByRole("gridcell")).toHaveLength(2)
+    })
+
+    expect(within(grid).queryByText("picture-2.png")).toBeNull()
+  })
+
+  it("shows what is in no folder", async () => {
+    renderPanel(filed)
+
+    const grid = await screen.findByRole("grid", { name: "Assets" })
+
+    await userEvent.click(folderFilter())
+    await userEvent.click(screen.getByRole("option", { name: "Unfiled (1)" }))
+
+    await waitFor(() => {
+      expect(within(grid).getAllByRole("gridcell")).toHaveLength(1)
+    })
+
+    expect(within(grid).getByText("picture-2.png")).toBeVisible()
+  })
+
+  it("counts the whole library, not what a search left", async () => {
+    /*
+     * The control answers "how many are in there", which does not change
+     * because somebody is typing. A number that moved with the search would
+     * be answering a question nobody asked it.
+     */
+    renderPanel(filed)
+
+    await screen.findByRole("grid", { name: "Assets" })
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search assets" }), "picture-0")
+    await userEvent.click(folderFilter())
+
+    expect(screen.getByRole("option", { name: "Spring sale (2)" })).toBeVisible()
+  })
+
+  it("falls back to everything when the folder stops existing", async () => {
+    /*
+     * Unfiling the last asset in a folder leaves a filter naming one that is
+     * gone, which draws an empty grid under "nothing matched" — true, and no
+     * help at all.
+     */
+    const { rerender } = renderPanel([{ ...asset(0), folder: "Spring sale" }, asset(1)])
+
+    const grid = await screen.findByRole("grid", { name: "Assets" })
+
+    await userEvent.click(folderFilter())
+    await userEvent.click(screen.getByRole("option", { name: "Spring sale (1)" }))
+
+    await waitFor(() => {
+      expect(within(grid).getAllByRole("gridcell")).toHaveLength(1)
+    })
+
+    rerender(panelIn([asset(0), asset(1)]))
+
+    // Queried again rather than reused: the grid is redrawn, and a node
+    // captured before the rerender can be one React has replaced.
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole("grid", { name: "Assets" })).getAllByRole("gridcell"),
+      ).toHaveLength(2)
+    })
+
+    expect(screen.queryByRole("combobox", { name: "Filter by folder" })).toBeNull()
   })
 })

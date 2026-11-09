@@ -25,7 +25,14 @@ import type { FileOutcome } from "./FolderField"
 import { CELL_GAP, cellAt, gridMetrics, gridWindow, neighbour } from "./grid"
 import { insertionForAsset } from "./insert"
 import { LibraryControls } from "./LibraryControls"
-import { EVERYTHING, folderNames, kindCounts, selectAssets, type Selection } from "./select"
+import {
+  EVERYTHING,
+  folderCounts,
+  folderNames,
+  kindCounts,
+  selectAssets,
+  type Selection,
+} from "./select"
 import { UploadZone } from "./UploadZone"
 
 /**
@@ -159,8 +166,25 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
   const shown = useMemo(() => selectAssets(assets, selection), [assets, selection])
   const counts = useMemo(() => kindCounts(assets), [assets])
   const folders = useMemo(() => folderNames(assets), [assets])
+  const folderTotals = useMemo(() => folderCounts(assets), [assets])
   const metrics = useMemo(() => gridMetrics(shown.length, size.width), [shown.length, size.width])
   const view = gridWindow(metrics, scrollTop, size.height)
+
+  /*
+   * A folder that stopped existing stops being the filter.
+   *
+   * Unfiling the last asset in one leaves a filter naming a folder that is
+   * gone, which draws an empty grid under an empty state saying nothing
+   * matched — true, and no help at all, because the way back is a control
+   * the reader has to think to go and look at.
+   */
+  useEffect(() => {
+    setSelection((current) =>
+      current.folder.of === "named" && !folders.includes(current.folder.name)
+        ? { ...current, folder: { of: "all" } }
+        : current,
+    )
+  }, [folders])
 
   /*
    * Focus follows the list when it shrinks. Uploading does not shorten it, but
@@ -394,6 +418,7 @@ export function AssetsPanel({ projectId, assets }: AssetsPanelProps) {
         <LibraryControls
           selection={selection}
           counts={counts}
+          folders={folderTotals}
           total={assets.length}
           onChange={setSelection}
         />

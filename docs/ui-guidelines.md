@@ -195,6 +195,22 @@ It commits when it is left — Enter, or moving away — and Escape puts back wh
 was there. Not on every keystroke, which would file an asset under "S", then
 "Sp", then "Spr".
 
+**The filter takes a row of its own**, and only once the project has a
+folder. A name is as long as somebody made it, which is not a thing to put in
+half a row beside the kind filter — and a control offering nothing but "All"
+asks a question with one answer.
+
+It offers each folder with how many are in it, and "Unfiled" whatever that
+number is: "what have I not sorted yet" is worth being able to ask, and worth
+seeing the answer to even when the answer is none. The counts are of the
+whole library rather than of what a search left, because the question the
+control asks is how many are in there.
+
+A folder that stops existing stops being the filter. Unfiling the last asset
+in one otherwise leaves an empty grid under "nothing matched" — true, and no
+help at all, because the way back is a control the reader has to think to go
+and look at.
+
 **What comes back is shown, not what was typed.** The server trims the name,
 collapses its inner whitespace, and adopts the spelling the project already
 uses for it: type "spring sale" into a project that has "Spring Sale" and the
