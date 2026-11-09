@@ -1,7 +1,16 @@
 import type { LibraryAsset } from "@checkout-studio/api"
 import { describe, expect, it } from "vitest"
 
-import { EVERYTHING, SORTS, SORT_LABELS, folderNames, kindCounts, selectAssets } from "./select"
+import {
+  EVERYTHING,
+  SORTS,
+  SORT_LABELS,
+  folderCounts,
+  folderNames,
+  kindCounts,
+  selectAssets,
+} from "./select"
+import type { Selection } from "./select"
 
 /**
  * Finding one asset among a thousand.
@@ -281,5 +290,66 @@ describe("the folders a library has", () => {
       "archive",
       "Banners",
     ])
+  })
+})
+
+describe("narrowing to a folder", () => {
+  const library = [
+    asset({ id: "a", fileName: "hero.png", folder: "Spring sale" }),
+    asset({ id: "b", fileName: "logo.png", folder: "Archive" }),
+    asset({ id: "c", fileName: "spare.png", folder: null }),
+    asset({ id: "d", fileName: "banner.png", folder: "Spring sale" }),
+  ]
+
+  const ids = (selection: Partial<Selection>) =>
+    selectAssets(library, { ...EVERYTHING, ...selection }).map((one) => one.id)
+
+  it("shows everything by default", () => {
+    expect(ids({})).toHaveLength(4)
+  })
+
+  it("shows one folder's own", () => {
+    expect(ids({ folder: { of: "named", name: "Spring sale" } }).sort()).toEqual(["a", "d"])
+  })
+
+  it("shows what is in no folder", () => {
+    // "What have I not sorted yet" is a question worth being able to ask.
+    expect(ids({ folder: { of: "unfiled" } })).toEqual(["c"])
+  })
+
+  it("narrows with the search rather than instead of it", () => {
+    expect(ids({ folder: { of: "named", name: "Spring sale" }, text: "banner" })).toEqual(["d"])
+  })
+
+  it("narrows with the kind filter too", () => {
+    expect(ids({ folder: { of: "named", name: "Spring sale" }, kind: "video" })).toEqual([])
+  })
+
+  it("matches a name exactly, so two spellings are two folders", () => {
+    // The server stops them being made; this is not the place to paper over
+    // one that exists.
+    expect(ids({ folder: { of: "named", name: "spring sale" } })).toEqual([])
+  })
+})
+
+describe("how many are in each folder", () => {
+  it("counts the named ones and the rest", () => {
+    const counted = folderCounts([
+      asset({ folder: "Spring sale" }),
+      asset({ folder: "Spring sale" }),
+      asset({ folder: "Archive" }),
+      asset({ folder: null }),
+    ])
+
+    expect(counted.named.get("Spring sale")).toBe(2)
+    expect(counted.named.get("Archive")).toBe(1)
+    expect(counted.unfiled).toBe(1)
+  })
+
+  it("is nothing and everything unfiled when nothing is filed", () => {
+    const counted = folderCounts([asset(), asset()])
+
+    expect(counted.named.size).toBe(0)
+    expect(counted.unfiled).toBe(2)
   })
 })
