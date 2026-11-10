@@ -222,12 +222,12 @@ These apply to **every** phase, in addition to its specific criteria.
 | 6     | Renderer Engine                 | **Complete** | 2, 5       |
 | 7     | Visual Canvas                   | **Complete** | 4, 6       |
 | 8     | Drag & Drop Engine              | **Complete** | 7          |
-| 9     | Core Component Library          | In Progress  | 8          |
-| 10    | Form System                     | Not Started  | 9          |
-| 11    | Checkout Components             | Not Started  | 10         |
-| 12    | Property Inspector              | Not Started  | 11         |
-| 13    | Stripe Integration              | Not Started  | 11         |
-| 14    | Asset Management                | Not Started  | 8, 12      |
+| 9     | Core Component Library          | In Review    | 8          |
+| 10    | Form System                     | In Review    | 9          |
+| 11    | Checkout Components             | In Review    | 10         |
+| 12    | Property Inspector              | In Review    | 11         |
+| 13    | Stripe Integration              | In Review    | 11         |
+| 14    | Asset Management                | In Review    | 8, 12      |
 | 15    | Templates                       | Not Started  | 13, 14     |
 | 16    | Publishing                      | Not Started  | 6, 13, 14  |
 | 17    | AI Assistant                    | Not Started  | 12         |
@@ -241,6 +241,17 @@ These apply to **every** phase, in addition to its specific criteria.
 | 25    | Version 1.0 Launch              | Not Started  | 21, 22     |
 
 Update the Status column as phases progress. This table is the single source of truth for where the project stands.
+
+**In Review** here means what the lifecycle says it means: every implementation
+step is finished and the gate is green over it, and the exit criteria have not
+been signed off one by one. Six phases sat at "Not Started" or "In Progress"
+while being built and depended on, which is the failure mode the success
+criteria name — "the progress tracker always reflects reality" — so they are
+moved to where they actually are rather than to where they are going.
+
+Phase 14's criteria _have_ been checked individually; see its Verification
+section. It stays In Review because approval is not something the author of a
+phase gives it.
 
 ---
 
@@ -3187,6 +3198,40 @@ pnpm test:e2e --filter=studio -g "assets"
 ✓ Deleting an in-use asset is blocked with an explanation
 ✓ Library virtualized, verified with 1,000 assets
 ```
+
+### Verification
+
+Every criterion above was checked individually rather than assumed, and the
+pass found two things worth recording.
+
+**A published page carrying an image served a 404 — every image, since the
+component existed.** `prepare` runs each component's validator over the stored
+document and refuses one any of them rejects; Image's asked `assetOf`, which
+answers about a _resolved_ asset, so the answer was always no. Video's had it
+too. It survived because `prepare` has one caller and the canvas is not it, so
+an image always drew in the editor, and because the end-to-end test this phase
+asks for could not be written until uploads worked without a bucket. Writing
+that test is what found it.
+
+**Uploads needed Docker.** The S3 API is the right one — every self-hostable
+store speaks it — but a bucket locally meant MinIO, so a fresh clone could not
+accept a single upload. The five `S3_*` variables are now optional outside
+production and the bytes go to `apps/studio/public`, which is also what made
+the test above possible.
+
+One criterion is answered with a position rather than a test. **"Library with
+1,000 assets renders under 200ms"**: what makes that true is virtualization,
+and what is asserted is the mechanism — a thousand assets put fewer than forty
+cells in the DOM, and the grid reports its own row count so a screen reader
+hears the size of the library rather than the size of the window onto it. A
+wall-clock number in jsdom measures the machine the suite happens to run on;
+this project already reverted one timing test for exactly that reason, after
+two runs of identical code differed by 25×. If a real number is wanted it
+belongs in a browser, against a profile, as its own slice.
+
+Two things the phase did not have and now does, neither in its scope: the
+end-to-end suite runs in CI, and a Playwright `globalSetup` warms the routes
+so no test pays for a cold compile.
 
 ---
 
