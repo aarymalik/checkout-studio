@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { canonicalJson, equivalent, normalize } from "../src/document/normalize"
+import { canonicalJson, canonicalText, equivalent, normalize } from "../src/document/normalize"
 import { deserialize, serialize } from "../src/document/serialize"
 import { MigrationRegistry } from "../src/migrate/registry"
 import type { CheckoutSchema } from "../src/document/schema"
@@ -218,5 +218,39 @@ describe("deserialize", () => {
     const result = deserialize(sampleDocument())
 
     expect(result.ok && result.migration).toBeNull()
+  })
+})
+
+describe("the canonical form of anything", () => {
+  it("sorts keys at every depth, as a document's does", () => {
+    expect(canonicalText({ b: 1, a: { d: 2, c: 3 } })).toBe('{"a":{"c":3,"d":2},"b":1}')
+  })
+
+  it("leaves arrays in the order they were given", () => {
+    // Order is the statement an array makes. Sorting one would reorder a
+    // page's children, which is why the document walk does not either.
+    expect(canonicalText({ items: ["b", "a"] })).toBe('{"items":["b","a"]}')
+  })
+
+  it("drops undefined rather than leaving a hole", () => {
+    // Undefined is not JSON. Dropping it here rather than letting
+    // `JSON.stringify` do it keeps the canonical form and the bytes agreeing.
+    expect(canonicalText({ a: undefined, b: 1 })).toBe('{"b":1}')
+  })
+
+  it("is the same text for two values built in different orders", () => {
+    /*
+     * What a bundle's checksum rests on: two exports of the same thing that
+     * differ only in how an object was assembled are the same bundle.
+     */
+    expect(canonicalText({ x: 1, y: [{ q: 1, p: 2 }] })).toBe(
+      canonicalText({ y: [{ p: 2, q: 1 }], x: 1 }),
+    )
+  })
+
+  it("carries a primitive through untouched", () => {
+    expect(canonicalText("a string")).toBe('"a string"')
+    expect(canonicalText(7)).toBe("7")
+    expect(canonicalText(null)).toBe("null")
   })
 })

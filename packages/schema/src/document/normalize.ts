@@ -43,6 +43,22 @@ export function normalize(document: CheckoutSchema): CheckoutSchema {
 }
 
 /**
+ * The canonical JSON of anything.
+ *
+ * The same walk as a document's, offered for the things that travel beside
+ * one. A bundle is a manifest wrapped around a document, a theme and a list
+ * of assets, and its checksum has to be stable against key order for exactly
+ * the reason a document's does: two exports of the same page that differ only
+ * in the order an object was built are not two bundles.
+ *
+ * Separate from `canonicalJson` rather than a widening of it, because what a
+ * document is stays a type worth stating where it is meant.
+ */
+export function canonicalText(value: unknown): string {
+  return JSON.stringify(canonical(value))
+}
+
+/**
  * The canonical JSON of a document.
  *
  * What to hash, what to diff, and what to compare when deciding whether

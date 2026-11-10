@@ -30,6 +30,20 @@ export default createVitestConfig({
       functions: 100,
       lines: 100,
     },
+    /*
+     * Export, import and the sanitizing between them, per docs/phases.md
+     * Phase 15. A bundle crosses between installations that do not trust
+     * each other, and the exit criteria are absolute in a way a percentage
+     * is not: no bundle has ever contained a secret, every hostile archive
+     * is rejected, a failed import leaves zero trace. An untested branch in
+     * here is one of those sentences being false and nobody knowing.
+     */
+    "src/services/portability/**/*.ts": {
+      statements: 100,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+    },
   },
   alias: {
     "server-only": fileURLToPath(new URL("./tests/stubs/server-only.ts", import.meta.url)),
