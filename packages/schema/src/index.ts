@@ -67,7 +67,7 @@ export type {
   ValidationResult,
 } from "./document/validate"
 
-export { canonicalJson, equivalent, normalize } from "./document/normalize"
+export { canonicalJson, canonicalText, equivalent, normalize } from "./document/normalize"
 export { diff, summarize, unchanged } from "./document/diff"
 export type { DocumentDiff } from "./document/diff"
 export { deserialize, serialize } from "./document/serialize"
