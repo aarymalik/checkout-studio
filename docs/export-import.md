@@ -1247,6 +1247,14 @@ Tenant identifiers
 
 Redaction runs as an explicit pipeline stage with its own test suite, not as a filter scattered through the collectors.
 
+The list above gets two different answers, because the two halves of it mean different things.
+
+A tenant's own identifiers — the project id, a user id, a tracking id, a custom domain — are expected to be in our data and merely must not leave it. They are **removed**, by key, at any depth, and the export reports which paths it dropped so the person can be told what was left out.
+
+A credential — a Stripe key of any kind, a webhook secret, a session secret, a connection string — must not be in the payload at all. One being there means a collector read something it had no business reading, so it **refuses the export** and names where it was found, rather than stripping it and leaving the bug in place. Removal is applied before anything is scanned, so a key the policy already knows is dropped rather than refused.
+
+A refusal names paths and never values: it is written to a log.
+
 ## Authorization
 
 ```
