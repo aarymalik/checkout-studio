@@ -67,5 +67,6 @@ export {
 } from "./validate"
 export type { ThemeProblem } from "./validate"
 
+export { tokenReferences } from "./references"
 export { MAX_INHERITANCE_DEPTH, flatten, mergeDeep } from "./inherit"
 export type { InheritErrorCode, InheritFailure, InheritResult, InheritSuccess } from "./inherit"

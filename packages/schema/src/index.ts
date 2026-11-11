@@ -139,6 +139,7 @@ export {
   themeTypography,
   themeVersion,
   tokenPath,
+  tokenReferences,
   typeScale,
   typeStyle,
   unknownManualPaths,
