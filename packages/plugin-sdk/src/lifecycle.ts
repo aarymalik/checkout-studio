@@ -84,6 +84,20 @@ function problemFrom(error: unknown): PluginProblem {
 export class PluginHost {
   private readonly plugins: Plugin[] = []
   private readonly states = new Map<string, PluginRecord>()
+  /**
+   * Which plugin registered each component type.
+   *
+   * The host is the only thing that ever knows this. A scoped builder checks a
+   * registration against a *namespace*, and a namespace is shared — `core` is
+   * `core-layout`'s, `core-content`'s and `core-embed`'s alike, which
+   * docs/component-library.md § Component Catalog states outright. So
+   * `core.image` cannot name its plugin, and the merged registry has no field
+   * for the one fact only this moment has.
+   *
+   * Recorded on activation and nowhere else, so a plugin whose registrations
+   * were discarded owns nothing.
+   */
+  private readonly owners = new Map<string, string>()
   private registry: RendererRegistry | null = null
 
   constructor(private readonly options: PluginHostOptions) {}
@@ -113,6 +127,8 @@ export class PluginHost {
    */
   async start(): Promise<RendererRegistry> {
     const builder = new RegistryBuilder()
+
+    this.owners.clear()
 
     for (const plugin of this.plugins) {
       const prepared = this.prepare(plugin)
@@ -148,6 +164,8 @@ export class PluginHost {
    */
   startSync(): RendererRegistry {
     const builder = new RegistryBuilder()
+
+    this.owners.clear()
 
     for (const plugin of this.plugins) {
       const prepared = this.prepare(plugin)
@@ -221,6 +239,14 @@ export class PluginHost {
   /** Its scope joins the shared registry, now that it finished without throwing. */
   private activated(plugin: Plugin, builder: RegistryBuilder, scope: RegistryBuilder): void {
     merge(builder, scope)
+
+    // After the merge, never before: a scope that collided contributes none of
+    // its components, and recording it as their provider would name a plugin
+    // whose registrations were thrown away.
+    for (const definition of scope.drain().components) {
+      this.owners.set(definition.type, plugin.manifest.id)
+    }
+
     this.states.set(plugin.manifest.id, { manifest: plugin.manifest, state: "active" })
   }
 
@@ -260,11 +286,30 @@ export class PluginHost {
     }
 
     this.registry = null
+    this.owners.clear()
   }
 
   /** What happened to each plugin, in registration order. */
   records(): readonly PluginRecord[] {
     return this.plugins.map((plugin) => this.states.get(plugin.manifest.id) as PluginRecord)
+  }
+
+  /**
+   * Every component type this host activated, and the plugin that provides it.
+   *
+   * Empty before `start` and after `stop`, like the registry: a host that is
+   * not running has nothing to say about who provides what.
+   *
+   * What needs it is anything that has to turn a document into a list of
+   * plugins — an export declaring what a bundle requires, an import saying
+   * which plugin to install before a page will render, an editor explaining
+   * why a node came back unsupported. All three can only answer "which plugin
+   * is `core.image` from" by having been told.
+   */
+  componentOwners(): ReadonlyMap<string, string> {
+    // A copy, like `records()`. Handing out the live map would let a caller
+    // that cast away the readonly rename a component's provider.
+    return new Map(this.owners)
   }
 
   /** The registry, or null before `start` and after `stop`. */

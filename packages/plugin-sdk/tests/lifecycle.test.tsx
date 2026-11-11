@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createPluginApi } from "../src/api"
 import { PluginHost } from "../src/lifecycle"
+import type { Plugin } from "../src/lifecycle"
 import { createGrant } from "../src/permissions"
 import { RegistryBuilder } from "../src/registry"
 import { ENGINE, Provider, definition, manifest, plugin } from "./support"
@@ -508,5 +509,198 @@ describe("the namespace a plugin writes into", () => {
     expect(host.startSync().types()).toEqual(["core.section"])
     expect(host.records().map((record) => record.state)).toEqual(["active", "failed"])
     expect(host.records()[1]?.problem?.code).toBe("registration-conflict")
+  })
+})
+
+describe("which plugin provides a component", () => {
+  /**
+   * The one fact only activation knows.
+   *
+   * A scoped builder checks a registration against a namespace, and a
+   * namespace is shared: `core` belongs to `core-layout`, `core-content` and
+   * `core-embed` alike. So `core.image` cannot name its plugin, and nothing
+   * downstream can work it out from the string — an export declaring what a
+   * bundle requires, an import saying what to install, an editor explaining an
+   * unsupported node. Each has to be told.
+   */
+
+  function started(...plugins: Plugin[]): PluginHost {
+    const host = new PluginHost({ versions: ENGINE })
+
+    for (const entry of plugins) host.register(entry)
+    host.startSync()
+
+    return host
+  }
+
+  it("is the plugin that registered it", () => {
+    const host = started(
+      plugin({ id: "shop", namespace: "shop" }, (api) => {
+        api.registerComponent(definition("shop.cart"))
+        api.registerComponent(definition("shop.total"))
+      }),
+    )
+
+    expect([...host.componentOwners()]).toEqual([
+      ["shop.cart", "shop"],
+      ["shop.total", "shop"],
+    ])
+  })
+
+  it("tells two plugins sharing a namespace apart", () => {
+    /*
+     * The case the registry cannot answer. Both register into `core`, both are
+     * allowed to, and the merged registry holds six components with nothing
+     * saying which three came from where.
+     */
+    const host = started(
+      plugin({ id: "core-layout", namespace: "core" }, (api) => {
+        api.registerComponent(definition("core.section"))
+      }),
+      plugin({ id: "core-content", namespace: "core" }, (api) => {
+        api.registerComponent(definition("core.image"))
+      }),
+    )
+
+    expect(host.componentOwners().get("core.section")).toBe("core-layout")
+    expect(host.componentOwners().get("core.image")).toBe("core-content")
+  })
+
+  it("says nothing about a type nobody registered", () => {
+    expect(started().componentOwners().get("core.image")).toBeUndefined()
+  })
+
+  it("is empty before anything has started", () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "shop", namespace: "shop" }, (api) => {
+        api.registerComponent(definition("shop.cart"))
+      }),
+    )
+
+    expect(host.componentOwners().size).toBe(0)
+  })
+
+  it("is empty again after stopping", async () => {
+    // A host that is not running has nothing to say about who provides what,
+    // which is the same answer `current()` gives.
+    const host = started(
+      plugin({ id: "shop", namespace: "shop" }, (api) => {
+        api.registerComponent(definition("shop.cart"))
+      }),
+    )
+
+    await host.stop()
+
+    expect(host.componentOwners().size).toBe(0)
+  })
+
+  it("is a fresh map each time, so a caller cannot rename a provider", () => {
+    const host = started(
+      plugin({ id: "shop", namespace: "shop" }, (api) => {
+        api.registerComponent(definition("shop.cart"))
+      }),
+    )
+
+    expect(host.componentOwners()).not.toBe(host.componentOwners())
+  })
+})
+
+describe("a plugin that owns nothing", () => {
+  it("activated and threw, so its registrations were discarded", () => {
+    /*
+     * The host discards a failed plugin's scope whole. Recording it as a
+     * provider would name a plugin for components that are not in the
+     * registry, and an export would require installing it to render a page
+     * that cannot be rendered here either.
+     */
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "shop", namespace: "shop" }, (api) => {
+        api.registerComponent(definition("shop.cart"))
+
+        throw new Error("half way through")
+      }),
+    )
+
+    host.startSync()
+
+    expect(host.records()[0]?.state).toBe("failed")
+    expect(host.componentOwners().size).toBe(0)
+  })
+
+  it("collided with a type another plugin had already registered", () => {
+    // None of its five rather than four and a hole, so none of its five are
+    // its either.
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "core-layout", namespace: "core" }, (api) => {
+        api.registerComponent(definition("core.section"))
+      }),
+    )
+    host.register(
+      plugin({ id: "imposter", namespace: "core" }, (api) => {
+        api.registerComponent(definition("core.section"))
+        api.registerComponent(definition("core.spacer"))
+      }),
+    )
+
+    host.startSync()
+
+    expect([...host.componentOwners()]).toEqual([["core.section", "core-layout"]])
+  })
+
+  it("was never activated, because it was incompatible", () => {
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin(
+        {
+          id: "shop",
+          namespace: "shop",
+          compatibility: { minEngineVersion: "9.0.0", schemaVersion: "1.0.0" },
+        },
+        () => {
+          throw new Error("never reached")
+        },
+      ),
+    )
+
+    host.startSync()
+
+    expect(host.records()[0]?.state).toBe("disabled")
+    expect(host.componentOwners().size).toBe(0)
+  })
+
+  it("stopped owning what it lost on a second start", () => {
+    /*
+     * Why the record is cleared when a start begins rather than only when a
+     * host stops. A plugin that activated once and fails the next time would
+     * otherwise still be named as the provider of components no longer in the
+     * registry.
+     */
+    let attempts = 0
+    const host = new PluginHost({ versions: ENGINE })
+
+    host.register(
+      plugin({ id: "shop", namespace: "shop" }, (api) => {
+        attempts += 1
+
+        if (attempts > 1) throw new Error("not this time")
+
+        api.registerComponent(definition("shop.cart"))
+      }),
+    )
+
+    host.startSync()
+
+    expect(host.componentOwners().size).toBe(1)
+
+    host.startSync()
+
+    expect(host.componentOwners().size).toBe(0)
   })
 })

@@ -309,6 +309,16 @@ await in a client graph is a bundler problem, and a registry arriving a tick
 after the first render is a page of unsupported placeholders. A plugin that
 activates asynchronously is recorded as failed rather than half-activated.
 
+**`PluginHost.componentOwners`.** Which plugin provides each component type.
+A declared `namespace` is shared, so a type id does not name its plugin and
+the merged registry has no field for it — the host is the only thing that ever
+knows, and it knows it for one moment during activation. Recorded then, and
+only for a plugin whose registrations actually joined the registry: a plugin
+that threw, collided or was never activated owns nothing. Empty before a start
+and after a stop, like `current()`. What needs it is anything turning a
+document into a list of plugins — an export declaring what a bundle requires,
+an import saying what to install, an editor explaining an unsupported node.
+
 Each visual component registers itself.
 
 A component defines:
