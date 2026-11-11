@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { REDACTED_KEYS, REFUSED_KEYS, redact } from "./redact"
+import { BLANKED_KEYS, REDACTED_KEYS, REDACTED_VALUE, REFUSED_KEYS, redact } from "./redact"
 import type { RedactionResult } from "./redact"
+import { parseDocument } from "@checkout-studio/schema"
+import type { CheckoutSchema } from "@checkout-studio/schema"
+
 import type { BundlePayload } from "../types"
 
 /**
@@ -26,6 +29,7 @@ const REMOVABLE: BundlePayload = {
     name: "Checkout",
     slug: "checkout",
     "project-id": "prj_LEAK01",
+    PAGE_ID: "pag_LEAK01",
     USER_ID: "usr_LEAK02",
     ownerId: "usr_LEAK03",
     createdById: "usr_LEAK04",
@@ -168,6 +172,7 @@ describe("the fixture", () => {
     const present = keysOf(REMOVABLE, keysOf(CREDENTIALS, new Set<string>()))
 
     expect([...REDACTED_KEYS.keys()].filter((key) => !present.has(key))).toEqual([])
+    expect([...BLANKED_KEYS.keys()].filter((key) => !present.has(key))).toEqual([])
     expect([...REFUSED_KEYS].filter((key) => !present.has(key))).toEqual([])
   })
 })
@@ -183,23 +188,38 @@ describe("what a bundle never carries", () => {
 
     if (result.ok === false) throw new Error("Expected the export to be allowed.")
 
-    expect(result.removed).toContainEqual({ path: "page.project-id", reason: "tenant-identifier" })
-    expect(result.removed).toContainEqual({ path: "page.USER_ID", reason: "internal-identifier" })
-    expect(result.removed).toContainEqual({ path: "records.orders", reason: "customer-record" })
+    expect(result.removed).toContainEqual({
+      path: "page.project-id",
+      reason: "tenant-identifier",
+      action: "blanked",
+    })
+    expect(result.removed).toContainEqual({
+      path: "page.USER_ID",
+      reason: "internal-identifier",
+      action: "dropped",
+    })
+    expect(result.removed).toContainEqual({
+      path: "records.orders",
+      reason: "customer-record",
+      action: "dropped",
+    })
     expect(result.removed).toContainEqual({
       path: "settings.integrations[0].measurementId",
       reason: "analytics",
+      action: "dropped",
     })
     expect(result.removed).toContainEqual({
       path: "document.nodes.contact.props.email",
       reason: "personal-data",
+      action: "dropped",
     })
     expect(result.removed).toContainEqual({
       path: "settings.domains",
       reason: "domain-configuration",
+      action: "dropped",
     })
-    // Thirty keys, and `email` in two places.
-    expect(result.removed).toHaveLength(31)
+    // Thirty-one keys, and `email` in two places.
+    expect(result.removed).toHaveLength(32)
   })
 
   it("leaves everything around it where it was", () => {
@@ -219,6 +239,12 @@ describe("what a bundle never carries", () => {
           props: { text: "Questions? Write to us." },
         },
       },
+    })
+    expect(kept(redact(REMOVABLE))["page"]).toEqual({
+      name: "Checkout",
+      slug: "checkout",
+      "project-id": REDACTED_VALUE,
+      PAGE_ID: REDACTED_VALUE,
     })
     expect(kept(redact(REMOVABLE))["settings"]).toEqual({
       integrations: [
@@ -305,7 +331,7 @@ describe("the order the two rules run in", () => {
     expect(result).toEqual({
       ok: true,
       payload: {},
-      removed: [{ path: "stripeAccountId", reason: "tenant-identifier" }],
+      removed: [{ path: "stripeAccountId", reason: "tenant-identifier", action: "dropped" }],
     })
     expect(redact({ heading: "acct_LEAK0001" }).ok).toBe(false)
   })
@@ -316,7 +342,7 @@ describe("the order the two rules run in", () => {
     expect(redact({ webhookSecret: value })).toEqual({
       ok: true,
       payload: {},
-      removed: [{ path: "webhookSecret", reason: "credential" }],
+      removed: [{ path: "webhookSecret", reason: "credential", action: "dropped" }],
     })
   })
 })
@@ -339,5 +365,73 @@ describe("a page with nothing to hide", () => {
     const payload = { counts: [0, 1], flag: false, missing: null, nested: { depth: 2 } }
 
     expect(kept(redact(payload))).toEqual(payload)
+  })
+})
+
+describe("a document that has been through it", () => {
+  /**
+   * The gate that was missing.
+   *
+   * Everything above redacts hand-built payloads, which can be any shape at
+   * all. A real document cannot: `checkoutSchema` is strict and requires
+   * `projectId` and `pageId`. A redactor that dropped them would hand the next
+   * stage something that no longer parses — and the stage that would have
+   * noticed is the importer, so every bundle would have passed integrity, the
+   * manifest and compatibility before being refused by its own schema check.
+   */
+
+  const DOCUMENT: CheckoutSchema = {
+    version: "1.0.0",
+    projectId: "prj_real",
+    pageId: "pag_real",
+    theme: { themeId: "theme_default" },
+    settings: {},
+    variables: {},
+    root: "root",
+    nodes: {
+      root: {
+        id: "root",
+        type: "core.page",
+        parentId: null,
+        children: ["copy"],
+        props: {},
+        styles: {},
+        visibility: { hidden: false },
+        animations: [],
+        metadata: { locked: false },
+      },
+      copy: {
+        id: "copy",
+        type: "core.text",
+        parentId: "root",
+        children: [],
+        props: { text: "Pay securely." },
+        styles: { desktop: { base: { color: "{colors.primary}" } } },
+        visibility: { hidden: false },
+        animations: [],
+        metadata: { locked: false },
+      },
+    },
+  }
+
+  it("still parses", () => {
+    const result = redact({ document: DOCUMENT })
+
+    expect(parseDocument(kept(result)["document"]).ok).toBe(true)
+  })
+
+  it("carries neither of the identifiers it arrived with", () => {
+    const text = JSON.stringify(kept(redact({ document: DOCUMENT })))
+
+    expect(text).not.toContain("prj_real")
+    expect(text).not.toContain("pag_real")
+  })
+
+  it("keeps everything that makes it a page", () => {
+    const redacted = kept(redact({ document: DOCUMENT }))["document"] as CheckoutSchema
+
+    expect(redacted.nodes).toEqual(DOCUMENT.nodes)
+    expect(redacted.root).toBe("root")
+    expect(redacted.theme).toEqual({ themeId: "theme_default" })
   })
 })

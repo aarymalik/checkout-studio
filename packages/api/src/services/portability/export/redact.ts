@@ -32,6 +32,20 @@ import type { BundlePayload } from "../types"
  * contained a secret; the way to keep that true is for the stage that could
  * have let one through to stop instead of tidying up after it.
  *
+ * ## An identifier the format requires is blanked, not dropped
+ *
+ * `checkoutSchema` is strict and requires `projectId` and `pageId`. Dropping
+ * them would hand the next stage a document that no longer parses, and the
+ * stage that would have noticed is the importer — so every bundle would have
+ * been refused by its own schema check, having passed every other gate.
+ *
+ * Those keys keep their place and lose their value: `REDACTED_VALUE` says
+ * nothing about a tenant and satisfies a field that must be a non-empty
+ * string. Real ones are assigned on import, which is what ID regeneration is
+ * for. A field that is merely *allowed* to be absent is still dropped — the
+ * placeholder exists to keep a document valid, not to leave markers through a
+ * bundle.
+ *
  * ## Removal happens before anything is scanned
  *
  * So a removed key's value is never examined. `{ stripeAccountId: "acct_…" }`
@@ -72,6 +86,14 @@ export interface RedactedField {
   /** Where it was, as `document.nodes.n1.props.email`. Never its value. */
   path: string
   reason: RedactionReason
+  /**
+   * What happened to it.
+   *
+   * `blanked` means the key is still there holding `REDACTED_VALUE`, because
+   * the format requires the field. Either way the value is gone, which is why
+   * both are reported the same way.
+   */
+  action: "dropped" | "blanked"
 }
 
 export type SecretKind =
@@ -92,6 +114,23 @@ export type RedactionResult =
   | { ok: true; payload: BundlePayload; removed: RedactedField[] }
   | { ok: false; found: FoundSecret[] }
 
+/** What a blanked field holds instead. Never a tenant's anything. */
+export const REDACTED_VALUE = "redacted"
+
+/**
+ * Keys that keep their place and lose their value.
+ *
+ * Only the identifiers `checkoutSchema` requires. A document whose
+ * `projectId` had been dropped would fail to parse on import, so these two
+ * are blanked rather than removed — and blanked wherever they appear, not
+ * only at the document's root, because a placeholder is safe everywhere and
+ * a path-sensitive rule is one more thing to get wrong.
+ */
+export const BLANKED_KEYS: ReadonlyMap<string, RedactionReason> = new Map([
+  ["projectid", "tenant-identifier"],
+  ["pageid", "tenant-identifier"],
+])
+
 /**
  * Keys that are removed wherever they appear, at any depth.
  *
@@ -108,7 +147,6 @@ export type RedactionResult =
  * how a key added here without a fixture to prove it fails.
  */
 export const REDACTED_KEYS: ReadonlyMap<string, RedactionReason> = new Map([
-  ["projectid", "tenant-identifier"],
   ["tenantid", "tenant-identifier"],
   ["organizationid", "tenant-identifier"],
   ["orgid", "tenant-identifier"],
@@ -235,10 +273,19 @@ function fields(
   for (const [key, child] of Object.entries(value)) {
     const at = path === "" ? key : `${path}.${key}`
     const name = key.toLowerCase().replaceAll(/[_-]/gu, "")
+    const required = BLANKED_KEYS.get(name)
+
+    if (required !== undefined) {
+      removed.push({ path: at, reason: required, action: "blanked" })
+      kept[key] = REDACTED_VALUE
+
+      continue
+    }
+
     const reason = REDACTED_KEYS.get(name)
 
     if (reason !== undefined) {
-      removed.push({ path: at, reason })
+      removed.push({ path: at, reason, action: "dropped" })
 
       continue
     }
@@ -251,7 +298,7 @@ function fields(
        * people that the refusal means nothing.
        */
       if (child === null || child === undefined || child === "") {
-        removed.push({ path: at, reason: "credential" })
+        removed.push({ path: at, reason: "credential", action: "dropped" })
       } else {
         found.push({ path: at, kind: "credential-field" })
       }
