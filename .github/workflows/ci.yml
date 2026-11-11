@@ -156,8 +156,17 @@ jobs:
       - name: Provide an environment
         run: cp .env.example apps/studio/.env.local
 
+      # `--with-deps` apt-installs system libraries and fonts, which puts a
+      # third-party Ubuntu mirror on the path of a required check: when
+      # archive.ubuntu.com stops resolving on the runner, every browser job
+      # fails having run no tests. So the deps are attempted and the browser
+      # is installed either way — the runner image already carries most of
+      # what Chromium needs, and a test that cannot launch says so far more
+      # clearly than apt does.
       - name: Install the browser
-        run: pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium
+        run: >
+          pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium ||
+          pnpm --filter @checkout-studio/studio exec playwright install chromium
 
       - name: Every component, every variant, light and dark
         run: pnpm test:visual
@@ -271,8 +280,17 @@ jobs:
           cp .env.local apps/studio/.env.local
           cp .env.local apps/renderer/.env.local
 
+      # `--with-deps` apt-installs system libraries and fonts, which puts a
+      # third-party Ubuntu mirror on the path of a required check: when
+      # archive.ubuntu.com stops resolving on the runner, every browser job
+      # fails having run no tests. So the deps are attempted and the browser
+      # is installed either way — the runner image already carries most of
+      # what Chromium needs, and a test that cannot launch says so far more
+      # clearly than apt does.
       - name: Install the browser
-        run: pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium
+        run: >
+          pnpm --filter @checkout-studio/studio exec playwright install --with-deps chromium ||
+          pnpm --filter @checkout-studio/studio exec playwright install chromium
 
       # One suite at a time. Each starts a development server that compiles on
       # demand, and two of those on a two-core runner is how a 300ms
