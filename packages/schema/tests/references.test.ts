@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { assetReferences } from "../src"
+import { assetReferences, assetReferrers } from "../src"
 import { makeDocument, makeNode, sampleDocument, wideDocument } from "./support"
 
 /**
@@ -176,5 +176,110 @@ describe("the same asset in several places", () => {
     }
 
     expect(ids(withLogo)).toEqual(["ast_logo"])
+  })
+})
+
+describe("which nodes name an asset", () => {
+  /**
+   * What a bundle's asset registry records, and what an import rewrites.
+   *
+   * The ids alone answer "load this" and "is this still used". Neither
+   * answers "where do I point this after the asset lands under a new id",
+   * which is why the richer walk is the one that exists and the set is a view
+   * of it.
+   */
+
+  function withNodes(...nodes: Parameters<typeof makeNode>[]): ReturnType<typeof makeDocument> {
+    return makeDocument(nodes.map(([id, overrides]) => makeNode(id, overrides)))
+  }
+
+  it("is the node that holds the prop", () => {
+    const document = withNodes(
+      ["root", { type: "core.page", children: ["img"] }],
+      ["img", { type: "core.image", parentId: "root", props: { src: { $asset: "ast_1" } } }],
+    )
+
+    expect([...assetReferrers(document)]).toEqual([["ast_1", ["img"]]])
+  })
+
+  it("is every node that holds one, in a fixed order", () => {
+    // Walk order is a fact about the tree, not about the page. Sorting keeps
+    // a registry from changing because a node moved and moved back.
+    const document = withNodes(
+      ["root", { type: "core.page", children: ["zebra", "apple"] }],
+      ["zebra", { type: "core.image", parentId: "root", props: { src: { $asset: "ast_1" } } }],
+      ["apple", { type: "core.image", parentId: "root", props: { src: { $asset: "ast_1" } } }],
+    )
+
+    expect(assetReferrers(document).get("ast_1")).toEqual(["apple", "zebra"])
+  })
+
+  it("names a node once however many of its props point at the same asset", () => {
+    const document = withNodes(
+      ["root", { type: "core.page", children: ["card"] }],
+      [
+        "card",
+        {
+          type: "core.card",
+          parentId: "root",
+          props: { background: { $asset: "ast_1" }, icon: { $asset: "ast_1" } },
+        },
+      ],
+    )
+
+    expect(assetReferrers(document).get("ast_1")).toEqual(["card"])
+  })
+
+  it("reaches a reference nested in an array of objects", () => {
+    const document = withNodes(
+      ["root", { type: "core.page", children: ["list"] }],
+      [
+        "list",
+        {
+          type: "core.list",
+          parentId: "root",
+          props: { items: [{ icon: { $asset: "ast_1" } }, { icon: { $asset: "ast_2" } }] },
+        },
+      ],
+    )
+
+    expect([...assetReferrers(document)]).toEqual([
+      ["ast_1", ["list"]],
+      ["ast_2", ["list"]],
+    ])
+  })
+
+  it("records one the settings name with no node at all", () => {
+    /*
+     * The favicon and the social image belong to the document. An empty list
+     * is the truth: anything rewriting references by node id has to reach
+     * them separately, exactly as this walk does.
+     */
+    const document = makeDocument([makeNode("root", { type: "core.page" })])
+    const withFavicon = { ...document, settings: { favicon: { $asset: "ast_icon" } } }
+
+    expect([...assetReferrers(withFavicon)]).toEqual([["ast_icon", []]])
+  })
+
+  it("keeps the nodes when the settings name the same asset", () => {
+    const document = withNodes(
+      ["root", { type: "core.page", children: ["img"] }],
+      ["img", { type: "core.image", parentId: "root", props: { src: { $asset: "ast_1" } } }],
+    )
+    const alsoFavicon = { ...document, settings: { favicon: { $asset: "ast_1" } } }
+
+    expect(assetReferrers(alsoFavicon).get("ast_1")).toEqual(["img"])
+  })
+
+  it("agrees with the ids the set reports", () => {
+    // The set is a view of this, so a document that disagreed would mean two
+    // walks had grown back.
+    const document = withNodes(
+      ["root", { type: "core.page", children: ["img"] }],
+      ["img", { type: "core.image", parentId: "root", props: { src: { $asset: "ast_1" } } }],
+    )
+    const alsoFavicon = { ...document, settings: { favicon: { $asset: "ast_icon" } } }
+
+    expect([...assetReferrers(alsoFavicon).keys()]).toEqual([...assetReferences(alsoFavicon)])
   })
 })
