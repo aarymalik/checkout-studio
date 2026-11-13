@@ -32,6 +32,26 @@ import type { BundlePayload } from "../types"
  * contained a secret; the way to keep that true is for the stage that could
  * have let one through to stop instead of tidying up after it.
  *
+ * ## A key somebody chose is not a field name
+ *
+ * The policy matches key *names*, and some objects are keyed by data rather
+ * than by fields. `document.nodes` is keyed by node id, and a node id is any
+ * string; `variables`, `theme.colors.custom` and `theme.components` are the
+ * same. A node called `orders` would be removed and its parent left pointing
+ * at nothing, and a node called `pageId` would become the string `redacted` —
+ * a document that is no longer a page, produced by a stage protecting it.
+ *
+ * So inside a container whose keys are data, the key policy does not apply.
+ * Named by the container's own key rather than by a path, because the same
+ * containers appear at different depths in different kinds of bundle, and a
+ * rule that matched `document.nodes` would stop working the moment a project
+ * bundle nested it under `pages[2]`.
+ *
+ * What does *not* change is the value scan. A credential is caught by its
+ * shape wherever it sits, including inside a node, so the exemption cannot be
+ * used to smuggle one past: it relaxes the weaker net and leaves the stronger
+ * one alone.
+ *
  * ## An identifier the format requires is blanked, not dropped
  *
  * `checkoutSchema` is strict and requires `projectId` and `pageId`. Dropping
@@ -113,6 +133,24 @@ export interface FoundSecret {
 export type RedactionResult =
   | { ok: true; payload: BundlePayload; removed: RedactedField[] }
   | { ok: false; found: FoundSecret[] }
+
+/**
+ * Containers whose keys are data a person chose, not fields the format named.
+ *
+ * Matched on the container's own key, so it holds wherever the container
+ * appears. The list is short on purpose: every entry is somewhere the schema
+ * declares a record with a free-form key, and anything else is a field.
+ */
+export const DATA_KEYED_CONTAINERS: ReadonlySet<string> = new Set([
+  // Keyed by node id — see document/schema.ts, `nodes: z.record(nodeId, node)`.
+  "nodes",
+  // Keyed by variable name.
+  "variables",
+  // Keyed by the name a person gave a colour.
+  "custom",
+  // Keyed by component type id.
+  "components",
+])
 
 /** What a blanked field holds instead. Never a tenant's anything. */
 export const REDACTED_VALUE = "redacted"
@@ -262,6 +300,18 @@ function walk(
   return value
 }
 
+/**
+ * The key this object was reached by, with any array index stripped.
+ *
+ * `document.nodes` and `pages[2].document.nodes` both answer `nodes`, which
+ * is the point: the container is the same container at either depth.
+ */
+function containerKey(path: string): string {
+  // `lastIndexOf` answers -1 for a path with no dot, and slicing from zero is
+  // then the whole path — so there is no "no segments" case to handle.
+  return path.slice(path.lastIndexOf(".") + 1).replace(/\[\d+\]$/u, "")
+}
+
 function fields(
   value: Record<string, unknown>,
   path: string,
@@ -269,9 +319,19 @@ function fields(
   found: FoundSecret[],
 ): Record<string, unknown> {
   const kept: Record<string, unknown> = {}
+  const keysAreData = DATA_KEYED_CONTAINERS.has(containerKey(path))
 
   for (const [key, child] of Object.entries(value)) {
     const at = path === "" ? key : `${path}.${key}`
+
+    if (keysAreData) {
+      // The key is a node id or a colour's name. Its *value* is still walked,
+      // so a credential inside one is found exactly as anywhere else.
+      kept[key] = walk(child, at, removed, found)
+
+      continue
+    }
+
     const name = key.toLowerCase().replaceAll(/[_-]/gu, "")
     const required = BLANKED_KEYS.get(name)
 

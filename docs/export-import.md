@@ -1253,6 +1253,8 @@ A tenant's own identifiers — the project id, a user id, a tracking id, a custo
 
 A credential — a Stripe key of any kind, a webhook secret, a session secret, a connection string — must not be in the payload at all. One being there means a collector read something it had no business reading, so it **refuses the export** and names where it was found, rather than stripping it and leaving the bug in place. Removal is applied before anything is scanned, so a key the policy already knows is dropped rather than refused.
 
+The policy matches key _names_, so it does not apply inside a container whose keys are data rather than fields — `document.nodes` is keyed by node id, and `variables`, `theme.colors.custom` and `theme.components` are the same. A node called `orders` would otherwise be removed and its parent left pointing at nothing. The value scan is unaffected and still runs everywhere, so the exemption cannot be used to carry a credential past.
+
 An identifier the format _requires_ is blanked rather than dropped. `checkoutSchema` is strict and demands `projectId` and `pageId`, so removing them would produce a document that no longer parses — and the stage that would notice is the importer, meaning the bundle would pass integrity, the manifest and compatibility before being refused by its own schema check. Those keys keep their place and lose their value; real ones are assigned by ID regeneration on import.
 
 A refusal names paths and never values: it is written to a log.

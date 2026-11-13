@@ -281,21 +281,18 @@ describe("what it refuses", () => {
   })
 })
 
-describe("a document redaction cannot leave intact", () => {
+describe("a node named like something the policy removes", () => {
   /**
    * Where a key-name policy meets a map keyed by user data.
    *
    * `nodes` is keyed by node id, and a node id is any string up to 64
-   * characters. A node called `orders` is a key the policy removes, so the
-   * node disappears and its parent is left pointing at nothing; a node called
-   * `pageId` is one the policy blanks, so the node becomes the string
-   * "redacted". Either way what comes out is no longer a page.
+   * characters. A node called `orders` is a key the policy would remove and a
+   * node called `pageId` one it would blank — either would leave a document
+   * that is no longer a page, produced by the stage protecting it.
    *
-   * Generated ids never collide — this needs a document that arrived from
-   * somewhere else or was edited by hand. The export refusing is the point:
-   * the alternative is a bundle that passes every gate on the way out and is
-   * refused by the schema check on the way in, which is the failure the
-   * read-back exists to turn into something a person can act on.
+   * Redaction exempts containers whose keys are data, so these export like
+   * anything else. The ids generated here never collide; a document that
+   * arrived from somewhere else is exactly what Phase 15 is adding.
    */
 
   async function pageWithNodeCalled(id: string): Promise<string> {
@@ -324,20 +321,77 @@ describe("a document redaction cannot leave intact", () => {
     })
   }
 
-  it.each(["orders", "pageId"])("refuses rather than shipping it: a node called %s", async (id) => {
+  it.each(["orders", "pageId", "summary"])("exports intact: a node called %s", async (id) => {
     const pageId = await pageWithNodeCalled(id)
+    const result = await exportPage(tenant, pageId, ENVIRONMENT)
+
+    expect(result.ok).toBe(true)
+    expect(result.ok ? result.bundle.manifest.contents.totalNodes : 0).toBe(2)
+  })
+
+  it("keeps the node itself, not just the count", async () => {
+    const pageId = await pageWithNodeCalled("orders")
+    const result = await exportPage(tenant, pageId, ENVIRONMENT)
+    const document = result.ok ? (result.bundle.payload["document"] as CheckoutSchema) : null
+
+    expect(document?.nodes["orders"]).toMatchObject({ id: "orders", type: "core.text" })
+  })
+
+  it("still refuses a secret hiding inside one", async () => {
+    // The exemption relaxes the key policy and leaves the value scan alone,
+    // so a credential inside a node called `orders` is found as anywhere else.
+    const document = aDocument()
+    const root = document.nodes[document.root]
+
+    if (root === undefined) throw new Error("The fixture has no root.")
+
+    const pageId = await aPage({
+      ...document,
+      nodes: {
+        ...document.nodes,
+        [document.root]: { ...root, children: ["orders"] },
+        orders: {
+          id: "orders",
+          type: "core.text",
+          parentId: document.root,
+          children: [],
+          props: { text: "sk_live_51Habcdefg" },
+          styles: {},
+          visibility: { hidden: false },
+          animations: [],
+          metadata: { locked: false },
+        },
+      },
+    })
+
+    expect(await exportPage(tenant, pageId, ENVIRONMENT)).toMatchObject({
+      ok: false,
+      reason: "secret-found",
+    })
+  })
+})
+
+describe("a stored draft whose tree does not hold together", () => {
+  it("is refused rather than exported as a page with a hole in it", async () => {
+    /*
+     * `parseDocument` answers whether a document is shaped like one. Whether
+     * every child names a node that exists is a different question, and a
+     * draft reaching this path has only ever been asked the first.
+     */
+    const document = aDocument()
+    const root = document.nodes[document.root]
+
+    if (root === undefined) throw new Error("The fixture has no root.")
+
+    const pageId = await aPage({
+      ...document,
+      nodes: { ...document.nodes, [document.root]: { ...root, children: ["gone"] } },
+    })
 
     expect(await exportPage(tenant, pageId, ENVIRONMENT)).toEqual({
       ok: false,
-      reason: "invalid-after-redaction",
+      reason: "invalid-document",
     })
-  })
-
-  it("still exports a page whose nodes are named like anything else", async () => {
-    // The guard is for a collision, not for every document.
-    const pageId = await pageWithNodeCalled("summary")
-
-    expect((await exportPage(tenant, pageId, ENVIRONMENT)).ok).toBe(true)
   })
 })
 
