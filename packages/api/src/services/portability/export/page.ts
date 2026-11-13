@@ -2,7 +2,6 @@ import "server-only"
 
 import { assetRepository, pageRepository, type TenantContext } from "@checkout-studio/database"
 import { parseDocument, validateReferences } from "@checkout-studio/schema"
-import type { CheckoutSchema } from "@checkout-studio/schema"
 
 import { resolveTheme } from "../../pages/theme"
 import type { Bundle, BundleAuthor, BundlePayload } from "../types"
@@ -21,14 +20,17 @@ import { assetRegistry } from "./registry"
  * somewhere else and tested on its own; what lives here is the order, the
  * reading, and the refusals.
  *
- * ## It checks its own work before sealing it
+ * ## It refuses a page that does not hold together
  *
- * The document is parsed again *after* redaction, out of the payload that
- * will actually travel. Redaction rewrites a document, and a redactor that
- * broke one would otherwise produce a bundle that passes every gate on the
- * way out and is refused by the schema check on the way in — which is exactly
- * what happened once, and is why this is here rather than assumed. The
- * cheapest place to catch it is before anybody receives the file.
+ * Both questions are asked of the stored draft: is it shaped like a document,
+ * and does its tree hold. The second is the one `parseDocument` does not ask,
+ * and a draft reaching here has only ever been asked the first — the editor
+ * writes through a patch path, not this one.
+ *
+ * That the *redacted* document still holds is proved where redaction lives,
+ * against the documents that nearly broke it: a node whose id collides with a
+ * key the policy acts on. Asserting it again here would be a branch no input
+ * can reach, which is a worse guarantee than the one that can.
  *
  * ## A secret refuses; a gap warns
  *
@@ -77,7 +79,7 @@ export type PageExport =
   /** A credential was in the payload. See `redact`. */
   | { ok: false; reason: "secret-found"; found: readonly FoundSecret[] }
   /** Redaction produced something that is no longer a page. */
-  | { ok: false; reason: "invalid-after-redaction" }
+  | { ok: false; reason: "invalid-document" }
 
 export async function exportPage(
   tenant: TenantContext,
@@ -96,6 +98,16 @@ export async function exportPage(
    * whatever did parse would ship a file whose contents nobody chose.
    */
   if (!parsed.ok) return { ok: false, reason: "unreadable" }
+
+  /*
+   * And whether the tree holds together, which `parseDocument` does not ask.
+   * It answers whether a document is *shaped* like one; a parent naming a
+   * node that is not there parses and is not a page. A draft reaching here
+   * has only ever been asked the first question.
+   */
+  if (validateReferences(parsed.document).length > 0) {
+    return { ok: false, reason: "invalid-document" }
+  }
 
   const theme = await resolveTheme(page.projectId, parsed.document.theme)
 
@@ -117,19 +129,15 @@ export async function exportPage(
 
   if (!redacted.ok) return { ok: false, reason: "secret-found", found: redacted.found }
 
-  const sealed = readBack(redacted.payload)
-
-  if (sealed === null) return { ok: false, reason: "invalid-after-redaction" }
-
   const plugins = pluginRequirements(
-    documentReferences(sealed).componentTypes,
+    documentReferences(parsed.document).componentTypes,
     environment.owners,
     environment.installed,
   )
 
   const manifest = pageManifest({
     payload: redacted.payload,
-    document: sealed,
+    document: parsed.document,
     theme,
     source: { projectId: page.projectId, pageId: page.id },
     name: page.title,
@@ -146,43 +154,6 @@ export async function exportPage(
     bundle: { manifest, payload: redacted.payload },
     warnings: warningsFor(plugins.unsupported, registry.missing),
   }
-}
-
-/**
- * The document and theme as they are *in the payload*, not as they were read.
- *
- * Parsed out of what will travel rather than reused from before redaction, so
- * the manifest describes the file and not the intention behind it.
- *
- * ## The document, and not the theme
- *
- * Only the document is read back, because only the document can be damaged
- * this way. Its `nodes` map is keyed by node id — user data, any string — so
- * a key the policy acts on takes a node with it. A theme's required keys are
- * all names the format chose; the one group a person names is `colors.custom`,
- * and every entry in it is optional, so losing one leaves a theme that still
- * parses. The theme that goes into the manifest is therefore the one that was
- * resolved, and if that stops being true the thing to change is this comment
- * and the check under it.
- *
- * ## References too, not only the shape
- *
- * `parseDocument` answers whether something is shaped like a document. It
- * does not answer whether the tree holds together, and the way redaction
- * breaks a document is by removing a node rather than by malforming one:
- * `nodes` is keyed by node id, a node id is any string, and a node whose id
- * collides with a key the policy removes simply disappears — leaving a parent
- * pointing at nothing. That parses. It is not a page.
- *
- * So the check is the one the importer will make, which is the only check
- * worth making here.
- */
-function readBack(payload: BundlePayload): CheckoutSchema | null {
-  const document = parseDocument(payload["document"])
-
-  if (!document.ok) return null
-
-  return validateReferences(document.document).length > 0 ? null : document.document
 }
 
 function warningsFor(unsupported: readonly string[], missing: readonly string[]): ExportWarning[] {

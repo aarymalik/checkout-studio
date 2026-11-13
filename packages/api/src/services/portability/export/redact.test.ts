@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { BLANKED_KEYS, REDACTED_KEYS, REDACTED_VALUE, REFUSED_KEYS, redact } from "./redact"
 import type { RedactionResult } from "./redact"
-import { parseDocument } from "@checkout-studio/schema"
+import { parseDocument, validateReferences } from "@checkout-studio/schema"
 import type { CheckoutSchema } from "@checkout-studio/schema"
 
 import type { BundlePayload } from "../types"
@@ -433,5 +433,113 @@ describe("a document that has been through it", () => {
     expect(redacted.nodes).toEqual(DOCUMENT.nodes)
     expect(redacted.root).toBe("root")
     expect(redacted.theme).toEqual({ themeId: "theme_default" })
+  })
+})
+
+describe("a container whose keys are data", () => {
+  /**
+   * The failure that makes this exemption necessary.
+   *
+   * `nodes` is keyed by node id and a node id is any string, so a page can
+   * hold a node called `orders` — a key the policy removes — or one called
+   * `pageId`, a key it blanks. Either would be a document destroyed by the
+   * stage protecting it.
+   */
+
+  function pageWithNodeCalled(id: string): BundlePayload {
+    return {
+      document: {
+        version: "1.0.0",
+        projectId: "prj_real",
+        pageId: "pag_real",
+        theme: { themeId: "theme_default" },
+        settings: {},
+        variables: {},
+        root: "root",
+        nodes: {
+          root: {
+            id: "root",
+            type: "core.page",
+            parentId: null,
+            children: [id],
+            props: {},
+            styles: {},
+            visibility: { hidden: false },
+            animations: [],
+            metadata: { locked: false },
+          },
+          [id]: {
+            id,
+            type: "core.text",
+            parentId: "root",
+            children: [],
+            props: {},
+            styles: {},
+            visibility: { hidden: false },
+            animations: [],
+            metadata: { locked: false },
+          },
+        },
+      },
+    }
+  }
+
+  it.each(["orders", "pageId", "email", "domain"])("keeps a node called %s", (id) => {
+    const document = kept(redact(pageWithNodeCalled(id)))["document"] as {
+      nodes: Record<string, unknown>
+    }
+
+    expect(Object.keys(document.nodes).sort()).toEqual(["root", id].sort())
+  })
+
+  it("leaves the document a document", () => {
+    // What the removal would have cost: a parent pointing at nothing, which
+    // parses and is not a page.
+    const parsed = parseDocument(kept(redact(pageWithNodeCalled("orders")))["document"])
+
+    expect(parsed.ok).toBe(true)
+    expect(parsed.ok ? validateReferences(parsed.document) : [{}]).toEqual([])
+  })
+
+  it("keeps a variable, a custom colour and a component slot named the same way", () => {
+    const payload: BundlePayload = {
+      variables: { email: { type: "string" }, domain: { type: "string" } },
+      theme: {
+        colors: { custom: { orders: "#ff0000" } },
+        components: { "core.button": { radius: "4px" } },
+      },
+    }
+
+    expect(kept(redact(payload))).toEqual(payload)
+  })
+
+  it("still redacts a field inside one of them", () => {
+    /*
+     * The exemption is for the container's own keys, not for everything
+     * beneath it. A node's props are named by whoever wrote the component.
+     */
+    const payload = pageWithNodeCalled("orders") as {
+      document: { nodes: Record<string, { props: Record<string, unknown> }> }
+    }
+
+    payload.document.nodes["orders"]!.props = { email: "owner@example.test", text: "Contact" }
+
+    const after = kept(redact(payload as unknown as BundlePayload))["document"] as {
+      nodes: Record<string, { props: Record<string, unknown> }>
+    }
+
+    expect(after.nodes["orders"]?.props).toEqual({ text: "Contact" })
+  })
+
+  it("still refuses a secret inside one of them", () => {
+    // The exemption relaxes the key policy. The value scan is untouched, so
+    // it cannot be used to smuggle a credential past.
+    const payload = pageWithNodeCalled("orders") as {
+      document: { nodes: Record<string, { props: Record<string, unknown> }> }
+    }
+
+    payload.document.nodes["orders"]!.props = { text: "sk_live_51Habcdefg" }
+
+    expect(redact(payload as unknown as BundlePayload).ok).toBe(false)
   })
 })
