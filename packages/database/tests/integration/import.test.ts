@@ -174,6 +174,27 @@ describe("a commit that fails", () => {
     expect(await prisma.page.count()).toBe(1)
   })
 
+  it("lets an unexpected failure through rather than naming it", async () => {
+    /*
+     * Only the two failures this knows about are reported as failures. A
+     * database that has gone away, or a bug in the caller's own code, must
+     * not come back as "slug-taken" — an answer somebody would act on by
+     * renaming a page that was never the problem.
+     */
+    await expect(
+      importRepository.commit(
+        tenant,
+        commit({
+          document: () => {
+            throw new Error("the caller itself broke")
+          },
+        }),
+      ),
+    ).rejects.toThrow("the caller itself broke")
+
+    expect(await prisma.page.count()).toBe(0)
+  })
+
   it("refuses to write into a project that is not the caller's", async () => {
     // Invisible is not the same as absent: a read scoped on the owner
     // returns an empty project, which is the wrong premise for a write.

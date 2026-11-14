@@ -1,5 +1,7 @@
 import "server-only"
 
+import { z } from "zod"
+
 import { assetReferrers } from "@checkout-studio/schema"
 import type { CheckoutSchema } from "@checkout-studio/schema"
 import type { StoredAsset } from "@checkout-studio/database"
@@ -38,21 +40,33 @@ import type { StoredAsset } from "@checkout-studio/database"
  * that fetched its own rows could not be tested without one.
  */
 
-export interface AssetRegistryEntry {
-  /** Its id in the workspace it came from. Rewritten on import. */
-  sourceId: string
-  /** Absolute URL. Present for JSON bundles, where the bytes do not travel. */
-  url?: string
-  fileName: string
-  mimeType: string
-  bytes: number
-  width?: number
-  height?: number
-  /** What an importer deduplicates against. */
-  sha256: string
-  /** Node ids that reference it, sorted. Empty when only the settings do. */
-  referencedBy: string[]
-}
+/**
+ * Declared as Zod and inferred into TypeScript.
+ *
+ * For the reason document/schema.ts gives: a hand-written interface beside a
+ * separate validator drifts. This one is written here and read by an
+ * importer out of a file a stranger made, so the two have to be the same
+ * description of the same thing.
+ */
+export const assetRegistryEntry = z
+  .object({
+    /** Its id in the workspace it came from. Rewritten on import. */
+    sourceId: z.string().min(1).max(64),
+    /** Absolute URL. Present for JSON bundles, where the bytes do not travel. */
+    url: z.string().min(1).max(2_048).optional(),
+    fileName: z.string().min(1).max(255),
+    mimeType: z.string().min(1).max(255),
+    bytes: z.number().int().nonnegative(),
+    width: z.number().int().positive().optional(),
+    height: z.number().int().positive().optional(),
+    /** What an importer deduplicates against. */
+    sha256: z.string().regex(/^[0-9a-f]{64}$/u, "Expected a hex sha256"),
+    /** Node ids that reference it, sorted. Empty when only the settings do. */
+    referencedBy: z.array(z.string().min(1).max(64)),
+  })
+  .strict()
+
+export type AssetRegistryEntry = z.infer<typeof assetRegistryEntry>
 
 export interface AssetRegistry {
   entries: AssetRegistryEntry[]
