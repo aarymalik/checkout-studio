@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import { assetReferences, assetReferrers } from "../src"
-import { makeDocument, makeNode, sampleDocument, wideDocument } from "./support"
+import { assetReferences, assetReferrers, rewriteAssetReferences } from "../src"
+import { makeDocument, makeNode, nodeAt, sampleDocument, wideDocument } from "./support"
 
 /**
  * Every asset a document refers to.
@@ -281,5 +281,147 @@ describe("which nodes name an asset", () => {
     const alsoFavicon = { ...document, settings: { favicon: { $asset: "ast_icon" } } }
 
     expect([...assetReferrers(alsoFavicon).keys()]).toEqual([...assetReferences(alsoFavicon)])
+  })
+})
+
+describe("pointing a document's assets somewhere new", () => {
+  /**
+   * The inverse of the walk, and it has to agree with it about every place a
+   * reference can hide. One that missed a place would leave an imported page
+   * pointing at an asset in somebody else's project — the same bug as a
+   * collector missing one, found later and by a customer.
+   */
+
+  const MAPPED = new Map([
+    ["ast_1", "ast_new_1"],
+    ["ast_2", "ast_new_2"],
+  ])
+
+  it("rewrites one in a prop", () => {
+    const document = makeDocument([
+      makeNode("root", { type: "core.page", children: ["img"] }),
+      makeNode("img", {
+        type: "core.image",
+        parentId: "root",
+        props: { src: { $asset: "ast_1" } },
+      }),
+    ])
+    const { document: after, unmapped } = rewriteAssetReferences(document, MAPPED)
+
+    expect(nodeAt(after, "img").props["src"]).toEqual({ $asset: "ast_new_1" })
+    expect(unmapped).toEqual([])
+  })
+
+  it("reaches every place the walk reaches", () => {
+    // Asserted against the walk itself rather than against a list written
+    // here, so the two cannot drift apart without this failing.
+    const document = makeDocument(
+      [
+        makeNode("root", { type: "core.page", children: ["list"] }),
+        makeNode("list", {
+          type: "core.list",
+          parentId: "root",
+          props: { items: [{ icon: { $asset: "ast_1" } }, { icon: { $asset: "ast_2" } }] },
+        }),
+      ],
+      "root",
+    )
+    const withSettings = {
+      ...document,
+      settings: { favicon: { $asset: "ast_1" }, seo: { image: { $asset: "ast_2" } } },
+    }
+    const { document: after } = rewriteAssetReferences(withSettings, MAPPED)
+
+    expect([...assetReferences(after)].sort()).toEqual(["ast_new_1", "ast_new_2"])
+  })
+
+  it("rewrites the two the settings name", () => {
+    const document = makeDocument([makeNode("root", { type: "core.page" })])
+    const withSettings = {
+      ...document,
+      settings: { favicon: { $asset: "ast_1" }, seo: { title: "Pay", image: { $asset: "ast_2" } } },
+    }
+    const { document: after } = rewriteAssetReferences(withSettings, MAPPED)
+
+    expect(after.settings.favicon).toEqual({ $asset: "ast_new_1" })
+    expect(after.settings.seo).toEqual({ title: "Pay", image: { $asset: "ast_new_2" } })
+  })
+
+  it("reports what it could not map and leaves it alone", () => {
+    /*
+     * Facts, not a decision. Whether an unmapped reference is fatal depends
+     * on why the rewrite is happening, and leaving it as it was means a
+     * caller that carries on has an unchanged document rather than a half
+     * rewritten one.
+     */
+    const document = makeDocument([
+      makeNode("root", { type: "core.page", children: ["img"] }),
+      makeNode("img", {
+        type: "core.image",
+        parentId: "root",
+        props: { src: { $asset: "ast_unknown" } },
+      }),
+    ])
+    const { document: after, unmapped } = rewriteAssetReferences(document, MAPPED)
+
+    expect(unmapped).toEqual(["ast_unknown"])
+    expect(nodeAt(after, "img").props["src"]).toEqual({ $asset: "ast_unknown" })
+  })
+
+  it("reports an unmappable one once, however many nodes name it", () => {
+    const document = makeDocument([
+      makeNode("root", { type: "core.page", children: ["a", "b"] }),
+      makeNode("a", { type: "core.image", parentId: "root", props: { src: { $asset: "ast_x" } } }),
+      makeNode("b", { type: "core.image", parentId: "root", props: { src: { $asset: "ast_x" } } }),
+    ])
+
+    expect(rewriteAssetReferences(document, MAPPED).unmapped).toEqual(["ast_x"])
+  })
+
+  it("passes a prop that is not an object through untouched", () => {
+    // A null prop is a value a component cleared, and `typeof null` is
+    // "object" — the one case a walk over props has to name explicitly.
+    const document = makeDocument([
+      makeNode("root", { type: "core.page", children: ["copy"] }),
+      makeNode("copy", {
+        type: "core.text",
+        parentId: "root",
+        props: { text: "Pay securely.", level: 2, bold: true, cleared: null },
+      }),
+    ])
+    const { document: after } = rewriteAssetReferences(document, MAPPED)
+
+    expect(nodeAt(after, "copy").props).toEqual({
+      text: "Pay securely.",
+      level: 2,
+      bold: true,
+      cleared: null,
+    })
+  })
+
+  it("leaves a document that names nothing exactly as it was", () => {
+    const document = sampleDocument()
+
+    expect(rewriteAssetReferences(document, MAPPED).document).toEqual(document)
+  })
+
+  it("does not touch what it was given", () => {
+    const document = makeDocument([
+      makeNode("root", { type: "core.page", children: ["img"] }),
+      makeNode("img", {
+        type: "core.image",
+        parentId: "root",
+        props: { src: { $asset: "ast_1" } },
+      }),
+    ])
+    const before = JSON.stringify(document)
+
+    rewriteAssetReferences(document, MAPPED)
+
+    expect(JSON.stringify(document)).toBe(before)
+  })
+
+  it("is unbothered by a mapping for an asset the document does not use", () => {
+    expect(rewriteAssetReferences(sampleDocument(), MAPPED).unmapped).toEqual([])
   })
 })

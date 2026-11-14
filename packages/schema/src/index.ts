@@ -8,7 +8,7 @@
  * See docs/schema.md.
  */
 
-export { assetReferences, assetReferrers } from "./asset/references"
+export { assetReferences, assetReferrers, rewriteAssetReferences } from "./asset/references"
 
 export {
   RENDITION_FORMATS,
