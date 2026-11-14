@@ -9,12 +9,11 @@ import "server-only"
  * what an import will do before it happens" is a promise about these names as
  * much as about the mechanism.
  *
- * Only the part that is produced today. The rest of the plan — the estimate,
- * the theme strategy, the blockers — arrives with the stage that assembles it.
  */
 
 export type ImportAction =
   | { type: "create-page"; name: string }
+  | { type: "merge-theme"; strategy: ThemeStrategy }
   | { type: "upload-asset"; fileName: string; bytes: number }
   /** Already here, byte for byte. Nothing is uploaded and nothing is duplicated. */
   | { type: "reuse-asset"; assetId: string; reason: "identical-hash" }
@@ -28,4 +27,44 @@ export interface ImportConflict {
   description: string
   options: ConflictResolution[]
   recommended: ConflictResolution
+}
+
+export type ThemeStrategy =
+  /** Ignore the bundle's theme. The page adopts the project's, and looks like it belongs. */
+  | "keep-target"
+  /** Overwrite the project's theme with the bundle's. */
+  | "apply-bundle"
+  /** Add the tokens the project does not have, and change none that it does. */
+  | "merge-additive"
+  /** Import it as a separate, selectable theme. */
+  | "namespace"
+
+export interface ImportWarning {
+  code: string
+  /** Written for the person deciding. */
+  message: string
+  nodeIds?: string[]
+}
+
+export interface ImportBlocker {
+  code: string
+  message: string
+  /** What the person can do about it. A blocker without one is a dead end. */
+  remediation: string
+}
+
+export interface ImportTarget {
+  projectId: string
+  /** Where imported pages land. */
+  mode: "new-project" | "into-project" | "into-page"
+  pageId?: string
+}
+
+export interface ImportEstimate {
+  pages: number
+  nodes: number
+  assets: number
+  /** Bytes that will actually be transferred. A reused asset costs none. */
+  assetBytes: number
+  durationMs: number
 }
