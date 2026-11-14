@@ -22,6 +22,9 @@ export { themeRepository, ThemeConflictError } from "./repositories/theme"
 export { revisionRepository } from "./repositories/revision"
 export type { CreateRevisionInput, RevisionKind } from "./repositories/revision"
 
+export { importRepository } from "./repositories/import"
+export type { ImportCommit, ImportCommitResult, ImportedAsset } from "./repositories/import"
+
 export { auditRepository } from "./repositories/audit"
 export type { AuditEntry, ActorType } from "./repositories/audit"
 
