@@ -1,4 +1,4 @@
-import type { CheckoutSchema, PropValue } from "../document/schema"
+import type { CheckoutSchema, Node, PropValue } from "../document/schema"
 import { traverse } from "../tree/traverse"
 
 /**
@@ -121,4 +121,71 @@ export function assetReferrers(document: CheckoutSchema): ReadonlyMap<string, re
  */
 export function assetReferences(document: CheckoutSchema): ReadonlySet<string> {
   return new Set(assetReferrers(document).keys())
+}
+
+/**
+ * The same document with every asset reference pointed somewhere new.
+ *
+ * The inverse of the walk above, and deliberately in the same file. The two
+ * have to agree about every place a reference can hide — a rewriter that
+ * missed one would leave a page pointing at an asset in somebody else's
+ * project, which is the same bug as a collector missing one, discovered
+ * later and by a customer. Keeping them adjacent makes a new hiding place a
+ * single edit.
+ *
+ * Reports what it could not map rather than deciding about it. Whether an
+ * unmapped reference is a failure or a shrug depends on why the rewrite is
+ * happening, and this does not know: an import treats it as fatal, per
+ * docs/export-import.md § ID Regeneration. The references it cannot map are
+ * left exactly as they were, so a caller that carries on has a document that
+ * is unchanged rather than one that is half rewritten.
+ */
+export function rewriteAssetReferences(
+  document: CheckoutSchema,
+  mapping: ReadonlyMap<string, string>,
+): { document: CheckoutSchema; unmapped: readonly string[] } {
+  const unmapped = new Set<string>()
+
+  const target = (assetId: string): string => {
+    const mapped = mapping.get(assetId)
+
+    if (mapped === undefined) {
+      unmapped.add(assetId)
+
+      return assetId
+    }
+
+    return mapped
+  }
+
+  const nodes: Record<string, Node> = {}
+
+  for (const [id, node] of Object.entries(document.nodes)) {
+    nodes[id] = { ...node, props: rewriteValue(node.props, target) as Node["props"] }
+  }
+
+  const settings = { ...document.settings }
+  const seoImage = settings.seo?.image
+
+  if (seoImage !== undefined && settings.seo !== undefined) {
+    settings.seo = { ...settings.seo, image: { $asset: target(seoImage.$asset) } }
+  }
+
+  if (settings.favicon !== undefined) {
+    settings.favicon = { $asset: target(settings.favicon.$asset) }
+  }
+
+  return { document: { ...document, nodes, settings }, unmapped: [...unmapped] }
+}
+
+function rewriteValue(value: PropValue, target: (assetId: string) => string): PropValue {
+  if (value === null || typeof value !== "object") return value
+
+  if (Array.isArray(value)) return value.map((entry) => rewriteValue(entry, target))
+
+  if (isReference(value)) return { $asset: target(value.$asset) }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, rewriteValue(entry, target)]),
+  ) as PropValue
 }
