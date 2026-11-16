@@ -1,5 +1,10 @@
-import { CURRENT_VERSION, MigrationRegistry, createDocument } from "@checkout-studio/schema"
-import type { CheckoutSchema } from "@checkout-studio/schema"
+import {
+  CURRENT_VERSION,
+  MigrationRegistry,
+  SYMBOL_INSTANCE_TYPE,
+  createDocument,
+} from "@checkout-studio/schema"
+import type { CheckoutSchema, Fragment } from "@checkout-studio/schema"
 import { emptyRegistry } from "@checkout-studio/plugin-sdk"
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
@@ -306,5 +311,80 @@ describe("marks that protect nothing", () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.warnings).toEqual([])
+  })
+})
+
+describe("symbols, expanded before anything is checked", () => {
+  /**
+   * What has to hold together is what will be drawn.
+   *
+   * Validating the placeholders would check a document nobody renders and
+   * miss every problem inside a symbol — an unknown component type in a
+   * footer is still an unknown component type.
+   */
+
+  const footer = (): Fragment => ({
+    rootId: "sym_root",
+    nodes: documentOf("sym_root", [
+      { id: "sym_root", type: "core.section", children: ["sym_text"] },
+      { id: "sym_text", type: "core.text" },
+    ]).nodes,
+  })
+
+  const withInstance = (): CheckoutSchema =>
+    documentOf("page", [
+      { id: "page", type: "core.page", children: ["placed"] },
+      { id: "placed", type: SYMBOL_INSTANCE_TYPE, props: { symbolId: "sym_footer" } },
+    ])
+
+  const definitions = (): ReadonlyMap<string, Fragment> => new Map([["sym_footer", footer()]])
+
+  it("renders the symbol's nodes rather than the placeholder", () => {
+    const result = prepare(withInstance(), { ...options(), symbols: definitions() })
+
+    expect(result.ok).toBe(true)
+
+    if (!result.ok) return
+
+    expect(result.document.nodes["placed"]?.type).toBe("core.section")
+    expect(result.warnings).toEqual([])
+  })
+
+  it("checks what is inside a symbol, not just the page around it", () => {
+    /*
+     * The reason expansion comes before validation. A footer using a
+     * component this installation does not have is a page that will not
+     * fully render, and nothing would have said so.
+     */
+    const unknown: Fragment = {
+      rootId: "sym_root",
+      nodes: documentOf("sym_root", [{ id: "sym_root", type: "nowhere.widget" }]).nodes,
+    }
+    const result = prepare(withInstance(), {
+      ...options(),
+      symbols: new Map([["sym_footer", unknown]]),
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.ok ? result.warnings.map((warning) => warning.code) : []).toContain(
+      "unknown-type",
+    )
+  })
+
+  it("warns rather than failing when the symbol is not supplied", () => {
+    // The rest of the page is fine, and a checkout missing its footer is
+    // worth more than no checkout.
+    const result = prepare(withInstance(), options())
+
+    expect(result.ok).toBe(true)
+    expect(result.ok ? result.warnings.map((warning) => warning.message) : []).toContainEqual(
+      expect.stringContaining("could not be expanded"),
+    )
+  })
+
+  it("leaves a page that places none exactly as it was", () => {
+    const result = prepare(sampleDocument(), { ...options(), symbols: definitions() })
+
+    expect(result.ok ? result.document : null).toEqual(sampleDocument())
   })
 })

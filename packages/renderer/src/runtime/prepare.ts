@@ -2,20 +2,27 @@ import {
   CURRENT_VERSION,
   MigrationRegistry,
   canMigrate,
+  expandSymbols,
   migrate,
   parseDocument,
   unknownManualPaths,
   validate,
   validateTheme,
 } from "@checkout-studio/schema"
-import type { CheckoutSchema, CheckoutTheme, SchemaProblem } from "@checkout-studio/schema"
+import type {
+  CheckoutSchema,
+  CheckoutTheme,
+  Fragment,
+  SchemaProblem,
+  UnexpandedInstance,
+} from "@checkout-studio/schema"
 import type { RendererRegistry } from "@checkout-studio/plugin-sdk"
 
 import { resolveSlot } from "../styles/slot"
 import { referenceProblems } from "../styles/tokens"
 
 /**
- * Validate → migrate, before anything renders.
+ * Validate → migrate → expand, before anything renders.
  *
  * The published checkout must always render, and the way to keep that promise
  * is to find out *before* committing to a tree whether this document can
@@ -72,6 +79,19 @@ export interface PrepareOptions {
    * cycle showed up during rendering, half the page would already be emitted.
    */
   theme?: CheckoutTheme
+  /**
+   * The symbol definitions this page places, keyed by symbol id.
+   *
+   * Supplied by the application, which knows whether it is drawing a draft —
+   * where the definitions are the project's current ones — or a published
+   * revision, where they are the snapshot taken when it was published. The
+   * renderer has no database and must not learn what a revision is.
+   *
+   * Omitted means none, which is right for a page that places no symbols and
+   * honest for one that does: its instances stay as they are and are
+   * reported.
+   */
+  symbols?: ReadonlyMap<string, Fragment>
 }
 
 function failure(
@@ -94,8 +114,16 @@ export function prepare(value: unknown, options: PrepareOptions): PrepareResult 
 
   if (!outcome.ok) return outcome
 
+  /*
+   * Expanded before it is validated, because what has to hold together is
+   * what will be drawn. Validating the placeholders would check a document
+   * nobody renders and miss every problem inside a symbol — an unknown
+   * component type in a footer is still an unknown component type.
+   */
+  const expanded = expandSymbols(outcome.document, options.symbols ?? new Map())
+
   const knownTypes = new Set(options.registry.types())
-  const result = validate(outcome.document, {
+  const result = validate(expanded.document, {
     knownTypes,
     components: options.registry.componentValidators(),
   })
@@ -104,9 +132,35 @@ export function prepare(value: unknown, options: PrepareOptions): PrepareResult 
     return failure("inconsistent", "This document does not hold together.", result.errors)
   }
 
-  const warnings = [...result.warnings, ...themeWarnings(options.theme, options.registry)]
+  const warnings = [
+    ...result.warnings,
+    ...expanded.unexpanded.map(asWarning),
+    ...themeWarnings(options.theme, options.registry),
+  ]
 
-  return { ok: true, document: outcome.document, warnings }
+  return { ok: true, document: expanded.document, warnings }
+}
+
+/**
+ * An instance that stayed an instance.
+ *
+ * A warning and never a failure: the rest of the page is fine, and a
+ * checkout missing its footer is worth more than no checkout. `unknown-type`
+ * because that is what it amounts to — a node whose type cannot be turned
+ * into anything to draw.
+ */
+function asWarning(instance: UnexpandedInstance): SchemaProblem {
+  const why = {
+    "no-definition": `the symbol ${String(instance.symbolId)} is not among the definitions given`,
+    "no-symbol": "it names no symbol",
+    nested: "it is inside another symbol, and symbols do not nest",
+  }[instance.reason]
+
+  return {
+    code: "unknown-type",
+    nodeIds: [instance.nodeId],
+    message: `A symbol instance could not be expanded: ${why}.`,
+  }
 }
 
 function migrateTo(
