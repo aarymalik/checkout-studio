@@ -22,6 +22,9 @@ export { themeRepository, ThemeConflictError } from "./repositories/theme"
 export { revisionRepository } from "./repositories/revision"
 export type { CreateRevisionInput, RevisionKind } from "./repositories/revision"
 
+export { symbolRepository } from "./repositories/symbol"
+export type { NewSymbol, StoredSymbol } from "./repositories/symbol"
+
 export { importRepository } from "./repositories/import"
 export type { ImportCommit, ImportCommitResult, ImportedAsset } from "./repositories/import"
 
