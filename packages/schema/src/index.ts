@@ -79,6 +79,7 @@ export { canMigrate, migrate } from "./migrate/migrate"
 export type { MigrationOutcome } from "./migrate/migrate"
 
 export { createNode, extract, regenerateIds } from "./tree/fragment"
+export { SYMBOL_INSTANCE_TYPE, detachSymbol, symbolReferences } from "./tree/symbols"
 export type { Fragment } from "./tree/fragment"
 
 export { ancestors, collect, isDescendant, siblings, subtreeIds, traverse } from "./tree/traverse"
