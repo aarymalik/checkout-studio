@@ -90,6 +90,10 @@ describe("what a page's revision carries", () => {
 
     expect(Object.keys(snapshot)).toEqual([footer])
     expect(snapshot[footer]).toEqual({
+      // The name travels with it: a bundle lists what it carries, and
+      // somebody restoring a revision should see what the symbol was called
+      // rather than an id. The renderer drops it.
+      name: "Footer",
       rootId: "sym_root",
       nodes: { sym_root: { id: "sym_root", type: "core.section", children: [] } },
     })

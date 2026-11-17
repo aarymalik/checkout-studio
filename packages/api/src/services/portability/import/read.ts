@@ -45,12 +45,29 @@ import type { BundlePayload } from "../types"
  * step 6 itself. Plugins sit beside this package rather than beneath it.
  */
 
+/**
+ * A symbol as a bundle carries it: a named subtree under its source id.
+ *
+ * The id travels for the same reason an asset's does — the document's
+ * instances name it, and nothing can re-point them without knowing what they
+ * named.
+ */
+const carriedSymbol = z
+  .object({
+    name: z.string().min(1).max(200),
+    rootId: z.string().min(1).max(64),
+    nodes: z.record(z.string().min(1).max(64), z.unknown()),
+  })
+  .strict()
+
 const pagePayload = z
   .object({
     page: z.object({ name: z.string().min(1).max(200), slug: z.string().min(1).max(200) }).strict(),
     document: z.unknown(),
     theme: z.unknown().optional(),
     assets: z.array(assetRegistryEntry),
+    /** Keyed by the symbol id the exporting project used. */
+    symbols: z.record(z.string().min(1).max(64), carriedSymbol).default({}),
   })
   .strict()
 
@@ -60,9 +77,13 @@ export interface PageBundle {
   /** The theme the bundle carries, or null when it carries none. */
   theme: CheckoutTheme | null
   assets: AssetRegistryEntry[]
+  /** The definitions the page places, keyed by the id the bundle used. */
+  symbols: CarriedSymbols
   /** Component types the registry does not know. Degraded, not refused. */
   unknownTypes: string[]
 }
+
+export type CarriedSymbols = Record<string, { name: string; rootId: string; nodes: unknown }>
 
 export type PageBundleResult =
   | { ok: true; bundle: PageBundle }
@@ -115,6 +136,7 @@ export function readPageBundle(payload: BundlePayload, registry: Registry): Page
       document,
       theme: theme.theme,
       assets: shape.data.assets,
+      symbols: shape.data.symbols,
       /*
        * Warnings from `validate` are unknown types and nothing else today,
        * but reading the code rather than the shape is what keeps this true

@@ -1,6 +1,6 @@
 import "server-only"
 
-import { createId, rewriteAssetReferences } from "@checkout-studio/schema"
+import { SYMBOL_INSTANCE_TYPE, createId, rewriteAssetReferences } from "@checkout-studio/schema"
 import type { CheckoutSchema, Node, RandomSource } from "@checkout-studio/schema"
 
 /**
@@ -30,16 +30,18 @@ import type { CheckoutSchema, Node, RandomSource } from "@checkout-studio/schema
  *
  * ## What a reference can be, in this schema
  *
- * `root`, `parentId`, `children` and `{ $asset }`. The workflow also lists
- * symbol references, visibility rule targets and link targets; none of them
- * name a node here. A visibility condition's `source` is a data path like
- * `order.total`, a link's `href` is a URL, and symbols do not exist yet. When
- * they do, this is where they join, and the rewrite is where the test will
- * fail if they do not.
+ * `root`, `parentId`, `children`, `{ $asset }` and an instance's
+ * `props.symbolId`. The workflow also lists visibility rule targets and link
+ * targets; neither names a node here — a visibility condition's `source` is
+ * a data path like `order.total`, and a link's `href` is a URL.
+ *
+ * A symbol id is mapped and never regenerated, for the same reason an asset
+ * id is: its definition was written by the transaction and already has the
+ * id it will keep.
  */
 
 export interface UnmappedReference {
-  kind: "node" | "asset"
+  kind: "node" | "asset" | "symbol"
   id: string
   /** Where it was found, for a report somebody has to act on. */
   at: string
@@ -54,10 +56,42 @@ export type Regeneration =
     }
   | { ok: false; unmapped: UnmappedReference[] }
 
+/**
+ * An instance's props, pointing at the definition this project now holds.
+ *
+ * Anything that is not an instance is handed back untouched, and an instance
+ * naming nothing is left alone: a node is not required to be sensible, and
+ * the renderer already reports one that places no symbol.
+ */
+function placedSymbol(
+  node: Node,
+  symbols: ReadonlyMap<string, string>,
+  unmapped: UnmappedReference[],
+  at: string,
+): Node["props"] {
+  if (node.type !== SYMBOL_INSTANCE_TYPE) return node.props
+
+  const symbolId = node.props["symbolId"]
+
+  if (typeof symbolId !== "string" || symbolId === "") return node.props
+
+  const mapped = symbols.get(symbolId)
+
+  if (mapped === undefined) {
+    unmapped.push({ kind: "symbol", id: symbolId, at: `nodes.${at}.props.symbolId` })
+
+    return node.props
+  }
+
+  return { ...node.props, symbolId: mapped }
+}
+
 export function regenerateDocument(
   document: CheckoutSchema,
   /** Source asset id to the id it will have here, from reconciliation. */
   assets: ReadonlyMap<string, string>,
+  /** Source symbol id to the id its definition got here, from the commit. */
+  symbols: ReadonlyMap<string, string>,
   taken: ReadonlySet<string> = new Set(),
   random: RandomSource = Math.random,
 ): Regeneration {
@@ -102,6 +136,7 @@ export function regenerateDocument(
       children: node.children.map((child, index) =>
         nodeTarget(child, `nodes.${id}.children[${String(index)}]`),
       ),
+      props: placedSymbol(node, symbols, unmapped, id),
     }
   }
 

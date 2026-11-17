@@ -4,6 +4,7 @@ import { assetRepository, pageRepository, type TenantContext } from "@checkout-s
 import { parseDocument, validateReferences } from "@checkout-studio/schema"
 
 import { resolveTheme } from "../../pages/theme"
+import { snapshotSymbols } from "../../pages/symbols"
 import type { Bundle, BundleAuthor, BundlePayload } from "../types"
 import { documentReferences } from "./collect"
 import { pageManifest } from "./manifest"
@@ -120,11 +121,19 @@ export async function exportPage(
   const library = await assetRepository.list(tenant)
   const registry = assetRegistry(parsed.document, library)
 
+  /*
+   * The definitions the page places, carried whole. "Instances stay as
+   * references — expanding them would sever their live link", so a bundle
+   * has to bring what they refer to or arrive with holes in it.
+   */
+  const symbols = await snapshotSymbols(tenant, parsed.document)
+
   const redacted = redact({
     page: { name: page.title, slug: page.slug },
     document: parsed.document,
     theme,
     assets: registry.entries,
+    symbols,
   } satisfies BundlePayload)
 
   if (!redacted.ok) return { ok: false, reason: "secret-found", found: redacted.found }
@@ -147,6 +156,7 @@ export async function exportPage(
     rendererVersion: environment.rendererVersion,
     plugins: plugins.plugins,
     assets: registry.entries,
+    symbols: Object.values(symbols).map((symbol) => symbol.name),
   })
 
   return {

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { prisma, TenantScopeError, type TenantContext } from "@checkout-studio/database"
-import { createDocument, defaultTheme } from "@checkout-studio/schema"
+import {
+  prisma,
+  symbolRepository,
+  TenantScopeError,
+  type TenantContext,
+} from "@checkout-studio/database"
+import { SYMBOL_INSTANCE_TYPE, createDocument, defaultTheme } from "@checkout-studio/schema"
 import type { CheckoutSchema, PropValue } from "@checkout-studio/schema"
 import { contentHash } from "@checkout-studio/utils"
 
@@ -67,6 +72,7 @@ const EXPORTING: ExportEnvironment = {
     ["core.page", "core-layout"],
     ["core.text", "core-content"],
     ["core.image", "core-content"],
+    [SYMBOL_INSTANCE_TYPE, "core-layout"],
   ]),
   installed: new Map([
     ["core-layout", "0.1.0"],
@@ -88,7 +94,10 @@ function importing(over: Partial<ImportEnvironment> = {}): ImportEnvironment {
         ["core-content", "0.1.0"],
       ]),
     },
-    registry: { components: new Map(), knownTypes: ["core.page", "core.text", "core.image"] },
+    registry: {
+      components: new Map(),
+      knownTypes: ["core.page", "core.text", "core.image", SYMBOL_INSTANCE_TYPE],
+    },
     store: recordingStore(),
     themeStrategy: "keep-target",
     limits: { maxBytes: 1_000_000, timeoutMs: 1_000 },
@@ -168,7 +177,55 @@ async function exported(
   return toJsonBundle(result.bundle)
 }
 
+/** Exports a page whose only child places `symbolId`. */
+async function exportedPlacing(symbolId: string): Promise<string> {
+  counter += 1
+
+  const document = createDocument({
+    projectId: source.projectId,
+    pageId: "pag_x",
+    themeId: "theme_default",
+  })
+  const root = document.nodes[document.root]
+
+  if (root === undefined) throw new Error("The fixture has no root.")
+
+  const page = await prisma.page.create({
+    data: {
+      projectId: source.projectId,
+      title: "Checkout",
+      slug: `checkout-sym-${String(counter)}`,
+      draftSchema: {
+        ...document,
+        nodes: {
+          ...document.nodes,
+          [document.root]: { ...root, children: ["placed"] },
+          placed: {
+            id: "placed",
+            type: SYMBOL_INSTANCE_TYPE,
+            parentId: document.root,
+            children: [],
+            props: { symbolId },
+            styles: {},
+            visibility: { hidden: false },
+            animations: [],
+            metadata: { locked: false },
+          },
+        },
+      } as never,
+    },
+    select: { id: true },
+  })
+
+  const result = await exportPage(source, page.id, EXPORTING)
+
+  if (!result.ok) throw new Error(`Expected the fixture to export: ${JSON.stringify(result)}`)
+
+  return toJsonBundle(result.bundle)
+}
+
 beforeEach(async () => {
+  await prisma.symbol.deleteMany({})
   await prisma.asset.deleteMany({})
   await prisma.page.deleteMany({})
   await prisma.theme.deleteMany({})
@@ -314,6 +371,66 @@ describe("a page that carries a picture", () => {
 
     expect(JSON.stringify(imported.draftSchema)).not.toContain(asset.id)
     expect(JSON.stringify(imported.draftSchema)).toContain(only(report.created.assetIds))
+  })
+})
+
+describe("a page that places a symbol", () => {
+  it("brings the definition with it", async () => {
+    /*
+     * "Instances stay as references — expanding them would sever their live
+     * link", so the bundle has to carry what they refer to or arrive with
+     * holes in it.
+     */
+    const symbol = await symbolRepository.create(source, {
+      name: "Footer",
+      rootNodeId: "sym_root",
+      nodes: { sym_root: { id: "sym_root", type: "core.section", children: [] } },
+    })
+
+    const file = await exportedPlacing(symbol.id)
+    const { report } = await importPage(target, file, importing())
+
+    expect(report.success).toBe(true)
+    expect(report.created.symbolIds).toHaveLength(1)
+
+    const landed = await prisma.symbol.findFirstOrThrow({
+      where: { projectId: target.projectId },
+    })
+
+    expect(landed.name).toBe("Footer")
+  })
+
+  it("points the imported page at the definition that landed here", async () => {
+    /*
+     * The failure nothing else catches: an instance still naming the
+     * exporting project's symbol id would render a hole, and the row it
+     * names belongs to somebody else.
+     */
+    const symbol = await symbolRepository.create(source, {
+      name: "Footer",
+      rootNodeId: "sym_root",
+      nodes: { sym_root: { id: "sym_root", type: "core.section", children: [] } },
+    })
+
+    const { report } = await importPage(target, await exportedPlacing(symbol.id), importing())
+    const imported = await prisma.page.findFirstOrThrow({
+      where: { id: only(report.created.pageIds) },
+    })
+    const text = JSON.stringify(imported.draftSchema)
+
+    expect(text).not.toContain(symbol.id)
+    expect(text).toContain(only(report.created.symbolIds))
+  })
+
+  it("names it in the manifest, by name rather than by id", async () => {
+    const symbol = await symbolRepository.create(source, {
+      name: "Footer",
+      rootNodeId: "sym_root",
+      nodes: { sym_root: { id: "sym_root", type: "core.section", children: [] } },
+    })
+    const read = readJsonBundle(await exportedPlacing(symbol.id))
+
+    expect(read.ok ? read.bundle.manifest.contents.symbols : []).toEqual(["Footer"])
   })
 })
 

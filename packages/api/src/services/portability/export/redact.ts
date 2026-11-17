@@ -150,6 +150,8 @@ export const DATA_KEYED_CONTAINERS: ReadonlySet<string> = new Set([
   "custom",
   // Keyed by component type id.
   "components",
+  // Keyed by symbol id, in a bundle that carries the definitions it places.
+  "symbols",
 ])
 
 /** What a blanked field holds instead. Never a tenant's anything. */

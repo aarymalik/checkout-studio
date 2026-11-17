@@ -36,6 +36,7 @@ function commit(over: Partial<ImportCommit> = {}): ImportCommit {
 
   return {
     assets: [],
+    symbols: [],
     page: { title: "Checkout", slug: `checkout-${String(counter)}` },
     document: () => ({ version: "1.0.0" }),
     theme: null,
@@ -93,7 +94,7 @@ describe("a commit that goes through", () => {
       tenant,
       commit({
         assets: [anAsset("aaa")],
-        document: (assets) => {
+        document: ({ assets }) => {
           seen = assets
 
           return { version: "1.0.0", asset: assets.get("ast_source_aaa") }
@@ -253,5 +254,73 @@ describe("the theme", () => {
 
     expect(result.ok ? result.themeId : null).not.toBeNull()
     expect(await prisma.theme.count()).toBe(1)
+  })
+})
+
+describe("the symbols an import brings", () => {
+  const footer = {
+    sourceId: "sym_theirs",
+    name: "Footer",
+    rootNodeId: "sym_root",
+    nodes: { sym_root: { id: "sym_root", type: "core.section" } },
+  }
+
+  it("are created in this project", async () => {
+    const result = await importRepository.commit(tenant, commit({ symbols: [footer] }))
+
+    expect(result.ok).toBe(true)
+    expect(await prisma.symbol.count({ where: { projectId } })).toBe(1)
+    expect((await prisma.symbol.findFirstOrThrow()).name).toBe("Footer")
+  })
+
+  it("hand back the id each one ended up with", async () => {
+    const result = await importRepository.commit(tenant, commit({ symbols: [footer] }))
+    const row = await prisma.symbol.findFirstOrThrow({ select: { id: true } })
+
+    expect(result.ok ? result.symbols.get("sym_theirs") : null).toBe(row.id)
+  })
+
+  it("reach the document before it is stored", async () => {
+    /*
+     * The id a symbol gets here is not the id the bundle used, and a
+     * document still naming the bundle's would point at another project's
+     * row.
+     */
+    const result = await importRepository.commit(
+      tenant,
+      commit({
+        symbols: [footer],
+        document: ({ symbols }) => ({ version: "1.0.0", placed: symbols.get("sym_theirs") }),
+      }),
+    )
+
+    if (!result.ok) throw new Error("Expected it to commit.")
+
+    const page = await prisma.page.findFirstOrThrow({ select: { draftSchema: true } })
+
+    expect(page.draftSchema).toMatchObject({ placed: result.symbols.get("sym_theirs") })
+  })
+
+  it("are a new record rather than one matched by name", async () => {
+    // Two projects' symbols are different records however alike they look,
+    // and reusing one by name would let an import quietly redefine a footer
+    // somebody else wrote.
+    await prisma.symbol.create({
+      data: { projectId, name: "Footer", rootNodeId: "mine", nodes: {} },
+    })
+
+    await importRepository.commit(tenant, commit({ symbols: [footer] }))
+
+    expect(await prisma.symbol.count({ where: { projectId } })).toBe(2)
+  })
+
+  it("leave none behind when the commit fails", async () => {
+    const result = await importRepository.commit(
+      tenant,
+      commit({ symbols: [footer], document: () => null }),
+    )
+
+    expect(result).toMatchObject({ ok: false })
+    expect(await prisma.symbol.count()).toBe(0)
   })
 })

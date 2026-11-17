@@ -33,8 +33,14 @@ import type { CheckoutSchema, Fragment } from "@checkout-studio/schema"
  * definition nobody wrote.
  */
 
-/** Keyed by symbol id, in the shape the renderer expands from. */
-export type SymbolSnapshot = Record<string, Fragment>
+/**
+ * Keyed by symbol id, in the shape the renderer expands from.
+ *
+ * With the name, which the renderer drops and everything else wants: a
+ * bundle lists what it carries, and somebody restoring a revision should see
+ * what the symbol was called rather than an id.
+ */
+export type SymbolSnapshot = Record<string, Fragment & { name: string }>
 
 export async function snapshotSymbols(
   tenant: TenantContext,
@@ -56,6 +62,7 @@ export async function snapshotSymbols(
     if (!wanted.has(symbol.id)) continue
 
     snapshot[symbol.id] = {
+      name: symbol.name,
       rootId: symbol.rootNodeId,
       nodes: symbol.nodes as Fragment["nodes"],
     }

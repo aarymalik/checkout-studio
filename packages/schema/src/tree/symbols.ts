@@ -315,7 +315,12 @@ function expandedId(instanceId: string, nodeId: string): string {
  * page that throws.
  */
 const storedFragment = z
-  .object({ rootId: nodeId, nodes: z.record(nodeId, nodeSchema) })
+  .object({
+    /** Carried by whoever wrote it, for people. Not part of a fragment. */
+    name: z.string().max(200).optional(),
+    rootId: nodeId,
+    nodes: z.record(nodeId, nodeSchema),
+  })
   .strict()
   .refine((value) => value.nodes[value.rootId] !== undefined, {
     message: "A symbol's root must be one of its nodes.",
@@ -338,7 +343,10 @@ export function readSymbolSnapshot(value: unknown): SnapshotRead {
   for (const [symbolId, stored] of Object.entries(value)) {
     const parsed = storedFragment.safeParse(stored)
 
-    if (parsed.success) symbols.set(symbolId, parsed.data)
+    // The name is dropped: a `Fragment` is a subtree, and nothing being
+    // drawn has any use for what the subtree is called.
+    if (parsed.success)
+      symbols.set(symbolId, { rootId: parsed.data.rootId, nodes: parsed.data.nodes })
     else skipped.push(symbolId)
   }
 
