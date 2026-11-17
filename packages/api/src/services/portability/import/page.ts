@@ -70,6 +70,7 @@ export interface ImportReport {
   created: {
     pageIds: string[]
     assetIds: string[]
+    symbolIds: string[]
     themeId?: string
   }
   statistics: {
@@ -191,15 +192,25 @@ export async function importPage(
 
   const committed = await importRepository.commit(tenant, {
     assets: rehydrated.rehydrated.assets,
+    /*
+     * Created here rather than matched to anything already in the project.
+     * Two projects' symbols are different records however alike they look.
+     */
+    symbols: Object.entries(read.bundle.symbols).map(([sourceId, symbol]) => ({
+      sourceId,
+      name: symbol.name,
+      rootNodeId: symbol.rootId,
+      nodes: symbol.nodes as Prisma.InputJsonValue,
+    })),
     // A bundle calls it a name and a page row calls it a title. Same string.
     page: { title: read.bundle.page.name, slug: read.bundle.page.slug },
-    document: (assets) => {
+    document: ({ assets, symbols }) => {
       /*
        * Run here rather than earlier because the ids are only real once the
        * rows exist — see importRepository.commit. An unmapped reference
        * returns null, which rolls the whole thing back.
        */
-      const regenerated = regenerateDocument(read.bundle.document, assets)
+      const regenerated = regenerateDocument(read.bundle.document, assets, symbols)
 
       if (!regenerated.ok) return null
 
@@ -242,6 +253,7 @@ export async function importPage(
       created: {
         pageIds: [committed.pageId],
         assetIds: [...committed.assets.values()],
+        symbolIds: [...committed.symbols.values()],
         ...(committed.themeId === null ? {} : { themeId: committed.themeId }),
       },
       statistics: {
@@ -261,7 +273,7 @@ function empty(durationMs: number, failure: NonNullable<ImportReport["failure"]>
   return {
     success: false,
     durationMs,
-    created: { pageIds: [], assetIds: [] },
+    created: { pageIds: [], assetIds: [], symbolIds: [] },
     statistics: { nodesImported: 0, assetsUploaded: 0, assetsReused: 0, bytesTransferred: 0 },
     migrations: [],
     warnings: [],

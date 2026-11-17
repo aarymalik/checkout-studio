@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseDocument, validateReferences } from "@checkout-studio/schema"
+import { SYMBOL_INSTANCE_TYPE, parseDocument, validateReferences } from "@checkout-studio/schema"
 import type { CheckoutSchema, Node, PropValue } from "@checkout-studio/schema"
 
 import { regenerateDocument } from "./regenerate"
@@ -65,9 +65,12 @@ type RandomSourceLike = () => number
 
 const MAPPED = new Map([["ast_old", "ast_new"]])
 
+/** Most of these are about nodes and assets; a page placing no symbols needs none. */
+const NO_SYMBOLS = new Map<string, string>()
+
 describe("every node id", () => {
   it("is replaced", () => {
-    const result = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     expect(result.ok).toBe(true)
 
@@ -79,7 +82,7 @@ describe("every node id", () => {
   })
 
   it("is recorded, so a report can say what became what", () => {
-    const result = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     expect(result.ok ? [...result.nodes.keys()].sort() : []).toEqual(["copy", "hero", "root"])
   })
@@ -87,7 +90,7 @@ describe("every node id", () => {
   it("carries the node's own id with it", () => {
     // A node stored under one id holding another is the `id-mismatch` the
     // schema has a name for.
-    const result = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     if (!result.ok) throw new Error("Expected it to regenerate.")
 
@@ -105,12 +108,12 @@ describe("every node id", () => {
      * A set of invented ids would prove nothing: the generator was never
      * going to pick them, so the test would pass with the set ignored.
      */
-    const first = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const first = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     if (!first.ok) throw new Error("Expected it to regenerate.")
 
     const claimed = new Set(Object.keys(first.document.nodes))
-    const second = regenerateDocument(PAGE, MAPPED, claimed, sequential())
+    const second = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, claimed, sequential())
 
     if (!second.ok) throw new Error("Expected it to regenerate.")
 
@@ -122,7 +125,7 @@ describe("the tree that comes out", () => {
   it("still holds together", () => {
     // The whole point. New ids with old references is a page with a parent
     // pointing at a node that no longer exists.
-    const result = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     if (!result.ok) throw new Error("Expected it to regenerate.")
 
@@ -131,7 +134,7 @@ describe("the tree that comes out", () => {
   })
 
   it("points root at the node root became", () => {
-    const result = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     if (!result.ok) throw new Error("Expected it to regenerate.")
 
@@ -140,7 +143,7 @@ describe("the tree that comes out", () => {
   })
 
   it("keeps the shape: the same children in the same order", () => {
-    const result = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     if (!result.ok) throw new Error("Expected it to regenerate.")
 
@@ -158,7 +161,7 @@ describe("asset references", () => {
      * is an upload or a reuse of bytes this project holds, and inventing a
      * second answer would undo it.
      */
-    const result = regenerateDocument(PAGE, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(PAGE, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     if (!result.ok) throw new Error("Expected it to regenerate.")
 
@@ -178,7 +181,7 @@ describe("asset references", () => {
       ],
       { favicon: { $asset: "ast_old" } },
     )
-    const result = regenerateDocument(nested, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(nested, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     if (!result.ok) throw new Error("Expected it to regenerate.")
 
@@ -194,7 +197,7 @@ describe("a reference nothing maps", () => {
      * bundle names something it did not bring, and keeping the old id either
      * points at a stranger's row or at nothing at all.
      */
-    const result = regenerateDocument(PAGE, new Map(), new Set(), sequential())
+    const result = regenerateDocument(PAGE, new Map(), NO_SYMBOLS, new Set(), sequential())
 
     expect(result).toMatchObject({ ok: false })
     expect(result.ok ? [] : result.unmapped).toEqual([
@@ -203,12 +206,14 @@ describe("a reference nothing maps", () => {
   })
 
   it("hands back no document at all", () => {
-    expect("document" in regenerateDocument(PAGE, new Map(), new Set(), sequential())).toBe(false)
+    expect(
+      "document" in regenerateDocument(PAGE, new Map(), NO_SYMBOLS, new Set(), sequential()),
+    ).toBe(false)
   })
 
   it("names a child that is not in the document", () => {
     const broken = document([node("root", { type: "core.page", children: ["gone"] })])
-    const result = regenerateDocument(broken, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(broken, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     expect(result.ok ? [] : result.unmapped).toEqual([
       { kind: "node", id: "gone", at: "nodes.root.children[0]" },
@@ -220,7 +225,7 @@ describe("a reference nothing maps", () => {
       node("root", { type: "core.page" }),
       node("stray", { parentId: "nowhere" }),
     ])
-    const result = regenerateDocument(broken, MAPPED, new Set(), sequential())
+    const result = regenerateDocument(broken, MAPPED, NO_SYMBOLS, new Set(), sequential())
 
     expect(result.ok ? [] : result.unmapped).toContainEqual({
       kind: "node",
@@ -234,9 +239,90 @@ describe("a reference nothing maps", () => {
     // is repairing by hand is the only kind that gets here.
     const broken = document([node("root", { type: "core.page", children: ["gone", "also-gone"] })])
 
-    expect(regenerateDocument(broken, MAPPED, new Set(), sequential())).toMatchObject({
+    expect(regenerateDocument(broken, MAPPED, NO_SYMBOLS, new Set(), sequential())).toMatchObject({
       ok: false,
       unmapped: [{ id: "gone" }, { id: "also-gone" }],
     })
+  })
+})
+
+describe("a symbol an instance places", () => {
+  const placing = (symbolId: string): CheckoutSchema =>
+    document([
+      node("root", { type: "core.page", children: ["placed"] }),
+      node("placed", {
+        type: SYMBOL_INSTANCE_TYPE,
+        parentId: "root",
+        props: { symbolId, overrides: {} },
+      }),
+    ])
+
+  it("points at the definition this project now holds", () => {
+    /*
+     * Mapped and never regenerated, like an asset: the definition was
+     * written by the transaction and already has the id it will keep. An
+     * instance still naming the bundle's id would point at another
+     * project's row.
+     */
+    const result = regenerateDocument(
+      placing("sym_theirs"),
+      MAPPED,
+      new Map([["sym_theirs", "sym_ours"]]),
+      new Set(),
+      sequential(),
+    )
+
+    if (!result.ok) throw new Error("Expected it to regenerate.")
+
+    const placed = result.document.nodes[result.nodes.get("placed") as string] as Node
+
+    expect(placed.props["symbolId"]).toBe("sym_ours")
+    expect(placed.props["overrides"]).toEqual({})
+  })
+
+  it("is a failure when the bundle did not bring it", () => {
+    const result = regenerateDocument(
+      placing("sym_missing"),
+      MAPPED,
+      new Map(),
+      new Set(),
+      sequential(),
+    )
+
+    expect(result.ok ? [] : result.unmapped).toEqual([
+      { kind: "symbol", id: "sym_missing", at: "nodes.placed.props.symbolId" },
+    ])
+  })
+
+  it("leaves an instance that names no symbol alone", () => {
+    // A node is not required to be sensible, and the renderer already
+    // reports one that places nothing.
+    const nameless = document([
+      node("root", { type: "core.page", children: ["placed"] }),
+      node("placed", { type: SYMBOL_INSTANCE_TYPE, parentId: "root", props: {} }),
+    ])
+
+    expect(regenerateDocument(nameless, MAPPED, new Map(), new Set(), sequential()).ok).toBe(true)
+  })
+
+  it("does not touch a prop on an ordinary node", () => {
+    // The type is what makes a node an instance.
+    const ordinary = document([
+      node("root", { type: "core.page", children: ["copy"] }),
+      node("copy", { parentId: "root", props: { symbolId: "sym_theirs" } }),
+    ])
+    const result = regenerateDocument(
+      ordinary,
+      MAPPED,
+      new Map([["sym_theirs", "sym_ours"]]),
+      new Set(),
+      sequential(),
+    )
+
+    if (!result.ok) throw new Error("Expected it to regenerate.")
+
+    const copy = result.document.nodes[result.nodes.get("copy") as string] as Node
+
+    expect(copy.props["symbolId"]).toBe("sym_theirs")
   })
 })

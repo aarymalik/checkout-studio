@@ -51,11 +51,29 @@ export interface ImportedAsset {
   sha256: string
 }
 
+export interface ImportedSymbol {
+  /** Its id in the bundle. The key of the map handed back. */
+  sourceId: string
+  name: string
+  rootNodeId: string
+  nodes: Prisma.InputJsonValue
+}
+
 export interface ImportCommit {
   assets: readonly ImportedAsset[]
+  symbols: readonly ImportedSymbol[]
   page: { title: string; slug: string }
-  /** The document to store, given the ids the assets actually got. Null aborts. */
-  document: (assets: ReadonlyMap<string, string>) => Prisma.InputJsonValue | null
+  /**
+   * The document to store, given the ids the import actually got. Null aborts.
+   *
+   * Both maps for the same reason: neither an asset's id nor a symbol's is
+   * knowable until its row exists, and a document naming the bundle's ids
+   * would point at another project's rows.
+   */
+  document: (ids: {
+    assets: ReadonlyMap<string, string>
+    symbols: ReadonlyMap<string, string>
+  }) => Prisma.InputJsonValue | null
   /** The theme to write, or null to leave the project's own alone. */
   theme: { name: string; tokens: Prisma.InputJsonValue; replace: boolean } | null
 }
@@ -66,6 +84,8 @@ export type ImportCommitResult =
       pageId: string
       /** Source asset id to the id it has here. */
       assets: ReadonlyMap<string, string>
+      /** Source symbol id to the id it has here. */
+      symbols: ReadonlyMap<string, string>
       /** The theme written, when one was. */
       themeId: string | null
     }
@@ -130,7 +150,28 @@ export const importRepository = {
           assets.set(asset.sourceId, row.id)
         }
 
-        const document = input.document(assets)
+        /*
+         * Created rather than matched. Two projects' symbols are different
+         * records however alike they look, and reusing one by name would
+         * mean an import quietly redefining a footer somebody else wrote.
+         */
+        const symbols = new Map<string, string>()
+
+        for (const symbol of input.symbols) {
+          const row = await tx.symbol.create({
+            data: {
+              projectId,
+              name: symbol.name,
+              rootNodeId: symbol.rootNodeId,
+              nodes: symbol.nodes,
+            },
+            select: { id: true },
+          })
+
+          symbols.set(symbol.sourceId, row.id)
+        }
+
+        const document = input.document({ assets, symbols })
 
         if (document === null) throw new Abort("document-rejected")
 
@@ -148,6 +189,7 @@ export const importRepository = {
           ok: true as const,
           pageId: page.id,
           assets,
+          symbols,
           themeId: await writeTheme(tx, projectId, input.theme),
         }
       })

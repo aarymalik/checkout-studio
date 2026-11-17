@@ -34,11 +34,11 @@ import type { AssetRegistryEntry } from "./registry"
  * Domain-separated, so the same page exported as a different kind of bundle
  * is a different bundle rather than a collision.
  *
- * ## A page bundle carries no symbols and no sections
+ * ## A page bundle carries no sections
  *
  * Not yet-to-be-done: that is what the kind means. A page bundle holds one
- * page. A section bundle holds a subtree, and it is a different kind with a
- * different builder.
+ * page and whatever that page places. A section bundle holds a subtree, and
+ * it is a different kind with a different builder.
  */
 
 export interface PageManifestInput {
@@ -61,6 +61,14 @@ export interface PageManifestInput {
   rendererVersion: string
   plugins: readonly PluginRequirement[]
   assets: readonly AssetRegistryEntry[]
+  /**
+   * The names of the symbols the bundle carries.
+   *
+   * Names and not ids, for the same reason `pages` holds names: an id is the
+   * exporting project's and means nothing here, and the manifest is the part
+   * a stranger reads.
+   */
+  symbols?: readonly string[]
 }
 
 export function pageManifest(input: PageManifestInput): BundleManifest {
@@ -92,7 +100,7 @@ export function pageManifest(input: PageManifestInput): BundleManifest {
     },
     contents: {
       pages: [input.name],
-      symbols: [],
+      symbols: [...(input.symbols ?? [])].sort(),
       sections: [],
       theme: "theme" in input.payload,
       settings: Object.keys(input.document.settings).length > 0,
