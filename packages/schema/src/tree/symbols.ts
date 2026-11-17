@@ -5,6 +5,8 @@ import type { Fragment } from "./fragment"
 import { insert, remove } from "./operations"
 import type { TreeOptions, TreeResult } from "./operations"
 import type { Node } from "../document/schema"
+import { node as nodeSchema, nodeId } from "../document/schema"
+import { z } from "zod"
 
 /**
  * Symbols, from the page's side.
@@ -297,4 +299,48 @@ function expandedId(instanceId: string, nodeId: string): string {
   }
 
   return `sym_${hash.toString(16).padStart(8, "0")}${String(seed.length)}`
+}
+
+/**
+ * Definitions out of the JSON a revision stored them as.
+ *
+ * The inverse of what the API writes when it snapshots a page's symbols, and
+ * in this package rather than beside that because both applications need it
+ * and neither should reach into the other's services to get it.
+ *
+ * Parsed rather than cast. The column holds whatever was written into it,
+ * possibly by an older version of this product, and a definition that cannot
+ * be read is skipped and named: its instances stay as instances and the
+ * renderer reports them, which is a page missing its footer rather than a
+ * page that throws.
+ */
+const storedFragment = z
+  .object({ rootId: nodeId, nodes: z.record(nodeId, nodeSchema) })
+  .strict()
+  .refine((value) => value.nodes[value.rootId] !== undefined, {
+    message: "A symbol's root must be one of its nodes.",
+  })
+
+export interface SnapshotRead {
+  symbols: ReadonlyMap<string, Fragment>
+  /** Symbol ids whose stored definition could not be read. */
+  skipped: string[]
+}
+
+export function readSymbolSnapshot(value: unknown): SnapshotRead {
+  const symbols = new Map<string, Fragment>()
+  const skipped: string[] = []
+
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { symbols, skipped }
+  }
+
+  for (const [symbolId, stored] of Object.entries(value)) {
+    const parsed = storedFragment.safeParse(stored)
+
+    if (parsed.success) symbols.set(symbolId, parsed.data)
+    else skipped.push(symbolId)
+  }
+
+  return { symbols, skipped }
 }

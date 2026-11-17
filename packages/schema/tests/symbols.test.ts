@@ -4,6 +4,7 @@ import {
   SYMBOL_INSTANCE_TYPE,
   detachSymbol,
   expandSymbols,
+  readSymbolSnapshot,
   symbolReferences,
   validateReferences,
 } from "../src"
@@ -376,5 +377,95 @@ describe("an instance that cannot be expanded", () => {
     ])
 
     expect(expandSymbols(page(), itself).unexpanded).toMatchObject([{ reason: "nested" }])
+  })
+})
+
+describe("reading definitions back out of a revision", () => {
+  /**
+   * The column holds whatever was written into it, possibly by an older
+   * version of this product. A definition that cannot be read is skipped and
+   * named rather than thrown over: its instances stay as instances and the
+   * renderer reports them, which is a page missing its footer rather than a
+   * page that throws.
+   */
+
+  const stored = {
+    sym_footer: {
+      rootId: "sym_root",
+      nodes: {
+        sym_root: makeNode("sym_root", { type: "core.section", children: ["sym_text"] }),
+        sym_text: makeNode("sym_text", { type: "core.text", parentId: "sym_root" }),
+      },
+    },
+  }
+
+  it("reads one that was written properly", () => {
+    const { symbols, skipped } = readSymbolSnapshot(stored)
+
+    expect(skipped).toEqual([])
+    expect(symbols.get("sym_footer")?.rootId).toBe("sym_root")
+    expect(Object.keys(symbols.get("sym_footer")?.nodes ?? {})).toEqual(["sym_root", "sym_text"])
+  })
+
+  it("expands a page with what it read", () => {
+    // The round trip that matters: what comes out of the column is what
+    // `expandSymbols` takes.
+    const { symbols } = readSymbolSnapshot(stored)
+    const { document, unexpanded } = expandSymbols(page(), symbols)
+
+    expect(unexpanded).toEqual([])
+    expect(validateReferences(document)).toEqual([])
+  })
+
+  it.each([
+    ["nothing", undefined],
+    ["null", null],
+    ["a string", "symbols"],
+  ])("reads no symbols from %s", (_name, value) => {
+    expect(readSymbolSnapshot(value).symbols.size).toBe(0)
+  })
+
+  it("reads nothing from a list, and does not name its indexes", () => {
+    /*
+     * A map of symbols is an object. Walking a list would find entries
+     * called "0" and "1" and report them as symbols that failed to load —
+     * ids nobody ever wrote, in a log somebody has to make sense of.
+     */
+    const asList = readSymbolSnapshot([stored.sym_footer, stored.sym_footer])
+
+    expect(asList.symbols.size).toBe(0)
+    expect(asList.skipped).toEqual([])
+  })
+
+  it("skips one whose shape is wrong, and names it", () => {
+    const broken = { ...stored, sym_broken: { rootId: "sym_root" } }
+    const { symbols, skipped } = readSymbolSnapshot(broken)
+
+    expect(skipped).toEqual(["sym_broken"])
+    expect([...symbols.keys()]).toEqual(["sym_footer"])
+  })
+
+  it("skips one whose root is not among its nodes", () => {
+    /*
+     * A fragment whose root is missing is not a subtree, and expanding it
+     * would put a parent reference on nothing.
+     */
+    const headless = { sym_x: { rootId: "sym_gone", nodes: stored.sym_footer.nodes } }
+
+    expect(readSymbolSnapshot(headless).skipped).toEqual(["sym_x"])
+  })
+
+  it("skips one carrying something that is not a node", () => {
+    const rubbish = { sym_x: { rootId: "sym_root", nodes: { sym_root: "a section" } } }
+
+    expect(readSymbolSnapshot(rubbish).skipped).toEqual(["sym_x"])
+  })
+
+  it("keeps the good ones when one is bad", () => {
+    // A page with two symbols and one unreadable definition renders the
+    // other, which is the reason this reports rather than refuses.
+    const mixed = { ...stored, sym_broken: 7 }
+
+    expect([...readSymbolSnapshot(mixed).symbols.keys()]).toEqual(["sym_footer"])
   })
 })

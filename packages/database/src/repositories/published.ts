@@ -24,6 +24,8 @@ export interface PublishedPage {
   schema: unknown
   /** The revision's snapshot of the theme, immune to later theme edits. */
   theme: unknown
+  /** The revision's snapshot of the symbols its schema places, immune alike. */
+  symbols: unknown
   schemaVersion: string
   revisionId: string
   revisionNumber: number
@@ -65,6 +67,7 @@ export const publishedRepository = {
             number: true,
             schema: true,
             theme: true,
+            symbols: true,
             schemaVersion: true,
             createdAt: true,
           },
@@ -80,6 +83,7 @@ export const publishedRepository = {
       title: page.title,
       schema: page.publishedRevision.schema,
       theme: page.publishedRevision.theme,
+      symbols: page.publishedRevision.symbols,
       schemaVersion: page.publishedRevision.schemaVersion,
       revisionId: page.publishedRevision.id,
       revisionNumber: page.publishedRevision.number,
@@ -118,6 +122,7 @@ export const publishedRepository = {
             number: true,
             schema: true,
             theme: true,
+            symbols: true,
             schemaVersion: true,
             createdAt: true,
           },
@@ -133,6 +138,7 @@ export const publishedRepository = {
       title: page.title,
       schema: page.publishedRevision.schema,
       theme: page.publishedRevision.theme,
+      symbols: page.publishedRevision.symbols,
       schemaVersion: page.publishedRevision.schemaVersion,
       revisionId: page.publishedRevision.id,
       revisionNumber: page.publishedRevision.number,
@@ -164,6 +170,7 @@ export const publishedRepository = {
         number: true,
         schema: true,
         theme: true,
+        symbols: true,
         schemaVersion: true,
         createdAt: true,
       },
@@ -177,6 +184,7 @@ export const publishedRepository = {
       title: page.title,
       schema: revision.schema,
       theme: revision.theme,
+      symbols: revision.symbols,
       schemaVersion: revision.schemaVersion,
       revisionId: revision.id,
       revisionNumber: revision.number,
