@@ -8,6 +8,7 @@ import type { TenantContext } from "@checkout-studio/database"
 
 import { readDraft } from "./draft"
 import { resolveTheme } from "./theme"
+import { snapshotSymbols } from "./symbols"
 
 /**
  * Resolving a draft conflict.
@@ -105,6 +106,9 @@ export async function resolveConflict(
     // Snapshotted, unlike the editor's live resolution: a revision has to
     // render as it did, and a later theme edit must not change it.
     theme: (await resolveTheme(losing.projectId, losing.theme)) as unknown as object,
+    // And its symbols, for the same reason: a revision has to render as it
+    // did, and editing a symbol afterwards must not reach back into it.
+    symbols: (await snapshotSymbols(tenant, losing)) as unknown as object,
     schemaVersion: losing.version,
     rendererVersion: RENDERER_VERSION,
     createdBy: tenant.userId,
