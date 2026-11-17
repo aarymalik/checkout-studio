@@ -4,7 +4,12 @@ import { assetResolver } from "@checkout-studio/api"
 import { assetRepository, publishedRepository } from "@checkout-studio/database"
 import type { PublishedPage } from "@checkout-studio/database"
 import { logger } from "@checkout-studio/observability"
-import { assetReferences, checkoutTheme, defaultTheme } from "@checkout-studio/schema"
+import {
+  assetReferences,
+  checkoutTheme,
+  defaultTheme,
+  readSymbolSnapshot,
+} from "@checkout-studio/schema"
 import type { CheckoutSchema, CheckoutTheme } from "@checkout-studio/schema"
 import { prepare } from "@checkout-studio/renderer"
 import type { AssetUrls } from "@checkout-studio/plugin-sdk"
@@ -73,7 +78,26 @@ function readRevision(revision: PublishedPage): ReadRevision | null {
     })
   }
 
-  const prepared = prepare(revision.schema, { registry, theme: resolved })
+  /*
+   * The revision's own symbols, not the project's current ones. That is the
+   * whole of "editing a symbol never changes a live page": what renders is
+   * what was snapshotted when this revision was made.
+   */
+  const snapshot = readSymbolSnapshot(revision.symbols)
+
+  if (snapshot.skipped.length > 0) {
+    logger.warn("renderer.revision.symbol_unreadable", {
+      revisionId: revision.revisionId,
+      pageId: revision.pageId,
+      symbolIds: snapshot.skipped,
+    })
+  }
+
+  const prepared = prepare(revision.schema, {
+    registry,
+    theme: resolved,
+    symbols: snapshot.symbols,
+  })
 
   if (!prepared.ok) {
     logger.error("renderer.revision.unreadable", {

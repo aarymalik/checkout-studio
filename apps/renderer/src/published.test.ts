@@ -46,6 +46,7 @@ function revision(overrides: Partial<PublishedPage> = {}): PublishedPage {
     title: "Checkout",
     schema: document,
     theme: defaultTheme,
+    symbols: {},
     schemaVersion: "1.0.0",
     revisionId: "rev_2",
     revisionNumber: 2,
