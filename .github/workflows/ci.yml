@@ -321,5 +321,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # One advisory is ignored, in package.json under `pnpm.auditConfig`.
+      #
+      # GHSA-fc5q-39xc-vjpf is a ReDoS in picomatch, reachable only by
+      # whoever supplies the glob. Here that is our own eslint configuration:
+      # it arrives through @checkout-studio/config -> typescript-eslint, which
+      # is lint tooling and ships to nobody. Upstream has published no fixed
+      # version, so the choice was between ignoring this one advisory and
+      # leaving every pull request red until it does.
+      #
+      # Remove the entry when picomatch publishes a patch. Nothing else is
+      # ignored, and a second advisory still fails this job.
       - name: Block on high and critical vulnerabilities
         run: pnpm audit --audit-level=high
