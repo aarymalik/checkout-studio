@@ -107,6 +107,8 @@ export { readDraft, saveDraft } from "./services/pages/draft"
 export { resolveTheme, saveTheme } from "./services/pages/theme"
 
 export { listTemplates, templateQuery } from "./services/templates/library"
+export { installTemplate } from "./services/templates/install"
+export type { InstallOutcome } from "./services/templates/install"
 export type { Library } from "./services/templates/library"
 
 export { acceptUpload } from "./services/assets/accept"
