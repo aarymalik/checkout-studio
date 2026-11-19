@@ -111,24 +111,24 @@ export const templateRepository = {
     })
   },
 
-  /** One template, or null when it is not there or not visible. */
-  async findById(tenant: TenantContext, id: string): Promise<StoredTemplate | null> {
-    return prisma.template.findFirst({ where: { id, ...visibleTo(tenant) }, select: COLUMNS })
-  },
-
   /**
    * What a template holds, for installing it.
    *
    * Separate from the listing because a library panel draws fifty cards and
    * needs none of it, and a schema is the largest column in the row.
+   *
+   * The name comes with it so installing is one read. Fetching the row twice
+   * — once for what it is called and once for what it holds — is two
+   * questions that can be answered differently by a template deleted between
+   * them.
    */
   async contents(
     tenant: TenantContext,
     id: string,
-  ): Promise<{ schema: Prisma.JsonValue; theme: Prisma.JsonValue } | null> {
+  ): Promise<{ name: string; schema: Prisma.JsonValue; theme: Prisma.JsonValue } | null> {
     return prisma.template.findFirst({
       where: { id, ...visibleTo(tenant) },
-      select: { schema: true, theme: true },
+      select: { name: true, schema: true, theme: true },
     })
   },
 

@@ -215,6 +215,9 @@ describe("what a template holds", () => {
     const created = await templateRepository.create(tenant, aTemplate())
 
     expect(await templateRepository.contents(tenant, created.id)).toEqual({
+      // The name comes with it, so installing is one read rather than two
+      // questions a template deleted in between can answer differently.
+      name: "Spring sale",
       schema: { version: "1.0.0" },
       theme: { id: "theme_default" },
     })
@@ -232,7 +235,6 @@ describe("what a template holds", () => {
     const created = await templateRepository.create(theirs, aTemplate())
 
     expect(await templateRepository.contents(tenant, created.id)).toBeNull()
-    expect(await templateRepository.findById(tenant, created.id)).toBeNull()
   })
 })
 
