@@ -9,6 +9,7 @@ The process — when an RFC is required, how it is reviewed, and what each statu
 | Number                                                | Title                                | Status |
 | ----------------------------------------------------- | ------------------------------------ | ------ |
 | [0001](./0001-agent-generated-embeddable-checkout.md) | Agent-generated, embeddable checkout | Draft  |
+| [0002](./0002-embed-security-model.md)                | Embed security model                 | Draft  |
 
 ## Writing one
 
