@@ -6,11 +6,9 @@ The process — when an RFC is required, how it is reviewed, and what each statu
 
 ## Index
 
-_No RFCs yet. The decisions made so far are recorded in the specifications themselves._
-
-| Number | Title | Status |
-| ------ | ----- | ------ |
-| —      | —     | —      |
+| Number                                                | Title                                | Status |
+| ----------------------------------------------------- | ------------------------------------ | ------ |
+| [0001](./0001-agent-generated-embeddable-checkout.md) | Agent-generated, embeddable checkout | Draft  |
 
 ## Writing one
 
