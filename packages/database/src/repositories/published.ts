@@ -191,4 +191,32 @@ export const publishedRepository = {
       publishedAt: revision.createdAt,
     }
   },
+
+  /**
+   * The origins allowed to frame a page's embedded checkout.
+   *
+   * Unauthenticated, like everything else here: the request being answered is
+   * a shopper's browser loading an iframe, and there is no account behind it.
+   * What stands in for ownership is that the origins belong to the page.
+   *
+   * Empty for a page that is not published, does not exist, or was deleted.
+   * `frameAncestors` turns an empty list into `'none'`, so the three cases a
+   * visitor cannot distinguish stay indistinguishable, and the default for an
+   * unknown page is that nothing may frame it.
+   *
+   * Not filtered on `verified`. Verification gates wallets, per RFC 0002 § 2;
+   * framing is what the merchant registered the domain for, and refusing it
+   * until Stripe has checked a file would make the embed appear broken for
+   * the entirely normal case of a checkout that takes cards only.
+   */
+  async framingOrigins(pageId: string): Promise<readonly string[]> {
+    const rows = await prisma.embedOrigin.findMany({
+      where: {
+        page: { id: pageId, status: "published", deletedAt: null, project: { deletedAt: null } },
+      },
+      select: { origin: true },
+    })
+
+    return rows.map((row) => row.origin)
+  },
 }
