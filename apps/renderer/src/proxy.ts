@@ -1,14 +1,13 @@
+import { securityHeaders } from "@checkout-studio/utils"
 import { NextResponse } from "next/server"
-
-import { securityHeaders } from "./security-headers"
 
 /**
  * The security headers on every renderer response.
  *
  * docs/security.md § Security Headers says to always send six. Until this
- * file existed none were sent, because there was no proxy and no `headers()`
- * in `next.config.ts` — a published checkout went out with browser defaults,
- * framable by anyone.
+ * file existed none were sent, because the renderer had no proxy and no
+ * `headers()` in `next.config.ts` — a published checkout went out with
+ * browser defaults, framable by anyone.
  *
  * ## Why here and not `next.config.ts`
  *
@@ -23,7 +22,7 @@ import { securityHeaders } from "./security-headers"
  *
  * Proxy "is not intended for slow data fetching", and on Vercel it may be
  * deployed apart from the application, so it holds no database client and
- * no shared module beyond the pure values above. The per-page allowlist
+ * no shared module beyond the pure values it sends. The per-page allowlist
  * therefore cannot be read here as a Prisma query, and will arrive through
  * the cache — which on this stack is Upstash over HTTP and is built for
  * exactly this position.
@@ -32,7 +31,7 @@ import { securityHeaders } from "./security-headers"
  * behaviour docs/security.md already specifies for everything that is not
  * an embed.
  */
-export function proxy(): NextResponse {
+export default function proxy(): NextResponse {
   const response = NextResponse.next()
 
   for (const [name, value] of Object.entries(securityHeaders({ frameAncestors: "'none'" }))) {
