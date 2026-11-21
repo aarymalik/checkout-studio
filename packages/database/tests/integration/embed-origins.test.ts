@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 
-import { embedOriginRepository, TenantScopeError } from "../../src"
+import { embedOriginRepository, publishedRepository, TenantScopeError } from "../../src"
 import type { TenantContext } from "../../src"
 import { createTenant, prisma, truncateAll } from "../helpers"
 
@@ -251,5 +251,88 @@ describe("deleting the page", () => {
     // Cascade, not cleanup. An origin outliving its page is a row granting
     // framing rights to nothing, and nothing would ever come to remove it.
     expect(await prisma.embedOrigin.count()).toBe(0)
+  })
+})
+
+describe("the origins a visitor's browser is framed by", () => {
+  /** What the renderer asks: unauthenticated, by page id, on a live request. */
+  async function framing(id: string): Promise<readonly string[]> {
+    return publishedRepository.framingOrigins(id)
+  }
+
+  async function publish(id: string): Promise<void> {
+    await prisma.page.update({ where: { id }, data: { status: "published" } })
+  }
+
+  it("is what the merchant registered, once the page is published", async () => {
+    await embedOriginRepository.add(tenant, pageId, "https://shop.example", 20)
+    await embedOriginRepository.add(tenant, pageId, "https://www.shop.example", 20)
+    await publish(pageId)
+
+    expect([...(await framing(pageId))].sort()).toEqual([
+      "https://shop.example",
+      "https://www.shop.example",
+    ])
+  })
+
+  it("includes one Stripe has not verified, because verification gates wallets", async () => {
+    const added = await embedOriginRepository.add(tenant, pageId, "https://new.example", 20)
+
+    if (!added.ok) throw new Error("expected it to be added")
+
+    expect(added.origin.verified).toBe(false)
+
+    await publish(pageId)
+
+    // Framing is what the domain was registered for. Refusing it until a
+    // file has been checked would break every card-only checkout.
+    expect(await framing(pageId)).toEqual(["https://new.example"])
+  })
+
+  it("is empty while the page is still a draft", async () => {
+    await embedOriginRepository.add(tenant, pageId, "https://shop.example", 20)
+
+    // Registered, not published. Nothing may frame a page that is not live.
+    expect(await framing(pageId)).toEqual([])
+  })
+
+  it("is empty once the page is deleted", async () => {
+    await embedOriginRepository.add(tenant, pageId, "https://shop.example", 20)
+    await publish(pageId)
+    await prisma.page.update({ where: { id: pageId }, data: { deletedAt: new Date() } })
+
+    expect(await framing(pageId)).toEqual([])
+  })
+
+  it("is empty once the project is deleted", async () => {
+    await embedOriginRepository.add(tenant, pageId, "https://shop.example", 20)
+    await publish(pageId)
+    await prisma.project.update({
+      where: { id: tenant.projectId },
+      data: { deletedAt: new Date() },
+    })
+
+    expect(await framing(pageId)).toEqual([])
+  })
+
+  it("is empty for a page id that is not real", async () => {
+    /*
+     * The same answer as every other way this comes to nothing, so an
+     * unauthenticated caller cannot learn which page ids exist. An empty
+     * list becomes 'none', so the default for an unknown page is that
+     * nothing may frame it.
+     */
+    expect(await framing("pg_nothing")).toEqual([])
+  })
+
+  it("holds nothing from another page", async () => {
+    const other = await aPage(tenant.projectId)
+
+    await embedOriginRepository.add(tenant, other, "https://theirs.example", 20)
+    await embedOriginRepository.add(tenant, pageId, "https://mine.example", 20)
+    await publish(pageId)
+    await publish(other)
+
+    expect(await framing(pageId)).toEqual(["https://mine.example"])
   })
 })
