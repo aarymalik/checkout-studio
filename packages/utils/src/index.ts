@@ -16,6 +16,14 @@ export {
   signatureOf,
 } from "./uploads/signatures"
 export type { UploadKind, UploadType } from "./uploads/signatures"
+export {
+  EMBED_MODES,
+  MAX_EMBED_ORIGINS,
+  companionOrigin,
+  frameAncestors,
+  parseEmbedOrigin,
+} from "./embed/origins"
+export type { EmbedMode, EmbedOrigin, OriginRefusal } from "./embed/origins"
 export { slugify, uniqueSlug } from "./text/slug"
 export * from "./errors"
 export {
