@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { RETURN_TO, SESSION_COOKIE, SIGN_IN_PATH } from "@checkout-studio/api/edge"
+import { securityHeaders } from "@checkout-studio/utils"
 
 /**
  * Route protection.
@@ -16,7 +17,31 @@ import { RETURN_TO, SESSION_COOKIE, SIGN_IN_PATH } from "@checkout-studio/api/ed
  * Every protected route resolves the session properly, where the database is.
  * If this file were deleted, nothing would become reachable that is not
  * reachable now; the interface would just be slower and stranger to use.
+ *
+ * ## It also carries the security headers
+ *
+ * docs/security.md § Security Headers says to always send six, and the
+ * studio was sending none. They go on every response this file can return,
+ * including the refusals: a 401 and a redirect are responses a browser acts
+ * on, and `nosniff` and `DENY` mean exactly as much on those.
+ *
+ * `frame-ancestors 'none'` without exception. The embed exception in
+ * docs/security.md belongs to one route on the renderer; an editor holding
+ * somebody's session has no business inside anybody's frame.
+ *
+ * The values are `@checkout-studio/utils`', shared with the renderer rather
+ * than restated here, because two copies of a security policy drift and the
+ * one that falls behind is the one nobody is looking at.
  */
+
+/** Never framed, whatever the route. */
+const HEADERS = securityHeaders({ frameAncestors: "'none'" })
+
+function secured(response: NextResponse): NextResponse {
+  for (const [name, value] of Object.entries(HEADERS)) response.headers.set(name, value)
+
+  return response
+}
 const PROTECTED = [/^\/dashboard(\/|$)/, /^\/projects(\/|$)/, /^\/settings(\/|$)/]
 
 function isProtected(pathname: string): boolean {
@@ -27,21 +52,23 @@ export default function proxy(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl
 
   if (!isProtected(pathname) || request.cookies.has(SESSION_COOKIE)) {
-    return NextResponse.next()
+    return secured(NextResponse.next())
   }
 
   // An API route gets an answer it can parse. Redirecting a fetch to a sign-in
   // page produces a 200 full of HTML, which is the least useful thing a caller
   // can receive.
   if (pathname.startsWith("/api/")) {
-    return NextResponse.json(
-      {
-        success: false,
-        data: null,
-        error: { code: "UNAUTHORIZED", message: "Sign in to continue." },
-        meta: { correlationId: "n/a", timestamp: new Date().toISOString() },
-      },
-      { status: 401 },
+    return secured(
+      NextResponse.json(
+        {
+          success: false,
+          data: null,
+          error: { code: "UNAUTHORIZED", message: "Sign in to continue." },
+          meta: { correlationId: "n/a", timestamp: new Date().toISOString() },
+        },
+        { status: 401 },
+      ),
     )
   }
 
@@ -50,7 +77,7 @@ export default function proxy(request: NextRequest): NextResponse {
   // dropping them on a dashboard.
   signIn.searchParams.set(RETURN_TO, `${pathname}${search}`)
 
-  return NextResponse.redirect(signIn)
+  return secured(NextResponse.redirect(signIn))
 }
 
 export const config = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { securityHeaders } from "./security-headers"
+import { securityHeaders } from "./headers"
 
 /**
  * What every renderer response carries.

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import { config, proxy } from "./proxy"
-import { securityHeaders } from "./security-headers"
+import { securityHeaders } from "@checkout-studio/utils"
+
+import proxy, { config } from "./proxy"
 
 /**
  * That the headers reach the response.
  *
- * `security-headers.ts` decides the values and is tested for them. What is
+ * `securityHeaders` decides the values and is tested for them. What is
  * only true here is the wiring — a header computed and never set is the
  * failure this file exists to catch, and it looks like nothing at all.
  */

@@ -24,6 +24,8 @@ export {
   parseEmbedOrigin,
 } from "./embed/origins"
 export type { EmbedMode, EmbedOrigin, OriginRefusal } from "./embed/origins"
+export { securityHeaders } from "./security/headers"
+export type { SecurityHeaderOptions } from "./security/headers"
 export { slugify, uniqueSlug } from "./text/slug"
 export * from "./errors"
 export {

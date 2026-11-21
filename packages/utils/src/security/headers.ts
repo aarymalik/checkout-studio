@@ -5,10 +5,14 @@
  * Until now none were sent: there was no proxy and no `headers()` in
  * `next.config.ts`, so a published checkout went out with browser defaults.
  *
- * Pure, and separate from the proxy that applies them, because what the
+ * Pure, and separate from the proxies that apply them, because what the
  * values should be is a security question and where they are attached is a
- * framework one. These are asserted directly in tests; the proxy is a loop
+ * framework one. These are asserted directly in tests; a proxy is a loop
  * over them.
+ *
+ * In `utils` rather than in either application, because both send them and
+ * neither may import the other. Two copies of a security policy drift, and
+ * the copy that falls behind is the one nobody is looking at.
  *
  * ## The CSP here is `frame-ancestors` and nothing else
  *
