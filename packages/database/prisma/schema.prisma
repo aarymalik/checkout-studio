@@ -204,6 +204,7 @@ model Page {
   orders            Order[]
   submissions       Submission[]
   checkoutSessions  CheckoutSession[]
+  embedOrigins      EmbedOrigin[]
 
   /// Slugs are unique among *live* pages, which Prisma cannot declare: the
   /// partial unique index lives in the 20261002180000_live_slug_uniqueness
@@ -392,6 +393,35 @@ model Domain {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+}
+
+/// What may frame one embedded checkout, per RFC 0002.
+///
+/// Per page rather than per project: a merchant running a storefront and a
+/// members' area should not have one leak framing rights to the other.
+///
+/// `origin` is exact — scheme, host and port — as `parseEmbedOrigin` in
+/// @checkout-studio/utils normalises it. No wildcards: `frame-ancestors`
+/// accepts `*.example.com`, and one such entry would grant framing rights to
+/// every tenant of a shared platform.
+model EmbedOrigin {
+  id     String @id @default(cuid())
+  pageId String
+
+  origin String
+
+  /// Set when Stripe's payment method domain verification passes for this
+  /// host. Wallets are off until it does; framing is not conditional on it.
+  verified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  /// One row per origin per page. Registering a domain twice is the same
+  /// request, not two, and a repeated source in the header says nothing.
+  @@unique([pageId, origin])
+  @@index([pageId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
