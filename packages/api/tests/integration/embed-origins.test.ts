@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest"
+import { readEmbedOrigins, redis } from "@checkout-studio/cache"
 import { prisma, type TenantContext } from "@checkout-studio/database"
 import { MAX_EMBED_ORIGINS } from "@checkout-studio/utils"
 
@@ -189,5 +190,63 @@ describe("removing one", () => {
 
   it("is false for one that is not there", async () => {
     expect(await removeOrigin(tenant, pageId, "eor_nothing")).toBe(false)
+  })
+})
+
+describe("the copy the proxy reads", () => {
+  it("holds the list after a domain is registered", async () => {
+    await registerOrigin(tenant, pageId, "example.com")
+
+    // The proxy has no database. A change that misses the cache is a change
+    // that has not taken effect.
+    expect(await readEmbedOrigins(pageId)).toEqual(["https://example.com"])
+  })
+
+  it("keeps up as the list grows", async () => {
+    await registerOrigin(tenant, pageId, "a.example")
+    await registerOrigin(tenant, pageId, "b.example")
+
+    expect([...((await readEmbedOrigins(pageId)) ?? [])].sort()).toEqual([
+      "https://a.example",
+      "https://b.example",
+    ])
+  })
+
+  it("drops a removed domain", async () => {
+    const added = await registerOrigin(tenant, pageId, "gone.example")
+
+    if (!added.ok) throw new Error("expected it to be registered")
+
+    await registerOrigin(tenant, pageId, "stays.example")
+    await removeOrigin(tenant, pageId, added.origin.id)
+
+    expect(await readEmbedOrigins(pageId)).toEqual(["https://stays.example"])
+  })
+
+  it("is an empty list, not a missing key, once the last one goes", async () => {
+    const added = await registerOrigin(tenant, pageId, "only.example")
+
+    if (!added.ok) throw new Error("expected it to be registered")
+    await removeOrigin(tenant, pageId, added.origin.id)
+
+    /*
+     * Both read as 'none' to a header. They are kept apart because one is a
+     * page written with no origins and the other is a copy that went
+     * missing, and only the second is worth a line in a log.
+     */
+    expect(await readEmbedOrigins(pageId)).toEqual([])
+  })
+
+  it("is not rewritten for a delete that removed nothing", async () => {
+    await registerOrigin(tenant, pageId, "example.com")
+    await redis.del(`cs:embed-origins:${pageId}`)
+
+    expect(await removeOrigin(tenant, pageId, "eor_nothing")).toBe(false)
+    // A panel sending a stale id should not rewrite the key as a side effect.
+    expect(await readEmbedOrigins(pageId)).toBeNull()
+  })
+
+  it("holds nothing for a page nobody registered against", async () => {
+    expect(await readEmbedOrigins(pageId)).toBeNull()
   })
 })
