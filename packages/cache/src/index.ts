@@ -4,6 +4,13 @@ export type { Redis } from "./client"
 export { cacheKey, get, set, del, remember } from "./cache"
 export type { CacheOptions } from "./cache"
 
+export {
+  embedOriginsKey,
+  forgetEmbedOrigins,
+  readEmbedOrigins,
+  writeEmbedOrigins,
+} from "./embedOrigins"
+
 export { once } from "./idempotency"
 export type { IdempotencyOutcome } from "./idempotency"
 
