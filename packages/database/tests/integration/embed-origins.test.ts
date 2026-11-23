@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 
-import { embedOriginRepository, publishedRepository, TenantScopeError } from "../../src"
+import { embedOriginRepository, publishedRepository } from "../../src"
 import type { TenantContext } from "../../src"
 import { createTenant, prisma, truncateAll } from "../helpers"
 
@@ -142,10 +142,13 @@ describe("registering an origin", () => {
     })
   })
 
-  it("refuses to run at all without a project", async () => {
-    await expect(
-      embedOriginRepository.add({ userId: tenant.userId }, pageId, "https://a.example", 20),
-    ).rejects.toBeInstanceOf(TenantScopeError)
+  it("needs no project id, because the page names its own", async () => {
+    // Page-scoped, like every other operation reached through /api/pages.
+    // The owner is the check; a project id would be a second answer to a
+    // question the row already answers.
+    expect(
+      await embedOriginRepository.add({ userId: tenant.userId }, pageId, "https://a.example", 20),
+    ).toMatchObject({ ok: true })
   })
 })
 
