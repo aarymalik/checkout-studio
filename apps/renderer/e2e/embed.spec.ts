@@ -54,7 +54,12 @@ test.beforeAll(async () => {
   const warm = await fetch(embedUrl(published.pageId))
 
   expect(warm.status).toBe(200)
-  expect(warm.headers.get("content-security-policy")).toBe(`frame-ancestors ${allowed.origin}`)
+  // The whole policy, not a fragment of it. `report-to` is part of what is
+  // sent and a precondition that ignored it would stop noticing changes to
+  // the header it exists to check.
+  expect(warm.headers.get("content-security-policy")).toBe(
+    `frame-ancestors ${allowed.origin}; report-to csp`,
+  )
 })
 
 test.afterAll(async () => {
