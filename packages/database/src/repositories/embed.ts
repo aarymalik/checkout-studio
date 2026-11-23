@@ -1,5 +1,5 @@
 import { prisma } from "../client"
-import { requireProject, type TenantContext } from "../tenant"
+import type { TenantContext } from "../tenant"
 
 /**
  * What may frame one page's embedded checkout.
@@ -28,9 +28,14 @@ import { requireProject, type TenantContext } from "../tenant"
  * Written as a filter on the relation rather than a lookup of the page
  * first, so there is one query and no window between checking ownership and
  * acting on it.
+ *
+ * Scoped by the owner and not by a project id. The page names its project,
+ * so asking a caller for one too is a second answer to a question the row
+ * already answers — and it is why these live at `/api/pages/<id>/…` like
+ * every other page-scoped operation rather than under a project.
  */
-const ownedBy = (tenant: TenantContext, projectId: string) => ({
-  page: { projectId, deletedAt: null, project: { userId: tenant.userId, deletedAt: null } },
+const ownedBy = (tenant: TenantContext) => ({
+  page: { deletedAt: null, project: { userId: tenant.userId, deletedAt: null } },
 })
 
 export interface StoredEmbedOrigin {
@@ -60,10 +65,8 @@ export const embedOriginRepository = {
    * `frameAncestors` sorts — so nothing downstream depends on it.
    */
   async list(tenant: TenantContext, pageId: string): Promise<readonly StoredEmbedOrigin[]> {
-    const projectId = requireProject(tenant, "EmbedOrigin")
-
     return prisma.embedOrigin.findMany({
-      where: { pageId, ...ownedBy(tenant, projectId) },
+      where: { pageId, ...ownedBy(tenant) },
       orderBy: { createdAt: "asc" },
       select: COLUMNS,
     })
@@ -88,12 +91,14 @@ export const embedOriginRepository = {
     origin: string,
     ceiling: number,
   ): Promise<OriginAdded> {
-    const projectId = requireProject(tenant, "EmbedOrigin")
-
     return prisma.$transaction(
       async (tx): Promise<OriginAdded> => {
         const page = await tx.page.findFirst({
-          where: { id: pageId, projectId, deletedAt: null, project: { userId: tenant.userId } },
+          where: {
+            id: pageId,
+            deletedAt: null,
+            project: { userId: tenant.userId, deletedAt: null },
+          },
           select: { id: true },
         })
 
@@ -126,10 +131,8 @@ export const embedOriginRepository = {
    * the row they meant, and a list they are editing can be stale.
    */
   async remove(tenant: TenantContext, pageId: string, id: string): Promise<boolean> {
-    const projectId = requireProject(tenant, "EmbedOrigin")
-
     const { count } = await prisma.embedOrigin.deleteMany({
-      where: { id, pageId, ...ownedBy(tenant, projectId) },
+      where: { id, pageId, ...ownedBy(tenant) },
     })
 
     return count === 1
