@@ -45,6 +45,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/checkout_studio
       REDIS_URL: redis://localhost:6379
+      # The renderer's proxy reads the embed allowlist over HTTP, because it
+      # cannot hold a socket. No service is needed for it: the renderer's own
+      # test binds this port and speaks Upstash's protocol to the Redis above.
+      UPSTASH_REDIS_REST_URL: http://localhost:8089
+      UPSTASH_REDIS_REST_TOKEN: test-token
 
     steps:
       - uses: actions/checkout@v7

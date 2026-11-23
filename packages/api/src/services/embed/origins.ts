@@ -106,12 +106,12 @@ export async function registerOrigin(
       : added
   }
 
+  await mirror(tenant, pageId, { removal: false })
+
   /*
    * Suggested only when it is not already registered, so a merchant who
    * added both is not asked a third time about the second one.
    */
-  await mirror(tenant, pageId, { removal: false })
-
   const other = companionOrigin(parsed.origin)
   const registered = await embedOriginRepository.list(tenant, pageId)
 

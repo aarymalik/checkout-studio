@@ -146,8 +146,23 @@ async function resolverFor(page: PublishedPage, document: CheckoutSchema) {
 
 /** The page serving `hostname/slug`, following the fallback chain. */
 export async function resolvePage(hostname: string, slug: string): Promise<ResolvedPage | null> {
-  const published = await publishedRepository.findByHostAndSlug(hostname, slug)
+  return resolve(await publishedRepository.findByHostAndSlug(hostname, slug))
+}
 
+/**
+ * The page an embed is for, by its own id, following the same chain.
+ *
+ * An embed is the same published revision reached a different way, so it
+ * gets the same fallback: a customer looking at a checkout inside somebody's
+ * storefront has exactly as much claim to a working page as one who came by
+ * URL. Sharing the walk is what keeps that true — two copies would drift,
+ * and the copy that stopped falling back would be the one nobody tested.
+ */
+export async function resolveEmbed(pageId: string): Promise<ResolvedPage | null> {
+  return resolve(await publishedRepository.findPublishedById(pageId))
+}
+
+async function resolve(published: PublishedPage | null): Promise<ResolvedPage | null> {
   if (published === null) return null
 
   const current = readRevision(published)
