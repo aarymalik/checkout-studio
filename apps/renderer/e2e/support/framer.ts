@@ -20,11 +20,31 @@ export interface Framer {
 
 /** Serves one page, framing `embedUrl`, on an ephemeral loopback port. */
 export async function framer(embedUrl: string): Promise<Framer> {
+  return serve(`<iframe id="checkout" src="${embedUrl}" width="600" height="400"></iframe>`)
+}
+
+/**
+ * The same, but through the loader a merchant actually pastes.
+ *
+ * The script builds the iframe itself, from the id it is given and from
+ * where it was served. A test that hand-wrote the iframe would never
+ * notice the loader pointing somewhere else.
+ */
+export async function loaderFramer(loaderUrl: string, checkoutId: string): Promise<Framer> {
+  return serve(`<script src="${loaderUrl}" data-checkout-id="${checkoutId}"></script>`)
+}
+
+async function serve(markup: string): Promise<Framer> {
   const server: Server = createServer((_request, response) => {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" })
+    /*
+     * An explicit body. Without one the parser puts a leading <script> in
+     * the head, where the loader would mount a checkout nothing renders —
+     * which is not what a merchant's page looks like.
+     */
     response.end(
-      `<!doctype html><meta charset="utf-8"><title>Shop</title>` +
-        `<iframe id="checkout" src="${embedUrl}" width="600" height="400"></iframe>`,
+      `<!doctype html><html><head><meta charset="utf-8"><title>Shop</title></head>` +
+        `<body>${markup}</body></html>`,
     )
   })
 

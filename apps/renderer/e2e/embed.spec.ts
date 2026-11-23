@@ -1,7 +1,7 @@
 import { writeEmbedOrigins } from "@checkout-studio/cache"
 import { expect, test } from "@playwright/test"
 
-import { framer } from "./support/framer"
+import { framer, loaderFramer } from "./support/framer"
 import type { Framer } from "./support/framer"
 import { publish, unpublish } from "./support/publish"
 import type { Published } from "./support/publish"
@@ -97,4 +97,85 @@ test("is refused inside a page served from an origin nobody registered", async (
    */
   await expect(page.frameLocator("#checkout").locator(".checkout-root")).not.toBeAttached()
   await expect.poll(() => refusals.some((text) => /ancestor/iu.test(text))).toBe(true)
+})
+
+test.describe("the loader a merchant pastes", () => {
+  let host: Framer
+
+  test.beforeAll(async () => {
+    host = await loaderFramer("http://localhost:3001/embed.js", published.pageId)
+    await writeEmbedOrigins(published.pageId, [allowed.origin, host.origin])
+  })
+
+  test.afterAll(async () => {
+    await host.close()
+    await writeEmbedOrigins(published.pageId, [allowed.origin])
+  })
+
+  test("builds the frame itself and sizes it to the checkout", async ({ page }) => {
+    await page.goto(host.origin)
+
+    const frame = page.locator("iframe[title='Checkout']")
+
+    // Written by the script, not by the test. A hand-written iframe would
+    // never catch the loader pointing at the wrong place.
+    await expect(frame).toHaveAttribute("src", `http://localhost:3001/embed/${published.pageId}`)
+    await expect(frame).toHaveAttribute("allow", "payment")
+    await expect(
+      page.frameLocator("iframe[title='Checkout']").locator(".checkout-root"),
+    ).toBeAttached()
+
+    /*
+     * The whole channel, asserted against a number the page produced rather
+     * than one written here: the frame measured its own content, posted the
+     * height to the ancestor's origin, and the loader applied it.
+     *
+     * `120` is the loader's floor, and this fixture's checkout is shorter
+     * than that. Comparing against the floor rather than against "anything
+     * but the default" is what makes this fail if a message arrives saying
+     * the wrong thing, instead of only if none arrives at all.
+     */
+    const content = await page
+      .frameLocator("iframe[title='Checkout']")
+      .locator("body")
+      .evaluate((body) => body.scrollHeight)
+
+    await expect
+      .poll(async () => frame.evaluate((node: HTMLElement) => node.style.height))
+      .toBe(`${String(Math.max(content, 120))}px`)
+  })
+
+  test("says in the page when the origin is not registered", async ({ page }) => {
+    /*
+     * Its own checkout and its own host, registered to neither. Reusing the
+     * one above would mean asking the browser to block a URL it had just
+     * loaded successfully, and it answers that from cache — which is how
+     * this test first passed the wrong way round, by finding no notice
+     * because there was nothing to report.
+     */
+    const other = await publish("embed-unregistered")
+    const uninvited = await loaderFramer("http://localhost:3001/embed.js", other.pageId)
+
+    await writeEmbedOrigins(other.pageId, ["http://127.0.0.1:1"])
+
+    try {
+      await page.goto(uninvited.origin)
+
+      /*
+       * A blocked frame is a blank rectangle and a console line nobody has
+       * open. The notice names the origin that has to be registered, which
+       * is the string a merchant would otherwise have to guess.
+       */
+      // Matched by attribute rather than by role: `getByRole("alert")` does
+      // not resolve this element, and a notice that is in the page is in the
+      // page whatever the accessibility tree makes of it.
+      await expect(page.locator('[role="alert"]')).toContainText(uninvited.origin, {
+        timeout: 20_000,
+      })
+    } finally {
+      await uninvited.close()
+      await writeEmbedOrigins(other.pageId, [])
+      await unpublish(other)
+    }
+  })
 })
