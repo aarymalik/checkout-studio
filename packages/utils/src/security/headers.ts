@@ -52,6 +52,15 @@ const PERMISSIONS = [
  */
 const STRICT_TRANSPORT = "max-age=63072000; includeSubDomains; preload"
 
+/**
+ * The group name tying the CSP's `report-to` to `Reporting-Endpoints`.
+ *
+ * An implementation detail of the pair, so it is not a parameter: two
+ * headers have to agree on it and a caller choosing it could only get it
+ * wrong.
+ */
+const REPORT_GROUP = "csp"
+
 export interface SecurityHeaderOptions {
   /**
    * The `frame-ancestors` source list, as `frameAncestors` builds it.
@@ -60,6 +69,16 @@ export interface SecurityHeaderOptions {
    * docs/security.md § Clickjacking means by "every other route keeps DENY".
    */
   frameAncestors: string
+  /**
+   * Where a browser should send a violation report, if anywhere.
+   *
+   * A blocked frame renders nothing and tells only a console nobody has
+   * open. This is the other half of that problem: the loader explains it to
+   * the merchant, and this tells us — so support can see a mismatch before
+   * it is reported, and so we can say which origin their customers are
+   * actually loading from.
+   */
+  reportTo?: string
 }
 
 /**
@@ -74,8 +93,13 @@ export interface SecurityHeaderOptions {
  * older header.
  */
 export function securityHeaders(options: SecurityHeaderOptions): Record<string, string> {
+  const policy =
+    options.reportTo === undefined
+      ? `frame-ancestors ${options.frameAncestors}`
+      : `frame-ancestors ${options.frameAncestors}; report-to ${REPORT_GROUP}`
+
   const headers: Record<string, string> = {
-    "Content-Security-Policy": `frame-ancestors ${options.frameAncestors}`,
+    "Content-Security-Policy": policy,
     "Strict-Transport-Security": STRICT_TRANSPORT,
     "X-Content-Type-Options": "nosniff",
     /*
@@ -88,6 +112,15 @@ export function securityHeaders(options: SecurityHeaderOptions): Record<string, 
   }
 
   if (options.frameAncestors === "'none'") headers["X-Frame-Options"] = "DENY"
+
+  /*
+   * Sent only alongside a policy that names the group. A `Reporting-
+   * Endpoints` header with nothing pointing at it is a header that does
+   * nothing, and one named by a policy that was never sent is worse.
+   */
+  if (options.reportTo !== undefined) {
+    headers["Reporting-Endpoints"] = `${REPORT_GROUP}="${options.reportTo}"`
+  }
 
   return headers
 }

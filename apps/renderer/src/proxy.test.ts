@@ -21,6 +21,9 @@ const { default: proxy, config } = await import("./proxy")
  * is framable by nobody and does not ask at all.
  */
 
+/** What the proxy asks for; see the route it names. */
+const REPORTING = { reportTo: "/api/csp-reports" } as const
+
 function request(path: string): NextRequest {
   return new NextRequest(new URL(path, "https://checkout.example"))
 }
@@ -34,7 +37,12 @@ describe("a request that is not an embed", () => {
   it("is framable by nobody", async () => {
     const response = await proxy(request("/acme.test/checkout"))
 
-    expect(response.headers.get("content-security-policy")).toBe("frame-ancestors 'none'")
+    // The report group is pinned deliberately: it is wire format, and the
+    // CSP and `Reporting-Endpoints` have to agree on it.
+    expect(response.headers.get("content-security-policy")).toBe(
+      "frame-ancestors 'none'; report-to csp",
+    )
+    expect(response.headers.get("reporting-endpoints")).toBe('csp="/api/csp-reports"')
     expect(response.headers.get("x-frame-options")).toBe("DENY")
   })
 
@@ -49,7 +57,9 @@ describe("a request that is not an embed", () => {
   it("carries every header the policy names", async () => {
     const response = await proxy(request("/"))
 
-    for (const [name, value] of Object.entries(securityHeaders({ frameAncestors: "'none'" }))) {
+    for (const [name, value] of Object.entries(
+      securityHeaders({ frameAncestors: "'none'", ...REPORTING }),
+    )) {
       expect(response.headers.get(name)).toBe(value)
     }
   })
@@ -70,7 +80,7 @@ describe("an embed", () => {
 
     expect(framingOrigins).toHaveBeenCalledWith("pg_abc")
     expect(response.headers.get("content-security-policy")).toBe(
-      "frame-ancestors https://shop.example https://www.shop.example",
+      "frame-ancestors https://shop.example https://www.shop.example; report-to csp",
     )
   })
 
@@ -89,7 +99,9 @@ describe("an embed", () => {
 
     const response = await proxy(request("/embed/pg_abc"))
 
-    expect(response.headers.get("content-security-policy")).toBe("frame-ancestors 'none'")
+    expect(response.headers.get("content-security-policy")).toBe(
+      "frame-ancestors 'none'; report-to csp",
+    )
     expect(response.headers.get("x-frame-options")).toBe("DENY")
   })
 
@@ -100,7 +112,7 @@ describe("an embed", () => {
     framingOrigins.mockResolvedValue([])
 
     expect((await proxy(request("/embed/pg_down"))).headers.get("content-security-policy")).toBe(
-      "frame-ancestors 'none'",
+      "frame-ancestors 'none'; report-to csp",
     )
   })
 

@@ -111,3 +111,36 @@ describe("who may frame the page", () => {
     }
   })
 })
+
+describe("reporting a violation", () => {
+  it("says nothing about reporting when nowhere was given", () => {
+    const headers = securityHeaders(NOT_FRAMABLE)
+
+    // A Reporting-Endpoints header with nothing pointing at it does
+    // nothing, and a policy naming a group that was never sent is worse.
+    expect(headers["Content-Security-Policy"]).toBe("frame-ancestors 'none'")
+    expect(headers).not.toHaveProperty("Reporting-Endpoints")
+  })
+
+  it("names the same group in both headers", () => {
+    const headers = securityHeaders({ ...NOT_FRAMABLE, reportTo: "/api/csp-reports" })
+
+    /*
+     * The pair only works if they agree, which is why the group is not a
+     * parameter — a caller choosing it could only get it wrong.
+     */
+    expect(headers["Content-Security-Policy"]).toBe("frame-ancestors 'none'; report-to csp")
+    expect(headers["Reporting-Endpoints"]).toBe('csp="/api/csp-reports"')
+  })
+
+  it("reports on a policy that permits framing too", () => {
+    const headers = securityHeaders({
+      frameAncestors: "https://a.example",
+      reportTo: "/api/csp-reports",
+    })
+
+    expect(headers["Content-Security-Policy"]).toBe(
+      "frame-ancestors https://a.example; report-to csp",
+    )
+  })
+})

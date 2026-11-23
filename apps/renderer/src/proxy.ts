@@ -27,6 +27,12 @@ import { embeddedPageId, framingOrigins } from "./embed-allowlist"
  *
  * Only an embed path asks at all. Every other route is `'none'` with no
  * round trip, which is both the right answer and the cheap one.
+ *
+ * ## Violations are reported back to us
+ *
+ * A refused frame renders nothing and tells a console the merchant does not
+ * have open. The loader explains it on their page; `api/csp-reports` is the
+ * half that reaches us, so support can see a mismatch before it is reported.
  */
 export default async function proxy(request: NextRequest): Promise<NextResponse> {
   const pageId = embeddedPageId(request.nextUrl.pathname)
@@ -34,7 +40,16 @@ export default async function proxy(request: NextRequest): Promise<NextResponse>
   const response = NextResponse.next()
 
   for (const [name, value] of Object.entries(
-    securityHeaders({ frameAncestors: frameAncestors(origins) }),
+    securityHeaders({
+      frameAncestors: frameAncestors(origins),
+      /*
+       * Relative, so it resolves against whichever host served the page and
+       * needs no environment read here. Proxy holds no configuration, and a
+       * reporting endpoint written as an absolute URL would be one more
+       * thing to get wrong per environment.
+       */
+      reportTo: "/api/csp-reports",
+    }),
   )) {
     response.headers.set(name, value)
   }
