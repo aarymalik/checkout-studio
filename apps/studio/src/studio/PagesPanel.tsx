@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
-import { Copy, FileText, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { Code2, Copy, FileText, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import {
   Alert,
   Button,
@@ -21,6 +21,8 @@ import {
 import { slugify } from "@checkout-studio/utils"
 
 import { post, send } from "@/lib/api-client"
+
+import { EmbedDialog } from "./embed/EmbedDialog"
 
 /**
  * The Pages panel.
@@ -45,10 +47,13 @@ export function PagesPanel({
   projectId,
   pages,
   currentPageId,
+  rendererOrigin,
 }: {
   projectId: string
   pages: readonly PageSummary[]
   currentPageId: string | null
+  /** Where published checkouts are served from, for the embed snippet. */
+  rendererOrigin: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -57,6 +62,7 @@ export function PagesPanel({
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<PageSummary | null>(null)
   const [deleting, setDeleting] = useState<PageSummary | null>(null)
+  const [embedding, setEmbedding] = useState<PageSummary | null>(null)
 
   function refresh(): void {
     startTransition(() => {
@@ -162,6 +168,9 @@ export function PagesPanel({
                   >
                     Duplicate
                   </DropdownMenuItem>
+                  <DropdownMenuItem icon={<Code2 />} onSelect={() => setEmbedding(page)}>
+                    Embed
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     icon={<Trash2 />}
                     destructive
@@ -214,6 +223,24 @@ export function PagesPanel({
           })
         }}
       />
+
+      {embedding !== null && (
+        <EmbedDialog
+          /*
+            Keyed by the page, so opening it for a second page builds a new
+            one rather than showing the first page's domains while the
+            second page's are fetched.
+          */
+          key={embedding.id}
+          pageId={embedding.id}
+          pageTitle={embedding.title}
+          rendererOrigin={rendererOrigin}
+          open
+          onOpenChange={(next) => {
+            if (!next) setEmbedding(null)
+          }}
+        />
+      )}
 
       <Dialog
         open={deleting !== null}

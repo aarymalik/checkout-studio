@@ -87,6 +87,18 @@ const schema = z
      * did.
      */
     ASSET_BASE_URL: inProduction(z.string().url()),
+
+    /**
+     * Where published checkouts are served from.
+     *
+     * A merchant's embed snippet names it, so it has to be right: the
+     * script tag we hand them points at this origin and a wrong one is a
+     * checkout that never loads on their site.
+     *
+     * Required in production and defaulted to the renderer's own
+     * development port outside it, which is where `pnpm dev` puts it.
+     */
+    RENDERER_URL: inProduction(z.string().url()).default("http://localhost:3001"),
   })
   .transform(servedFrom)
 
