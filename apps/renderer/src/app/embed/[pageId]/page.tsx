@@ -6,6 +6,7 @@ import type { ReactElement } from "react"
 
 import { registry } from "../../../registry"
 import { resolveEmbed } from "../../../published"
+import { FrameChannel } from "./FrameChannel"
 
 /**
  * A checkout inside somebody else's page.
@@ -52,22 +53,30 @@ export default async function EmbeddedCheckout({ params }: RouteParams): Promise
   }
 
   return (
-    <CheckoutRenderer
-      schema={page.document}
-      theme={page.theme}
-      registry={registry}
-      mode="embed"
-      resolveAsset={page.resolveAsset}
-      onWarnings={(warnings) => {
-        for (const warning of warnings) {
-          logger.warn("renderer.embed.warning", {
-            revisionId: page.revisionId,
-            code: warning.code,
-            nodeId: warning.nodeId,
-            message: warning.message,
-          })
-        }
-      }}
-    />
+    <>
+      {/*
+        The loader's half of the channel. Rendered beside the checkout
+        rather than around it, so nothing about the page depends on it: a
+        frame that cannot talk to its host still shows a working checkout.
+      */}
+      <FrameChannel />
+      <CheckoutRenderer
+        schema={page.document}
+        theme={page.theme}
+        registry={registry}
+        mode="embed"
+        resolveAsset={page.resolveAsset}
+        onWarnings={(warnings) => {
+          for (const warning of warnings) {
+            logger.warn("renderer.embed.warning", {
+              revisionId: page.revisionId,
+              code: warning.code,
+              nodeId: warning.nodeId,
+              message: warning.message,
+            })
+          }
+        }}
+      />
+    </>
   )
 }
