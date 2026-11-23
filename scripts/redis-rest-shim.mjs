@@ -76,6 +76,13 @@ export function createShim({ redisUrl, token }) {
           response.end(JSON.stringify(body))
         }
 
+        /*
+         * A GET is a readiness probe and needs no token. Playwright starts
+         * this as a web server and waits for the URL to answer; the real
+         * protocol is POST only, so nothing is loosened by it.
+         */
+        if (request.method === "GET") return send(200, { result: "PONG" })
+
         if (request.headers.authorization !== `Bearer ${token}`) {
           return send(401, { error: "Unauthorized" })
         }
@@ -113,7 +120,13 @@ export function createShim({ redisUrl, token }) {
 
 /** Run directly: `node scripts/redis-rest-shim.mjs`. */
 if (process.argv[1]?.endsWith("redis-rest-shim.mjs") === true) {
-  const port = Number(process.env["REDIS_REST_PORT"] ?? 8079)
+  /*
+   * The port the applications are configured to call, so there is one source
+   * of truth for it rather than a default here that can drift from the URL
+   * in the environment.
+   */
+  const configured = process.env["UPSTASH_REDIS_REST_URL"]
+  const port = Number(configured === undefined ? 8079 : new URL(configured).port || 80)
   const server = createShim({
     redisUrl: process.env["REDIS_URL"] ?? "redis://localhost:6379",
     token: process.env["UPSTASH_REDIS_REST_TOKEN"] ?? "local-development-token",

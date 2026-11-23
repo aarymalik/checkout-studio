@@ -33,20 +33,34 @@ export default defineConfig({
   reporter: process.env["CI"] ? "github" : "list",
   use: { baseURL, trace: "on-first-retry" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: `pnpm exec next dev --port ${PORT}`,
-    url: baseURL,
-    reuseExistingServer: !process.env["CI"],
-    timeout: 120_000,
-    /*
-     * The test process runs with `--conditions=react-server` so it can import
-     * the repositories, which declare themselves `server-only` — that package
-     * throws unless the condition is set, and Playwright does not set it.
-     *
-     * The server must not inherit it. Next resolves its own conditions per
-     * module graph, and forcing react-server on the whole process takes
-     * react-dom/server away from the parts that legitimately need it.
-     */
-    env: { NODE_OPTIONS: "" },
-  },
+  /*
+   * Two servers. The shim speaks Upstash's REST protocol to the local Redis,
+   * because the proxy reads the embed allowlist over HTTP and cannot hold a
+   * socket — without it, an embed is framable by nobody and the framing test
+   * would pass for the wrong reason.
+   */
+  webServer: [
+    {
+      command: "node ../../scripts/redis-rest-shim.mjs",
+      url: process.env["UPSTASH_REDIS_REST_URL"] ?? "http://localhost:8079",
+      reuseExistingServer: !process.env["CI"],
+      timeout: 30_000,
+    },
+    {
+      command: `pnpm exec next dev --port ${PORT}`,
+      url: baseURL,
+      reuseExistingServer: !process.env["CI"],
+      timeout: 120_000,
+      /*
+       * The test process runs with `--conditions=react-server` so it can import
+       * the repositories, which declare themselves `server-only` — that package
+       * throws unless the condition is set, and Playwright does not set it.
+       *
+       * The server must not inherit it. Next resolves its own conditions per
+       * module graph, and forcing react-server on the whole process takes
+       * react-dom/server away from the parts that legitimately need it.
+       */
+      env: { NODE_OPTIONS: "" },
+    },
+  ],
 })
