@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "turbo dev",
+    "dev:redis-rest": "node --env-file-if-exists=.env.local scripts/redis-rest-shim.mjs",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",

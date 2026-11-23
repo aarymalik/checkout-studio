@@ -1,40 +1,41 @@
-import { securityHeaders } from "@checkout-studio/utils"
-import { NextResponse } from "next/server"
+import { frameAncestors, securityHeaders } from "@checkout-studio/utils"
+import { NextResponse, type NextRequest } from "next/server"
+
+import { embeddedPageId, framingOrigins } from "./embed-allowlist"
 
 /**
  * The security headers on every renderer response.
  *
- * docs/security.md § Security Headers says to always send six. Until this
- * file existed none were sent, because the renderer had no proxy and no
- * `headers()` in `next.config.ts` — a published checkout went out with
- * browser defaults, framable by anyone.
+ * docs/security.md § Security Headers says to always send six. Before this
+ * file none were sent, and a published checkout went out with browser
+ * defaults, framable by anyone.
  *
  * ## Why here and not `next.config.ts`
  *
  * `headers()` there matches on paths and cannot vary by what a request
- * resolves to. These values are static today and one of them will not stay
- * static: `frame-ancestors` is per page, because the allowlist is per
- * embed. Putting the whole set somewhere that can express that keeps the
- * eventual difference in one place rather than splitting the policy across
- * two mechanisms.
+ * resolves to. `frame-ancestors` has to: the allowlist is per embed. A page
+ * cannot set its own response headers either, and `frame-ancestors` is
+ * ignored in a meta tag, so a proxy is the only place this can be decided.
  *
- * ## This file reads nothing
+ * ## What it reads, and what it does not
  *
- * Proxy "is not intended for slow data fetching", and on Vercel it may be
- * deployed apart from the application, so it holds no database client and
- * no shared module beyond the pure values it sends. The per-page allowlist
- * therefore cannot be read here as a Prisma query, and will arrive through
- * the cache — which on this stack is Upstash over HTTP and is built for
- * exactly this position.
+ * No database. Proxy runs before the application, carries no client, and on
+ * Vercel may be deployed apart from it. The allowlist comes over HTTP from
+ * the copy the application mirrors on every change — see
+ * `embed-allowlist.ts`, which answers with no origins whenever it cannot say
+ * otherwise.
  *
- * Until then every route is `'none'`, which is the correct default and the
- * behaviour docs/security.md already specifies for everything that is not
- * an embed.
+ * Only an embed path asks at all. Every other route is `'none'` with no
+ * round trip, which is both the right answer and the cheap one.
  */
-export default function proxy(): NextResponse {
+export default async function proxy(request: NextRequest): Promise<NextResponse> {
+  const pageId = embeddedPageId(request.nextUrl.pathname)
+  const origins = pageId === null ? [] : await framingOrigins(pageId)
   const response = NextResponse.next()
 
-  for (const [name, value] of Object.entries(securityHeaders({ frameAncestors: "'none'" }))) {
+  for (const [name, value] of Object.entries(
+    securityHeaders({ frameAncestors: frameAncestors(origins) }),
+  )) {
     response.headers.set(name, value)
   }
 

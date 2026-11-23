@@ -3,6 +3,7 @@ import { Redis } from "@upstash/redis"
 import type { Server } from "node:http"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
+import { framingOrigins } from "../src/embed-allowlist"
 import { getEnv } from "../src/env"
 
 // @ts-expect-error -- development tooling, authored as plain ESM with no types.
@@ -22,22 +23,25 @@ import { createShim } from "../../../scripts/redis-rest-shim.mjs"
  * the base64 encoding it requests by default included.
  */
 
-const TOKEN = "test-token"
-
 let server: Server
 let redis: Redis
 
+/*
+ * Bound to the port the app is configured to call, not an ephemeral one, so
+ * `framingOrigins` — which reads the configured URL — talks to this shim
+ * rather than to nothing. Through the app's validated env, because the rule
+ * against reading process.env directly applies to tests too.
+ */
+const { UPSTASH_REDIS_REST_URL: REST_URL, UPSTASH_REDIS_REST_TOKEN: TOKEN } = getEnv()
+
 beforeAll(async () => {
-  // Through the app's validated env, which is where this app reads
-  // configuration from — the lint rule applies to tests as much as to src.
   server = createShim({ redisUrl: getEnv().REDIS_URL, token: TOKEN }) as Server
 
-  await new Promise<void>((resolve) => server.listen(0, resolve))
+  await new Promise<void>((resolve) => {
+    server.listen(Number(new URL(REST_URL).port), resolve)
+  })
 
-  const address = server.address()
-  const port = typeof address === "object" && address !== null ? address.port : 0
-
-  redis = new Redis({ url: `http://localhost:${String(port)}`, token: TOKEN })
+  redis = new Redis({ url: REST_URL, token: TOKEN })
 })
 
 afterAll(async () => {
@@ -87,14 +91,36 @@ describe("the proxy's client against a local Redis", () => {
   })
 
   it("refuses a request without the token", async () => {
-    const address = server.address()
-    const port = typeof address === "object" && address !== null ? address.port : 0
-    const response = await fetch(`http://localhost:${String(port)}`, {
+    const response = await fetch(REST_URL, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer wrong" },
       body: JSON.stringify(["get", "anything"]),
     })
 
     expect(response.status).toBe(401)
+  })
+})
+
+describe("the allowlist the proxy reads", () => {
+  it("is what the application mirrored", async () => {
+    const pageId = `pg_read_${String(Date.now())}`
+
+    await writeEmbedOrigins(pageId, ["https://shop.example"])
+
+    expect(await framingOrigins(pageId)).toEqual(["https://shop.example"])
+  })
+
+  it("is empty for a page with no copy", async () => {
+    expect(await framingOrigins(`pg_absent_${String(Date.now())}`)).toEqual([])
+  })
+
+  it("is empty when the value is not a list of origins", async () => {
+    const pageId = `pg_junk_${String(Date.now())}`
+
+    await redis.set(`cs:embed-origins:${pageId}`, "not-a-list")
+
+    // Treated as no origins rather than coerced. Whatever this is, it is
+    // not something to build a frame-ancestors header out of.
+    expect(await framingOrigins(pageId)).toEqual([])
   })
 })

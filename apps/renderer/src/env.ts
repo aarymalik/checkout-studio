@@ -27,6 +27,19 @@ const schema = z
     REDIS_URL: z.string().url(),
 
     /**
+     * Redis over HTTP, for the proxy.
+     *
+     * `REDIS_URL` above is a socket, and the proxy cannot hold one: it runs
+     * before the application and may be deployed apart from it. It reads the
+     * embed allowlist over this instead, which in production is Upstash and
+     * locally is `scripts/redis-rest-shim.mjs` in front of the same Redis.
+     *
+     * Both point at one Redis. Two endpoints, one set of keys.
+     */
+    UPSTASH_REDIS_REST_URL: z.string().url(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
+
+    /**
      * Where a browser fetches an asset from: a CDN, or the bucket itself.
      *
      * The base and not the credentials. Serving a checkout means saying where an

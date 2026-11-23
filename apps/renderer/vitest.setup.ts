@@ -11,6 +11,10 @@ Object.assign(process.env, {
   APP_URL: "http://localhost:3000",
   DATABASE_URL: "postgres://localhost:5432/checkout_studio_test",
   REDIS_URL: "redis://localhost:6379",
+  // The proxy reads over HTTP. tests/redis-rest-shim.test.ts binds this port
+  // and speaks Upstash's protocol to the Redis above.
+  UPSTASH_REDIS_REST_URL: "http://localhost:8089",
+  UPSTASH_REDIS_REST_TOKEN: "test-token",
   AUTH_SESSION_SECRET: "test-session-secret-at-least-32-bytes-long",
   RESEND_API_KEY: "re_test_key",
   EMAIL_FROM: "noreply@example.test",
