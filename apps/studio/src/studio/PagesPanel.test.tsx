@@ -44,7 +44,14 @@ describe("PagesPanel", () => {
     pages: readonly PageSummary[] = PAGES,
     currentPageId: string | null = "pag_one",
   ) {
-    return render(<PagesPanel projectId="prj_one" pages={pages} currentPageId={currentPageId} />)
+    return render(
+      <PagesPanel
+        rendererOrigin="http://localhost:3001"
+        projectId="prj_one"
+        pages={pages}
+        currentPageId={currentPageId}
+      />,
+    )
   }
 
   beforeEach(() => {

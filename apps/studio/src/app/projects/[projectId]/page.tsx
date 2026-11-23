@@ -99,6 +99,9 @@ export default async function ProjectPage({
           <PagesPanel
             projectId={projectId}
             currentPageId={current?.id ?? null}
+            // Resolved on the server: the browser has no business reading
+            // the environment, and the snippet has to name the right origin.
+            rendererOrigin={getEnv().RENDERER_URL}
             pages={pages.map((item) => ({
               id: item.id,
               title: item.title,
