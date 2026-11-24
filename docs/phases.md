@@ -228,8 +228,8 @@ These apply to **every** phase, in addition to its specific criteria.
 | 12    | Property Inspector              | In Review    | 11         |
 | 13    | Stripe Integration              | In Review    | 11         |
 | 14    | Asset Management                | In Review    | 8, 12      |
-| 15    | Templates                       | Not Started  | 13, 14     |
-| 16    | Publishing                      | Not Started  | 6, 13, 14  |
+| 15    | Templates                       | In Progress  | 13, 14     |
+| 16    | Publishing                      | In Progress  | 6, 13, 14  |
 | 17    | AI Assistant                    | Not Started  | 12         |
 | 18    | Analytics                       | Not Started  | 16         |
 | 19    | Performance Optimization        | Not Started  | 18         |
@@ -248,6 +248,27 @@ been signed off one by one. Six phases sat at "Not Started" or "In Progress"
 while being built and depended on, which is the failure mode the success
 criteria name — "the progress tracker always reflects reality" — so they are
 moved to where they actually are rather than to where they are going.
+
+**In Progress** on 15 and 16 is the same correction made again, and it is the
+same mistake: both were built against while the table said nothing had begun.
+What is actually done, so the next person does not have to read the git log —
+
+Phase 15 has the portability pipeline, the symbol storage and the template
+library's service, routes and install path. It does not have the library UI
+(step 12), the initial template set (step 14), or ZIP bundles — step 1 is
+serialized and checksummed as JSON, and the archive format is waiting on a
+decision about which library reads it.
+
+Phase 16 has step 10 whole: the embed script, the `embed/[id]` route, the
+origin allowlist behind it and the security model in
+[rfcs/0002](./rfcs/0002-embed-security-model.md). Publishing itself — the
+validation, the revision, the transaction, preview tokens, version history,
+rollback and custom domains — is not started. A published page today is rows
+written directly, which is why the renderer's end-to-end fixtures write them.
+
+Neither phase may reach **In Test** until every step above is finished, which
+is what the lifecycle means by partial implementation being the common way a
+phase gets falsely marked complete.
 
 Phase 14's criteria _have_ been checked individually; see its Verification
 section. It stays In Review because approval is not something the author of a
