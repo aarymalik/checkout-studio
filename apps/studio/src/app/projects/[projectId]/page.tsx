@@ -11,6 +11,7 @@ import { StudioShell } from "@/studio/StudioShell"
 import { getEnv } from "@/env"
 import { requestPlatform } from "@/lib/platform"
 import { requireSession } from "@/lib/session"
+import { CURRENT_LOADER } from "@/studio/embed/loader"
 
 /**
  * The editor.
@@ -102,6 +103,7 @@ export default async function ProjectPage({
             // Resolved on the server: the browser has no business reading
             // the environment, and the snippet has to name the right origin.
             rendererOrigin={getEnv().RENDERER_URL}
+            pinnedLoader={CURRENT_LOADER}
             pages={pages.map((item) => ({
               id: item.id,
               title: item.title,

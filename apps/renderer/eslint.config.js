@@ -3,6 +3,14 @@ import { nextConfig } from "@checkout-studio/config/eslint/next"
 import { boundariesConfig } from "@checkout-studio/config/eslint/boundaries"
 
 export default [
+  {
+    /*
+     * Frozen loader builds. A merchant pinning one with an `integrity` hash
+     * is trusting its bytes never to change, so no tool may rewrite them —
+     * `--fix` least of all. A fix goes into a new version beside them.
+     */
+    ignores: ["public/embed/**"],
+  },
   ...nextConfig,
   boundariesConfig("renderer", { kind: "app" }),
   {

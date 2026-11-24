@@ -47,6 +47,7 @@ describe("PagesPanel", () => {
     return render(
       <PagesPanel
         rendererOrigin="http://localhost:3001"
+        pinnedLoader={{ path: "/embed/v1.js", integrity: "sha384-TESTHASH" }}
         projectId="prj_one"
         pages={pages}
         currentPageId={currentPageId}
