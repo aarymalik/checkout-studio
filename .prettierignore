@@ -15,3 +15,9 @@ packages/design-system/src/css/variables.css
 # not use. Formatting it means the next run reformats it back, and the file says
 # not to edit it.
 next-env.d.ts
+
+# Frozen loader builds. A merchant pinning one of these with an `integrity`
+# hash is trusting its bytes never to change, so nothing may reformat them —
+# not even a later version of Prettier with a different opinion. A fix goes
+# into a new version beside them; see apps/renderer/public/embed/README.md.
+apps/renderer/public/embed/

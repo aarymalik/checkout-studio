@@ -3,6 +3,7 @@
 import {
   Alert,
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   EmptyState,
@@ -48,6 +49,8 @@ export interface EmbedDialogProps {
   pageTitle: string
   /** Where published checkouts are served from, for the snippet. */
   rendererOrigin: string
+  /** The frozen build to offer pinning to, and its integrity hash. */
+  pinned: { path: string; integrity: string }
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -62,6 +65,7 @@ export function EmbedDialog({
   pageId,
   pageTitle,
   rendererOrigin,
+  pinned,
   open,
   onOpenChange,
 }: EmbedDialogProps) {
@@ -71,6 +75,7 @@ export function EmbedDialog({
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [pin, setPin] = useState(false)
 
   const load = useCallback(async (): Promise<void> => {
     const result = await send<{ origins: readonly Origin[] }>(
@@ -97,7 +102,15 @@ export function EmbedDialog({
     void load()
   }, [open, load])
 
-  const snippet = `<script src="${rendererOrigin}/embed.js" data-checkout-id="${pageId}"></script>`
+  /*
+   * Two snippets, and the choice between them is a real one rather than a
+   * preference. The living loader takes our fixes on its own; the pinned
+   * build never changes, which is what an integrity hash means and why
+   * updating it is then the merchant's job.
+   */
+  const snippet = pin
+    ? `<script src="${rendererOrigin}${pinned.path}" integrity="${pinned.integrity}" crossorigin="anonymous" data-checkout-id="${pageId}"></script>`
+    : `<script src="${rendererOrigin}/embed.js" data-checkout-id="${pageId}"></script>`
 
   async function add(event: FormEvent): Promise<void> {
     event.preventDefault()
@@ -166,7 +179,19 @@ export function EmbedDialog({
               A heading, not a label: a label belongs to a form control and
               this is a block of text to copy.
             */}
-            <h3 className="text-sm font-medium text-foreground">Snippet</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-foreground">Snippet</h3>
+              <Checkbox
+                label="Pin this version"
+                checked={pin}
+                onCheckedChange={(next) => setPin(next === true)}
+              />
+            </div>
+            <p className="text-xs text-foreground-muted">
+              {pin
+                ? "This exact version, checked by the browser. Security fixes will not reach it until you take a new snippet."
+                : "Stays up to date on its own. Security fixes reach your page without you changing anything."}
+            </p>
             <code className="block overflow-x-auto rounded-control bg-surface-sunken p-2 text-xs text-foreground">
               {snippet}
             </code>

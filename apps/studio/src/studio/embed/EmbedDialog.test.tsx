@@ -35,6 +35,7 @@ describe("EmbedDialog", () => {
         pageId="pag_one"
         pageTitle="Checkout"
         rendererOrigin="https://checkout.example.com"
+        pinned={{ path: "/embed/v9.js", integrity: "sha384-TESTHASH" }}
         open
         onOpenChange={() => undefined}
       />,
@@ -217,5 +218,61 @@ describe("EmbedDialog", () => {
 
     await screen.findByText("https://shop.example")
     await expectNoViolations(container)
+  })
+
+  describe("pinning a version", () => {
+    it("offers the living loader by default, with no integrity attribute", async () => {
+      renderDialog()
+
+      const snippet = await screen.findByText(/<script/u)
+
+      // The default has to be the one that takes our security fixes.
+      expect(snippet.textContent).toContain("/embed.js")
+      expect(snippet.textContent).not.toContain("integrity")
+    })
+
+    it("offers the frozen build with its hash when asked", async () => {
+      renderDialog()
+      await screen.findByText(/<script/u)
+
+      await userEvent.click(screen.getByLabelText("Pin this version"))
+
+      const snippet = screen.getByText(/<script/u)
+
+      expect(snippet.textContent).toContain("/embed/v9.js")
+      expect(snippet.textContent).toContain('integrity="sha384-TESTHASH"')
+      /*
+       * Without this a browser sends no credentials but also refuses to
+       * check the hash on a cross-origin script, so the integrity attribute
+       * would be decorative.
+       */
+      expect(snippet.textContent).toContain('crossorigin="anonymous"')
+    })
+
+    it("says what each choice costs", async () => {
+      renderDialog()
+
+      expect(await screen.findByText(/Security fixes reach your page/iu)).toBeInTheDocument()
+
+      await userEvent.click(screen.getByLabelText("Pin this version"))
+
+      // The trade stated rather than decided for them.
+      expect(
+        screen.getByText(/will not reach it until you take a new snippet/iu),
+      ).toBeInTheDocument()
+    })
+
+    it("copies whichever one is shown", async () => {
+      const writeText = vi.fn(async (_text: string) => undefined)
+
+      vi.stubGlobal("navigator", { clipboard: { writeText } })
+
+      renderDialog()
+      await screen.findByText(/<script/u)
+      await userEvent.click(screen.getByLabelText("Pin this version"))
+      await userEvent.click(screen.getByRole("button", { name: /Copy snippet/u }))
+
+      expect(writeText.mock.calls[0]?.[0]).toContain('integrity="sha384-TESTHASH"')
+    })
   })
 })

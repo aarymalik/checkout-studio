@@ -48,12 +48,15 @@ export function PagesPanel({
   pages,
   currentPageId,
   rendererOrigin,
+  pinnedLoader,
 }: {
   projectId: string
   pages: readonly PageSummary[]
   currentPageId: string | null
   /** Where published checkouts are served from, for the embed snippet. */
   rendererOrigin: string
+  /** The frozen loader build a merchant can pin to, and its hash. */
+  pinnedLoader: { path: string; integrity: string }
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -235,6 +238,7 @@ export function PagesPanel({
           pageId={embedding.id}
           pageTitle={embedding.title}
           rendererOrigin={rendererOrigin}
+          pinned={pinnedLoader}
           open
           onOpenChange={(next) => {
             if (!next) setEmbedding(null)
