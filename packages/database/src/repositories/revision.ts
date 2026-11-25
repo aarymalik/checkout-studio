@@ -21,6 +21,8 @@ export interface CreateRevisionInput {
   symbols?: Prisma.InputJsonValue
   schemaVersion: string
   rendererVersion: string
+  /** See the column. Taken by the caller, because the row cannot give it back. */
+  contentHash?: string
   createdBy: string
 }
 
@@ -47,6 +49,20 @@ export const revisionRepository = {
 
   async findById(tenant: TenantContext, id: string) {
     return prisma.revision.findFirst({ where: { id, ...ownedBy(tenant) } })
+  },
+
+  /**
+   * The revision a page is currently serving, if any.
+   *
+   * Enough of it to decide whether publishing again would change anything,
+   * and no more: the schema column is the largest in the table and a
+   * question about sameness does not need to read it.
+   */
+  async published(tenant: TenantContext, pageId: string) {
+    return prisma.revision.findFirst({
+      where: { publishedFor: { id: pageId }, ...ownedBy(tenant) },
+      select: { id: true, number: true, contentHash: true },
+    })
   },
 
   /**
@@ -119,6 +135,7 @@ async function write(
         ...(input.symbols ? { symbols: input.symbols } : {}),
         schemaVersion: input.schemaVersion,
         rendererVersion: input.rendererVersion,
+        ...(input.contentHash === undefined ? {} : { contentHash: input.contentHash }),
         createdBy: input.createdBy,
       },
     })

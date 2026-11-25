@@ -45,6 +45,20 @@ async function aPage(document: CheckoutSchema = aDocument()): Promise<string> {
   return page.id
 }
 
+/** Changes the draft, so the next publish has something new to publish. */
+async function editDraft(pageId: string, title: string): Promise<void> {
+  const document = aDocument()
+
+  await prisma.page.update({
+    where: { id: pageId },
+    data: {
+      draftSchema: JSON.parse(
+        serialize({ ...document, settings: { ...document.settings, seo: { title } } }),
+      ) as never,
+    },
+  })
+}
+
 /**
  * A theme the project owns, so `resolveTheme` has something to resolve.
  *
@@ -129,13 +143,14 @@ describe("a page going live", () => {
     const pageId = await aPage()
 
     await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" })
-    const second = await publishPage(tenant, {
-      pageId,
-      validators: NO_RULES,
-      rendererVersion: "0.1.0",
-    })
 
-    expect(second).toMatchObject({ ok: true, revisionNumber: 2 })
+    // Something different each time, because republishing the same content
+    // writes nothing — which is what the idempotency tests below are about.
+    await editDraft(pageId, "Second")
+
+    expect(
+      await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" }),
+    ).toMatchObject({ ok: true, revisionNumber: 2 })
   })
 
   it("records the renderer it was built against", async () => {
@@ -287,5 +302,120 @@ describe("a page that cannot go live", () => {
       }),
     ).toEqual({ ok: false, reason: "not-found" })
     expect(await prisma.revision.count()).toBe(0)
+  })
+})
+
+describe("publishing the same thing twice", () => {
+  it("writes one revision and answers with the one already live", async () => {
+    const pageId = await aPage()
+    const first = await publishPage(tenant, {
+      pageId,
+      validators: NO_RULES,
+      rendererVersion: "0.1.0",
+    })
+    const again = await publishPage(tenant, {
+      pageId,
+      validators: NO_RULES,
+      rendererVersion: "0.1.0",
+    })
+
+    expect(first).toMatchObject({ ok: true, created: true, revisionNumber: 1 })
+    /*
+     * Nothing changed, so there is no second version of anything. A row
+     * differing from the one above it only in its timestamp would make
+     * "roll back one" mean "roll back to the same page".
+     */
+    expect(again).toMatchObject({ ok: true, created: false, revisionNumber: 1 })
+
+    if (!first.ok || !again.ok) return
+
+    expect(again.revisionId).toBe(first.revisionId)
+    expect(await prisma.revision.count()).toBe(1)
+  })
+
+  it("writes a second when the draft changed", async () => {
+    const pageId = await aPage()
+
+    await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" })
+
+    await editDraft(pageId, "New")
+
+    expect(
+      await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" }),
+    ).toMatchObject({ ok: true, created: true, revisionNumber: 2 })
+  })
+
+  it("writes a second when only the theme changed", async () => {
+    await aTheme("#111111")
+
+    const pageId = await aPage()
+
+    await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" })
+
+    await prisma.theme.updateMany({
+      data: {
+        tokens: JSON.parse(
+          JSON.stringify({
+            ...defaultTheme,
+            colors: { ...defaultTheme.colors, primary: "#ff0000" },
+          }),
+        ) as never,
+      },
+    })
+
+    /*
+     * The document is untouched and the page is not the same page. A hash
+     * over the document alone would call this unchanged and leave the old
+     * colours live with no way to tell why.
+     */
+    expect(
+      await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" }),
+    ).toMatchObject({ ok: true, created: true, revisionNumber: 2 })
+  })
+
+  it("writes a second when the renderer changed", async () => {
+    const pageId = await aPage()
+
+    await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" })
+
+    // A different build may draw it differently, which makes it a
+    // different thing to have published.
+    expect(
+      await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.2.0" }),
+    ).toMatchObject({ ok: true, created: true, revisionNumber: 2 })
+  })
+
+  it("does not match a revision published before hashing existed", async () => {
+    const pageId = await aPage()
+
+    /*
+     * Written as an older release would have, rather than published and
+     * then stripped: a revision cannot be edited, and the database refuses
+     * it — which is the immutability this table is for, and is why the
+     * first draft of this test failed.
+     */
+    const old = await prisma.revision.create({
+      data: {
+        pageId,
+        number: 1,
+        kind: "publish",
+        schema: JSON.parse(serialize(aDocument())) as never,
+        theme: {} as never,
+        schemaVersion: "1.0.0",
+        rendererVersion: "0.1.0",
+        createdBy: tenant.userId,
+      },
+    })
+
+    await prisma.page.update({
+      where: { id: pageId },
+      data: { publishedRevisionId: old.id, currentRevisionId: old.id, status: "published" },
+    })
+
+    // Never matches, so the first publish after this costs one revision
+    // and every identical one after it costs none.
+    expect(
+      await publishPage(tenant, { pageId, validators: NO_RULES, rendererVersion: "0.1.0" }),
+    ).toMatchObject({ ok: true, created: true, revisionNumber: 2 })
   })
 })
