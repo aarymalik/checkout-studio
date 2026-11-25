@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto"
 import { expect, test, type BrowserContext, type Cookie, type Page } from "@playwright/test"
 
 import { createAccount, removeAccount, signedInCookies, type Account } from "./support/account"
+import { startDrag } from "./support/drag"
 import { waitForHydration } from "./support/hydration"
 import { createPage } from "./support/page"
 
@@ -92,8 +93,7 @@ test("shows the preview while a node is in the hand, and not after", async ({ co
 
   await expect(preview).toHaveCount(0)
 
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
+  await startDrag(page, from)
   // Past the 4px threshold, which is what separates a drag from a click that
   // wobbled.
   await page.mouse.move(from.x, from.y + 120, { steps: 10 })
@@ -118,8 +118,7 @@ test("changes the cursor while something is being carried", async ({ context, pa
 
   await expect(surface).toHaveCSS("cursor", "default")
 
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
+  await startDrag(page, from)
   await page.mouse.move(from.x, from.y + 120, { steps: 10 })
 
   /*
@@ -142,8 +141,7 @@ test("shows where it would land before the pointer is released", async ({ contex
   // Six pixels inside Footer's top edge: the band that means "before it".
   const onto = await aim(page, ".ck-footer_e2e", 6)
 
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
+  await startDrag(page, from)
   await page.mouse.move(onto.x, onto.y, { steps: 12 })
 
   /*
@@ -170,8 +168,7 @@ test("moves a node into another container, as one undo step", async ({ context, 
 
   const onto = await aim(page, ".ck-footer_e2e", footer.height / 2)
 
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
+  await startDrag(page, from)
 
   /*
    * The middle of Footer, which means "inside it".

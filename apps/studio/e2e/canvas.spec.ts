@@ -124,12 +124,25 @@ test("zooms towards the pointer", async ({ context, page }) => {
   await page.mouse.wheel(0, -240)
   await page.keyboard.up("Meta")
 
-  const after = await frame.boundingBox()
-
   expect(before).not.toBeNull()
-  expect(after).not.toBeNull()
-  // Wider on screen, because the zoom went up.
-  expect(after?.width ?? 0).toBeGreaterThan(before?.width ?? 0)
+
+  /*
+   * Polled, not read once.
+   *
+   * The note above says `boundingBox` is a single read with no retry, and
+   * that applies to this side too: nothing between the wheel and the
+   * measurement waits for the zoom to land. A read taken before the frame
+   * has been laid out again reports the old width and the test fails
+   * having proved nothing — which is what it did on CI while passing
+   * everywhere else.
+   *
+   * Still fails when zoom is broken: a frame that never widens exhausts
+   * the poll.
+   */
+  await expect
+    .poll(async () => (await frame.boundingBox())?.width ?? 0)
+    // Wider on screen, because the zoom went up.
+    .toBeGreaterThan(before?.width ?? 0)
 })
 
 test("selects a node by clicking it, and clears on the background", async ({ context, page }) => {
