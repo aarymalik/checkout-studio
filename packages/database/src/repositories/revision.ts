@@ -57,41 +57,77 @@ export const revisionRepository = {
    * constraint on (pageId, number) is the backstop if they try.
    */
   async create(tenant: TenantContext, input: CreateRevisionInput) {
-    const page = await prisma.page.findFirst({
-      where: { id: input.pageId, project: { userId: tenant.userId, deletedAt: null } },
-      select: { id: true },
-    })
-
-    if (!page) return null
-
-    return prisma.$transaction(async (tx) => {
-      const latest = await tx.revision.findFirst({
-        where: { pageId: input.pageId },
-        orderBy: { number: "desc" },
-        select: { number: true },
-      })
-
-      const revision = await tx.revision.create({
-        data: {
-          pageId: input.pageId,
-          number: (latest?.number ?? 0) + 1,
-          kind: input.kind,
-          ...(input.name ? { name: input.name } : {}),
-          schema: input.schema,
-          theme: input.theme,
-          ...(input.symbols ? { symbols: input.symbols } : {}),
-          schemaVersion: input.schemaVersion,
-          rendererVersion: input.rendererVersion,
-          createdBy: input.createdBy,
-        },
-      })
-
-      await tx.page.update({
-        where: { id: input.pageId },
-        data: { currentRevisionId: revision.id },
-      })
-
-      return revision
-    })
+    return write(tenant, input, () => ({}))
   },
+
+  /**
+   * Creates a revision and makes it the one the world sees.
+   *
+   * One transaction, because the two halves are not separately meaningful:
+   * a revision nothing points at is history, and a page pointing at a
+   * revision that was never written is a checkout that serves nothing. The
+   * second is the one worth a transaction.
+   *
+   * The page becomes `published` here and not before. Status is derived
+   * from having a published revision rather than set alongside it, which is
+   * what keeps "published" from being a label a page can wear while serving
+   * nothing.
+   */
+  async publish(tenant: TenantContext, input: CreateRevisionInput) {
+    return write(tenant, input, (revisionId) => ({
+      publishedRevisionId: revisionId,
+      status: "published" as const,
+    }))
+  },
+}
+
+/**
+ * The shared half: allocate the number, insert, then point the page.
+ *
+ * `create` and `publish` differ only in which columns on the page move, so
+ * the numbering lives here once. Two copies of it would be two chances to
+ * allocate the same number, and the unique constraint would then be the
+ * only thing standing between a merchant and a lost save.
+ */
+async function write(
+  tenant: TenantContext,
+  input: CreateRevisionInput,
+  pointers: (revisionId: string) => Prisma.PageUpdateInput,
+) {
+  const page = await prisma.page.findFirst({
+    where: { id: input.pageId, project: { userId: tenant.userId, deletedAt: null } },
+    select: { id: true },
+  })
+
+  if (!page) return null
+
+  return prisma.$transaction(async (tx) => {
+    const latest = await tx.revision.findFirst({
+      where: { pageId: input.pageId },
+      orderBy: { number: "desc" },
+      select: { number: true },
+    })
+
+    const revision = await tx.revision.create({
+      data: {
+        pageId: input.pageId,
+        number: (latest?.number ?? 0) + 1,
+        kind: input.kind,
+        ...(input.name ? { name: input.name } : {}),
+        schema: input.schema,
+        theme: input.theme,
+        ...(input.symbols ? { symbols: input.symbols } : {}),
+        schemaVersion: input.schemaVersion,
+        rendererVersion: input.rendererVersion,
+        createdBy: input.createdBy,
+      },
+    })
+
+    await tx.page.update({
+      where: { id: input.pageId },
+      data: { currentRevisionId: revision.id, ...pointers(revision.id) },
+    })
+
+    return revision
+  })
 }
