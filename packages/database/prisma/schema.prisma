@@ -242,6 +242,18 @@ model Revision {
   schemaVersion   String
   rendererVersion String
 
+  /// sha256 over the canonical form of everything this revision holds.
+  ///
+  /// Taken before the row is written, because it cannot be recovered from
+  /// it: the JSON columns are `jsonb` and Postgres does not keep key order,
+  /// so a hash recomputed from a stored revision would differ from the one
+  /// taken of the same content a moment earlier.
+  ///
+  /// Null for revisions written before hashing existed. They simply never
+  /// match, so the first publish after this costs one revision and every
+  /// identical one after it costs none.
+  contentHash String?
+
   createdBy String
   createdAt DateTime @default(now())
 

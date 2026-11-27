@@ -2,7 +2,8 @@ import "server-only"
 
 import { revisionRepository, type TenantContext } from "@checkout-studio/database"
 import type { DocumentValidatorRegistration, ValidationIssue } from "@checkout-studio/plugin-sdk"
-import { CURRENT_VERSION, serialize } from "@checkout-studio/schema"
+import { CURRENT_VERSION, canonicalText, serialize } from "@checkout-studio/schema"
+import { contentHash } from "@checkout-studio/utils"
 
 import { resolveTheme } from "../pages/theme"
 import { snapshotSymbols } from "../pages/symbols"
@@ -25,6 +26,19 @@ import { validateForPublish } from "./validate"
  * That is also what makes rollback mean something later: an older revision
  * is the page as it was, not the page as it was with today's theme.
  *
+ * ## Publishing the same thing twice writes one revision
+ *
+ * A merchant who presses publish, changes nothing and presses it again has
+ * not made a second version of anything. Writing one would put a row in
+ * their history that differs from the one above it in nothing but its
+ * timestamp, and make "roll back one" mean "roll back to the same page".
+ *
+ * Sameness is a hash over the canonical form of everything the revision
+ * holds, taken before the row is written — it cannot be taken afterwards,
+ * because the columns are `jsonb` and Postgres does not keep key order.
+ * The ordering is the schema package's own, used for the theme and the
+ * symbols as well, so there is one rule rather than two that can drift.
+ *
  * ## What goes wrong is answered, never thrown
  *
  * A page that cannot be published is a state a merchant is in, not an
@@ -37,6 +51,8 @@ export type PublishOutcome =
       ok: true
       revisionId: string
       revisionNumber: number
+      /** False when this published exactly what was already live. */
+      created: boolean
       /** Problems that did not block it, worth showing after the fact. */
       warnings: readonly ValidationIssue[]
     }
@@ -72,6 +88,46 @@ export async function publishPage(
     snapshotSymbols(tenant, document),
   ])
 
+  /*
+   * Everything the revision holds, in one canonical string. The renderer
+   * version is in it because a revision built by a different renderer may
+   * draw differently, which makes it a different thing to have published.
+   */
+  const hash = contentHash(
+    new TextEncoder().encode(
+      canonicalText({
+        /*
+         * The document through `serialize`, which is its own canonical
+         * form and does more than order keys. `canonicalText` orders the
+         * rest — it exists for values that are not documents, and the
+         * schema package keeps the two apart deliberately.
+         */
+        schema: serialize(document),
+        theme,
+        symbols,
+        schemaVersion: CURRENT_VERSION,
+        rendererVersion: input.rendererVersion,
+      }),
+    ),
+  )
+
+  const live = await revisionRepository.published(tenant, input.pageId)
+
+  /*
+   * Already live, so there is nothing to write. The page is answered with
+   * the revision it is already serving rather than with a refusal: nothing
+   * went wrong, and the merchant got what they asked for.
+   */
+  if (live !== null && live.contentHash === hash) {
+    return {
+      ok: true,
+      revisionId: live.id,
+      revisionNumber: live.number,
+      created: false,
+      warnings: checked.warnings,
+    }
+  }
+
   const revision = await revisionRepository.publish(tenant, {
     pageId: input.pageId,
     kind: "publish",
@@ -91,6 +147,7 @@ export async function publishPage(
     symbols: JSON.parse(JSON.stringify(symbols)) as object,
     schemaVersion: CURRENT_VERSION,
     rendererVersion: input.rendererVersion,
+    contentHash: hash,
     createdBy: tenant.userId,
   })
 
@@ -105,6 +162,7 @@ export async function publishPage(
     ok: true,
     revisionId: revision.id,
     revisionNumber: revision.number,
+    created: true,
     warnings: checked.warnings,
   }
 }
