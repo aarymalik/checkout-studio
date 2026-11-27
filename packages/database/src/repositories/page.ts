@@ -192,6 +192,40 @@ export const pageRepository = {
     return clash !== null
   },
 
+  /**
+   * Takes a page off the web, keeping everything it was.
+   *
+   * The revision stays. Orders and checkout sessions point at it with a
+   * required foreign key, so it could not go even if it should — and it
+   * should not: what somebody bought was bought from that version of the
+   * page, and history that disappears when a page comes down is history
+   * that cannot answer a dispute.
+   *
+   * `currentRevisionId` stays too. It is the latest revision, which is
+   * still true of a page nobody can reach.
+   *
+   * The status is `unpublished` rather than `draft`, because a page that
+   * was live and was taken down is not a page that was never published —
+   * and every read a visitor's request makes asks for `published`, so the
+   * renderer answers nothing without being told to.
+   *
+   * False when the page was not published, which is not a failure: taking
+   * down something already down is what the caller wanted.
+   */
+  async unpublish(tenant: TenantContext, id: string): Promise<boolean> {
+    const { count } = await prisma.page.updateMany({
+      where: {
+        id,
+        status: "published",
+        deletedAt: null,
+        project: { userId: tenant.userId, deletedAt: null },
+      },
+      data: { status: "unpublished", publishedRevisionId: null },
+    })
+
+    return count === 1
+  },
+
   async softDelete(tenant: TenantContext, id: string) {
     const result = await prisma.page.updateMany({
       where: { id, ...ownedBy(tenant) },
