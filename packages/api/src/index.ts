@@ -107,6 +107,8 @@ export { readDraft, saveDraft } from "./services/pages/draft"
 export { resolveTheme, saveTheme } from "./services/pages/theme"
 
 export { listTemplates, templateQuery } from "./services/templates/library"
+export { restoreRevision } from "./services/publishing/restore"
+export type { RestoreInput, RestoreOutcome } from "./services/publishing/restore"
 export { publishPage } from "./services/publishing/publish"
 export type { PublishInput, PublishOutcome } from "./services/publishing/publish"
 export { validateForPublish } from "./services/publishing/validate"
