@@ -25,8 +25,15 @@ import { marketing } from "@checkout-studio/plugin-marketing/renderer"
  * them now would put them in the studio bundle before anything reads them.
  */
 
-/** This build's engine version. See the renderer app's registry for why. */
-const ENGINE_VERSION = "0.1.0"
+/**
+ * This build's engine version. See the renderer app's registry for why.
+ *
+ * Exported because a revision records which build drew it, so a revision
+ * that stops rendering can be told apart from one that was always wrong.
+ * The renderer engine is what draws a page, so its version is the one
+ * worth writing down.
+ */
+export const ENGINE_VERSION = "0.1.0"
 
 export const host = new PluginHost({
   versions: { engine: ENGINE_VERSION, schema: CURRENT_VERSION },
