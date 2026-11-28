@@ -109,6 +109,13 @@ export { resolveTheme, saveTheme } from "./services/pages/theme"
 export { listTemplates, templateQuery } from "./services/templates/library"
 export { publishPage } from "./services/publishing/publish"
 export type { PublishInput, PublishOutcome } from "./services/publishing/publish"
+export {
+  issuePreview,
+  listPreviews,
+  redeemPreview,
+  revokePreview,
+} from "./services/publishing/preview"
+export type { IssueInput, IssuedPreview, PreviewIssue } from "./services/publishing/preview"
 export { snapshotPage } from "./services/publishing/snapshot"
 export type { SnapshotInput, SnapshotOutcome } from "./services/publishing/snapshot"
 export { rollbackPage } from "./services/publishing/rollback"

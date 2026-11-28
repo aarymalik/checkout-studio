@@ -28,6 +28,9 @@ export type { NewTemplate, StoredTemplate, TemplateQuery } from "./repositories/
 export { symbolRepository } from "./repositories/symbol"
 export type { NewSymbol, StoredSymbol } from "./repositories/symbol"
 
+export { previewRepository } from "./repositories/preview"
+export type { StoredPreviewToken } from "./repositories/preview"
+
 export { embedOriginRepository } from "./repositories/embed"
 export type { OriginAdded, StoredEmbedOrigin } from "./repositories/embed"
 
