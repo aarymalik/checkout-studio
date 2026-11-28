@@ -161,7 +161,7 @@ describe("a link that does not work", () => {
 
     if (!issued.ok) return
 
-    expect(await revokePreview(tenant, issued.preview.id)).toBe(true)
+    expect(await revokePreview(tenant, issued.preview.id)).toEqual({ ok: true, changed: true })
     expect(await redeemPreview(issued.preview.token)).toBeNull()
   })
 
@@ -215,8 +215,13 @@ describe("managing links", () => {
 
     if (!issued.ok) return
 
-    expect(await revokePreview(tenant, issued.preview.id)).toBe(true)
-    expect(await revokePreview(tenant, issued.preview.id)).toBe(false)
+    /*
+     * Revoking one that is already revoked is success with nothing
+     * changed, the same shape unpublishing uses: the caller asked for
+     * that link not to work, and it does not.
+     */
+    expect(await revokePreview(tenant, issued.preview.id)).toEqual({ ok: true, changed: true })
+    expect(await revokePreview(tenant, issued.preview.id)).toEqual({ ok: true, changed: false })
   })
 
   it("refuses to issue for a page somebody else owns", async () => {
@@ -272,7 +277,12 @@ describe("managing links", () => {
 
     if (!theirs.ok) return
 
-    expect(await revokePreview(tenant, theirs.preview.id)).toBe(false)
+    // Not-found rather than unchanged: somebody else's link is not a
+    // link this caller has in any state.
+    expect(await revokePreview(tenant, theirs.preview.id)).toEqual({
+      ok: false,
+      reason: "not-found",
+    })
     // Still works, which is the part that matters.
     expect(await redeemPreview(theirs.preview.token)).toBe(theirPage.id)
   })

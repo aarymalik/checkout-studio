@@ -116,7 +116,12 @@ export {
   redeemPreview,
   revokePreview,
 } from "./services/publishing/preview"
-export type { IssueInput, IssuedPreview, PreviewIssue } from "./services/publishing/preview"
+export type {
+  IssueInput,
+  IssuedPreview,
+  PreviewIssue,
+  PreviewRevocation,
+} from "./services/publishing/preview"
 export { snapshotPage } from "./services/publishing/snapshot"
 export type { SnapshotInput, SnapshotOutcome } from "./services/publishing/snapshot"
 export { rollbackPage } from "./services/publishing/rollback"

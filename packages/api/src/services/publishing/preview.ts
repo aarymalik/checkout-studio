@@ -105,7 +105,28 @@ export async function listPreviews(
   return previewRepository.list(tenant, pageId)
 }
 
-/** Stops one. False when there was no live link by that id to stop. */
-export async function revokePreview(tenant: TenantContext, id: string): Promise<boolean> {
-  return previewRepository.revoke(tenant, id)
+export type PreviewRevocation =
+  /** `changed` is false when it was already revoked, which is not a failure. */
+  | { ok: true; changed: boolean }
+  /** No link by that id, or not this caller's. */
+  | { ok: false; reason: "not-found" }
+
+/**
+ * Stops a link that is already out in the world.
+ *
+ * Revoking one that is already revoked answers success with nothing
+ * changed, the same shape `unpublishPage` uses and for the same reason:
+ * the caller asked for that link not to work, and it does not. A panel
+ * showing a list somebody has had open for a minute would otherwise
+ * report a failure for getting what it wanted.
+ *
+ * A link that does not exist is still not-found, which costs one extra
+ * read and is worth it — those are different things to tell somebody.
+ */
+export async function revokePreview(tenant: TenantContext, id: string): Promise<PreviewRevocation> {
+  if (await previewRepository.revoke(tenant, id)) return { ok: true, changed: true }
+
+  return (await previewRepository.exists(tenant, id))
+    ? { ok: true, changed: false }
+    : { ok: false, reason: "not-found" }
 }

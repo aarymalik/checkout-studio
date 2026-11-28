@@ -82,6 +82,16 @@ export const previewRepository = {
     return count === 1
   },
 
+  /** Whether this caller has a link by that id at all, revoked or not. */
+  async exists(tenant: TenantContext, id: string): Promise<boolean> {
+    return (
+      (await prisma.previewToken.findFirst({
+        where: { id, ...ownedBy(tenant) },
+        select: { id: true },
+      })) !== null
+    )
+  },
+
   /**
    * The draft a redeemed link shows, by the page it named.
    *
