@@ -205,6 +205,7 @@ model Page {
   submissions       Submission[]
   checkoutSessions  CheckoutSession[]
   embedOrigins      EmbedOrigin[]
+  previewTokens     PreviewToken[]
 
   /// Slugs are unique among *live* pages, which Prisma cannot declare: the
   /// partial unique index lives in the 20261002180000_live_slug_uniqueness
@@ -405,6 +406,36 @@ model Domain {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+}
+
+/// A link that shows a page's draft to somebody who cannot sign in.
+///
+/// A row rather than a signed blob, because docs/api-spec.md has a revoke
+/// endpoint: a link that is out in the world has to be stoppable before it
+/// expires, and nothing stateless can be.
+///
+/// The URL carries a secret and this holds its hash, exactly as `Session`
+/// does and for the same reason — a leaked table yields no working link.
+/// Tampering with a token therefore finds no row at all, which is the same
+/// answer as a token that never existed.
+model PreviewToken {
+  id     String @id @default(cuid())
+  pageId String
+
+  /// The secret in the URL, hashed. Never the secret itself.
+  tokenHash String @unique
+
+  expiresAt DateTime
+  /// Null while the link still works.
+  revokedAt DateTime?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, revokedAt])
+  @@index([expiresAt])
 }
 
 /// What may frame one embedded checkout, per RFC 0002.
