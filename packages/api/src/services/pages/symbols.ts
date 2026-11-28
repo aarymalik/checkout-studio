@@ -42,6 +42,32 @@ import type { CheckoutSchema, Fragment } from "@checkout-studio/schema"
  */
 export type SymbolSnapshot = Record<string, Fragment & { name: string }>
 
+/**
+ * The same snapshot, for a path with no account behind it.
+ *
+ * A preview link is redeemed by somebody who cannot sign in, and the page
+ * they are looking at places the symbols it places. The token was the
+ * authorisation; the project scoping is what keeps it from reaching
+ * anybody else's work.
+ */
+export async function projectSymbols(
+  projectId: string,
+  document: CheckoutSchema,
+): Promise<SymbolSnapshot> {
+  const wanted = symbolReferences(document)
+  const snapshot: SymbolSnapshot = {}
+
+  for (const symbol of await symbolRepository.findForProject(projectId, wanted)) {
+    snapshot[symbol.id] = {
+      name: symbol.name,
+      rootId: symbol.rootNodeId,
+      nodes: symbol.nodes as Fragment["nodes"],
+    }
+  }
+
+  return snapshot
+}
+
 export async function snapshotSymbols(
   tenant: TenantContext,
   document: CheckoutSchema,

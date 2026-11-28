@@ -83,6 +83,27 @@ export const previewRepository = {
   },
 
   /**
+   * The draft a redeemed link shows, by the page it named.
+   *
+   * Unauthenticated, like `redeem` above and for the same reason: the
+   * token was the authorisation, and there is no account on this path to
+   * check anything against. Separate from `redeem` so that the thing
+   * which decides whether a link works stays a question about the link,
+   * and reading a page stays a question about a page.
+   *
+   * Null for a page that went away between the two, which is a tab left
+   * open while somebody deleted it.
+   */
+  async draftFor(
+    pageId: string,
+  ): Promise<{ title: string; projectId: string; draftSchema: unknown } | null> {
+    return prisma.page.findFirst({
+      where: { id: pageId, deletedAt: null, project: { deletedAt: null } },
+      select: { title: true, projectId: true, draftSchema: true },
+    })
+  },
+
+  /**
    * The page a secret opens, or null.
    *
    * Unauthenticated: whoever holds the link is who this is for. Null covers

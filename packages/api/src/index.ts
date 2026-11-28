@@ -104,6 +104,7 @@ export type { DuplicateOutcome, PageSummary, SlugOutcome } from "./services/page
 
 export { readDraft, saveDraft } from "./services/pages/draft"
 
+export { projectSymbols } from "./services/pages/symbols"
 export { resolveTheme, saveTheme } from "./services/pages/theme"
 
 export { listTemplates, templateQuery } from "./services/templates/library"
