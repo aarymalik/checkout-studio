@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
-import { Code2, Copy, FileText, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { Code2, Copy, FileText, History, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import {
   Alert,
   Button,
@@ -23,6 +23,7 @@ import { slugify } from "@checkout-studio/utils"
 import { post, send } from "@/lib/api-client"
 
 import { EmbedDialog } from "./embed/EmbedDialog"
+import { HistoryDialog } from "./history/HistoryDialog"
 
 /**
  * The Pages panel.
@@ -66,6 +67,7 @@ export function PagesPanel({
   const [editing, setEditing] = useState<PageSummary | null>(null)
   const [deleting, setDeleting] = useState<PageSummary | null>(null)
   const [embedding, setEmbedding] = useState<PageSummary | null>(null)
+  const [viewingHistory, setViewingHistory] = useState<PageSummary | null>(null)
 
   function refresh(): void {
     startTransition(() => {
@@ -171,6 +173,9 @@ export function PagesPanel({
                   >
                     Duplicate
                   </DropdownMenuItem>
+                  <DropdownMenuItem icon={<History />} onSelect={() => setViewingHistory(page)}>
+                    History
+                  </DropdownMenuItem>
                   <DropdownMenuItem icon={<Code2 />} onSelect={() => setEmbedding(page)}>
                     Embed
                   </DropdownMenuItem>
@@ -226,6 +231,21 @@ export function PagesPanel({
           })
         }}
       />
+
+      {viewingHistory !== null && (
+        <HistoryDialog
+          // Keyed by the page, so opening it for a second one builds a
+          // new dialog rather than showing the first page's history
+          // while the second page's is fetched.
+          key={viewingHistory.id}
+          pageId={viewingHistory.id}
+          pageTitle={viewingHistory.title}
+          open
+          onOpenChange={(next) => {
+            if (!next) setViewingHistory(null)
+          }}
+        />
+      )}
 
       {embedding !== null && (
         <EmbedDialog
