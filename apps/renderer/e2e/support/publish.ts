@@ -18,6 +18,8 @@ export const MOBILE_PADDING = 8
 
 export interface Published {
   userId: string
+  /** The project the page belongs to, for fixtures that need to own it. */
+  projectId: string
   hostname: string
   slug: string
   pageId: string
@@ -195,7 +197,7 @@ export async function publish(
     data: { publishedRevisionId: revision.id, currentRevisionId: revision.id },
   })
 
-  return { userId: user.id, hostname, slug, pageId: page.id, asset }
+  return { userId: user.id, projectId: project.id, hostname, slug, pageId: page.id, asset }
 }
 
 /** Leaves the database as it was found. */

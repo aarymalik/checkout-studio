@@ -1,12 +1,13 @@
 import "server-only"
 
-import { assetResolver } from "@checkout-studio/api"
-import { assetRepository, publishedRepository } from "@checkout-studio/database"
+import { assetResolver, projectSymbols, redeemPreview, resolveTheme } from "@checkout-studio/api"
+import { assetRepository, previewRepository, publishedRepository } from "@checkout-studio/database"
 import type { PublishedPage } from "@checkout-studio/database"
 import { logger } from "@checkout-studio/observability"
 import {
   assetReferences,
   checkoutTheme,
+  parseDocument,
   defaultTheme,
   readSymbolSnapshot,
 } from "@checkout-studio/schema"
@@ -190,5 +191,81 @@ async function resolve(published: PublishedPage | null): Promise<ResolvedPage | 
     ...fallback,
     degraded: true,
     resolveAsset: await resolverFor(previous, fallback.document),
+  }
+}
+
+/**
+ * The draft a preview link shows, or null.
+ *
+ * Not a revision, which is what makes this a different walk rather than a
+ * parameter on the one above. A draft has no snapshot of anything: its
+ * theme is the project's as it stands this second and its symbols are the
+ * project's current definitions, which is the point — somebody sharing a
+ * preview is sharing what they are working on, including the colour they
+ * changed a minute ago.
+ *
+ * That is also why a preview is never cached. A published page is
+ * immutable at a revision; this is whatever the draft is now.
+ *
+ * Null covers a link that does not work and a page that went away
+ * underneath one, because the answer to somebody holding a dead link is
+ * the same in both.
+ */
+export async function resolvePreview(token: string): Promise<ResolvedPage | null> {
+  const pageId = await redeemPreview(token)
+
+  if (pageId === null) return null
+
+  const page = await previewRepository.draftFor(pageId)
+
+  if (page === null) return null
+
+  const parsed = parseDocument(page.draftSchema)
+
+  if (!parsed.ok) {
+    logger.warn("renderer.preview.unreadable", { pageId, problems: parsed.errors.length })
+
+    return null
+  }
+
+  /*
+   * Resolved live rather than read from a snapshot, for the reason above:
+   * a preview is the work in progress, theme and symbols included.
+   */
+  const [theme, symbols] = await Promise.all([
+    resolveTheme(page.projectId, parsed.document.theme),
+    projectSymbols(page.projectId, parsed.document),
+  ])
+
+  /*
+   * A map, which is what `prepare` takes. The snapshot a revision carries
+   * is read into one by `readSymbolSnapshot`; this one is built from live
+   * rows, so the conversion happens here instead.
+   */
+  const prepared = prepare(parsed.document, {
+    registry,
+    theme,
+    symbols: new Map(Object.entries(symbols)),
+  })
+
+  if (!prepared.ok) {
+    logger.warn("renderer.preview.unpreparable", { pageId, code: prepared.code })
+
+    return null
+  }
+
+  const assets = await assetRepository.findForProject(
+    page.projectId,
+    assetReferences(prepared.document),
+  )
+
+  return {
+    document: prepared.document,
+    theme,
+    title: page.title,
+    /* A draft is not a revision and has no id; the page's stands in for logs. */
+    revisionId: pageId,
+    degraded: false,
+    resolveAsset: assetResolver(assets, getEnv().ASSET_BASE_URL),
   }
 }

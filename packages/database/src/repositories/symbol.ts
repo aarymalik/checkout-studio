@@ -79,6 +79,27 @@ export const symbolRepository = {
     })
   },
 
+  /**
+   * The symbols a project holds, by id, with no tenant.
+   *
+   * For rendering paths that have no account behind them — a preview link
+   * redeemed by somebody who cannot sign in, where the token was the
+   * authorisation. Scoped to one project, exactly as
+   * `assetRepository.findForProject` is and for the same reason: a page
+   * must not be able to draw another merchant's work.
+   */
+  async findForProject(projectId: string, ids: Iterable<string>): Promise<readonly StoredSymbol[]> {
+    const wanted = [...new Set(ids)]
+
+    // No query for a page that places none, which is most pages.
+    if (wanted.length === 0) return []
+
+    return prisma.symbol.findMany({
+      where: { projectId, id: { in: wanted } },
+      select: COLUMNS,
+    })
+  },
+
   async findById(tenant: TenantContext, id: string): Promise<StoredSymbol | null> {
     return prisma.symbol.findFirst({ where: { id, ...ownedBy(tenant) }, select: COLUMNS })
   },
