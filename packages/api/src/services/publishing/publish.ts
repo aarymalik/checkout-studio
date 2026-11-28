@@ -2,11 +2,8 @@ import "server-only"
 
 import { revisionRepository, type TenantContext } from "@checkout-studio/database"
 import type { DocumentValidatorRegistration, ValidationIssue } from "@checkout-studio/plugin-sdk"
-import { CURRENT_VERSION, canonicalText, serialize } from "@checkout-studio/schema"
-import { contentHash } from "@checkout-studio/utils"
 
-import { resolveTheme } from "../pages/theme"
-import { snapshotSymbols } from "../pages/symbols"
+import { revisionContent } from "./content"
 import { validateForPublish } from "./validate"
 
 /**
@@ -15,16 +12,9 @@ import { validateForPublish } from "./validate"
  * docs/phases.md Phase 16: validate, snapshot the theme, create an
  * immutable revision, point the page at it.
  *
- * ## A revision is a snapshot, not a reference
- *
- * The theme and the symbols are resolved now and stored in the row. A
- * revision that referred to them would change when somebody edited a
- * colour, which would mean a published checkout changing without anybody
- * publishing — and the thing a merchant is promised when they press this is
- * that what they saw is what a customer gets, until they say otherwise.
- *
- * That is also what makes rollback mean something later: an older revision
- * is the page as it was, not the page as it was with today's theme.
+ * What a revision holds, and why it is a snapshot rather than a reference,
+ * is `content.ts` — shared with named snapshots so the two cannot disagree
+ * about whether a version is the same version.
  *
  * ## Publishing the same thing twice writes one revision
  *
@@ -33,11 +23,9 @@ import { validateForPublish } from "./validate"
  * their history that differs from the one above it in nothing but its
  * timestamp, and make "roll back one" mean "roll back to the same page".
  *
- * Sameness is a hash over the canonical form of everything the revision
- * holds, taken before the row is written — it cannot be taken afterwards,
- * because the columns are `jsonb` and Postgres does not keep key order.
- * The ordering is the schema package's own, used for the theme and the
- * symbols as well, so there is one rule rather than two that can drift.
+ * Sameness is the hash `content.ts` takes, which is why it is taken there
+ * rather than here: a snapshot and a publish of the same draft have to
+ * agree about it.
  *
  * ## What goes wrong is answered, never thrown
  *
@@ -78,38 +66,7 @@ export async function publishPage(
 
   const document = checked.document
 
-  /*
-   * Resolved together and stored together. A theme read at one moment and
-   * symbols at another would be a revision of a page that never existed,
-   * which is a strange thing to be able to roll back to.
-   */
-  const [theme, symbols] = await Promise.all([
-    resolveTheme(document.projectId, document.theme),
-    snapshotSymbols(tenant, document),
-  ])
-
-  /*
-   * Everything the revision holds, in one canonical string. The renderer
-   * version is in it because a revision built by a different renderer may
-   * draw differently, which makes it a different thing to have published.
-   */
-  const hash = contentHash(
-    new TextEncoder().encode(
-      canonicalText({
-        /*
-         * The document through `serialize`, which is its own canonical
-         * form and does more than order keys. `canonicalText` orders the
-         * rest — it exists for values that are not documents, and the
-         * schema package keeps the two apart deliberately.
-         */
-        schema: serialize(document),
-        theme,
-        symbols,
-        schemaVersion: CURRENT_VERSION,
-        rendererVersion: input.rendererVersion,
-      }),
-    ),
-  )
+  const content = await revisionContent(tenant, document, input.rendererVersion)
 
   const live = await revisionRepository.published(tenant, input.pageId)
 
@@ -118,7 +75,7 @@ export async function publishPage(
    * the revision it is already serving rather than with a refusal: nothing
    * went wrong, and the merchant got what they asked for.
    */
-  if (live !== null && live.contentHash === hash) {
+  if (live !== null && live.contentHash === content.contentHash) {
     return {
       ok: true,
       revisionId: live.id,
@@ -131,23 +88,8 @@ export async function publishPage(
   const revision = await revisionRepository.publish(tenant, {
     pageId: input.pageId,
     kind: "publish",
-    /*
-     * Through `serialize`, which is the document's canonical form — the
-     * same bytes the export pipeline hashes. A revision written some other
-     * way would be a revision that cannot be compared with one that was.
-     */
-    schema: JSON.parse(serialize(document)) as object,
-    /*
-     * Through JSON rather than cast. A resolved theme has optional
-     * properties, and an absent one is `undefined` in TypeScript and not a
-     * thing JSON has — a cast would store the type's shape and leave the
-     * column holding whatever the driver made of it.
-     */
-    theme: JSON.parse(JSON.stringify(theme)) as object,
-    symbols: JSON.parse(JSON.stringify(symbols)) as object,
-    schemaVersion: CURRENT_VERSION,
+    ...content,
     rendererVersion: input.rendererVersion,
-    contentHash: hash,
     createdBy: tenant.userId,
   })
 
