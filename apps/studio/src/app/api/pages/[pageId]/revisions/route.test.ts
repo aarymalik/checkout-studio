@@ -12,7 +12,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
  * refusal lands on the thing it is about.
  */
 
-const { snapshotPage, list } = vi.hoisted(() => ({ snapshotPage: vi.fn(), list: vi.fn() }))
+const { snapshotPage, list, findById } = vi.hoisted(() => ({
+  snapshotPage: vi.fn(),
+  list: vi.fn(),
+  findById: vi.fn(),
+}))
 
 vi.mock("@checkout-studio/api", async (importOriginal) => {
   const actual = await importOriginal<typeof ApiModule>()
@@ -23,7 +27,11 @@ vi.mock("@checkout-studio/api", async (importOriginal) => {
 vi.mock("@checkout-studio/database", async (importOriginal) => {
   const actual = await importOriginal<typeof DatabaseModule>()
 
-  return { ...actual, revisionRepository: { ...actual.revisionRepository, list } }
+  return {
+    ...actual,
+    revisionRepository: { ...actual.revisionRepository, list },
+    pageRepository: { ...actual.pageRepository, findById },
+  }
 })
 
 vi.mock("@checkout-studio/cache", async (importOriginal) => {
@@ -55,6 +63,8 @@ beforeEach(() => {
   snapshotPage.mockReset()
   list.mockReset()
   list.mockResolvedValue([])
+  findById.mockReset()
+  findById.mockResolvedValue({ id: "pag_1", draftVersion: 4 })
 })
 
 describe("listing a page's history", () => {
@@ -64,10 +74,24 @@ describe("listing a page's history", () => {
     const response = await GET(new Request("http://localhost/api/pages/pag_1/revisions"), PARAMS)
 
     expect(response.status).toBe(200)
+    /*
+     * The draft version comes with it, because everything that acts on a
+     * revision has to say which draft it was holding — and asking the
+     * draft endpoint would transfer a whole document to learn a number.
+     */
     expect((await envelope(response)).data).toMatchObject({
       revisions: [{ id: "rev_1", number: 1 }],
+      draftVersion: 4,
     })
     expect(list).toHaveBeenCalledWith({ userId: "user_1" }, "pag_1")
+  })
+
+  it("is a 404 for a page this caller does not own", async () => {
+    findById.mockResolvedValue(null)
+
+    const response = await GET(new Request("http://localhost/api/pages/pag_1/revisions"), PARAMS)
+
+    expect(response.status).toBe(404)
   })
 })
 

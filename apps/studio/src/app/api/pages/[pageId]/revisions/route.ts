@@ -1,5 +1,5 @@
 import { authenticate, route, snapshotPage } from "@checkout-studio/api"
-import { revisionRepository } from "@checkout-studio/database"
+import { pageRepository, revisionRepository } from "@checkout-studio/database"
 import { Errors } from "@checkout-studio/utils"
 import { z } from "zod"
 
@@ -28,9 +28,32 @@ export const GET = route(
     authenticate,
     rateLimit: { scope: "pages.revisions.list", limit: 600, windowSeconds: 60 * 60 },
   },
-  async ({ params, userId }) => ({
-    revisions: await revisionRepository.list({ userId }, pageOf(params)),
-  }),
+  async ({ params, userId }) => {
+    const pageId = pageOf(params)
+    const [revisions, page] = await Promise.all([
+      revisionRepository.list({ userId }, pageId),
+      pageRepository.findById({ userId }, pageId),
+    ])
+
+    if (page === null) throw Errors.resource.notFound("Page")
+
+    /*
+     * The draft version comes with the history, because everything that
+     * acts on a revision has to say which draft it was holding. Asking
+     * the draft endpoint for it would transfer an entire document to
+     * learn one number.
+     */
+    return {
+      revisions,
+      draftVersion: page.draftVersion,
+      /*
+       * Which one the world is being served, so a history can say so
+       * rather than leaving somebody to work it out from the dates. Null
+       * for a page that is not published.
+       */
+      publishedRevisionId: page.publishedRevisionId,
+    }
+  },
 )
 
 export const POST = route(
